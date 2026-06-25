@@ -13,8 +13,11 @@ This prototype implements the first local Agent foundation loop without real inv
 | `agent_foundation/parsers.py` | Rule-based route, need, and feedback parsing |
 | `agent_foundation/mock_tools.py` | Mock recommendation, feedback, face, and try-on tools |
 | `agent_foundation/workflow.py` | End-to-end Agent workflow loop |
+| `agent_foundation/api.py` | FastAPI adapter for frontend/integration |
 | `scripts/run_demo.py` | Local demo runner |
+| `scripts/run_api.py` | Local API server runner |
 | `tests/test_agent_foundation.py` | Golden tests |
+| `tests/test_agent_api.py` | API smoke tests |
 
 ## Run Demo
 
@@ -33,6 +36,20 @@ python3 scripts/run_demo.py "我想要黑色外套，预算一万以内"
 ```bash
 python3 -m unittest discover -s tests -v
 ```
+
+## Run API
+
+```bash
+python3 scripts/run_api.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+See `AGENT_API.md` for endpoint examples.
 
 ## Current Demo Loop
 
@@ -53,10 +70,10 @@ start session
 ## Intentional Constraints
 
 - No ADK runtime dependency yet.
-- No Pydantic dependency yet.
 - No real inventory API.
 - No real image generation API.
 - No database migration.
+- API sessions are in memory only.
 
 The point of v0.1 is to stabilize the workflow shape and contract adapters before external services are ready.
 
