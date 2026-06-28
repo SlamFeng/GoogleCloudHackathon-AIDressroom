@@ -54,17 +54,28 @@ Tool 成功时返回 `body_profile` 与 `outfit_profile`，继续遵守：
 - `schemas/outfit-profile.schema.json`
 - `schemas/analysis-handoff.schema.json`
 
-当前 `mock` 模式使用确定性的 mock 分析，目的是先稳定页面、tool 参数和下游契约。替换点位于：
+当前 `mock` 模式使用确定性的 mock 分析，目的是先稳定页面、tool 参数和下游契约。
+
+`ai` 模式会在服务端调用 Gemini。启动前设置：
+
+```bash
+export GEMINI_API_KEY="你的 Google AI Studio API key"
+# 可选，默认 gemini-2.5-flash
+export GEMINI_MODEL="gemini-2.5-flash"
+```
+
+也可以使用 `GOOGLE_API_KEY` 作为 key 环境变量。Gemini 调用位于：
 
 ```text
 server/image-analysis-tool.ts
 ```
 
-`ai` 模式的入口已经预留，但真实多模态模型调用尚未接入；接入 Gemini 时应替换 `analyzeDressroomImage` 中的 AI 分支，并继续输出同一份正式 Schema：
+实现要点：
 
-```text
-server/image-analysis-tool.ts
-```
+- API key 只在服务端读取，不暴露到浏览器。
+- 图片从 tool 参数 `capture_data_url` 解析为 Gemini inline image data。
+- 使用项目现有 JSON Schema 生成 `responseJsonSchema`，要求 Gemini 返回结构化 JSON。
+- `session_id`、`analysis_id`、`analysis_mode`、`captured_at`、`source_capture_id` 由工具侧生成或覆盖，避免模型编造系统字段。
 
 ## MediaPipe 模型
 

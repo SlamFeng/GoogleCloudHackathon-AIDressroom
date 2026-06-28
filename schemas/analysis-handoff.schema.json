@@ -7,6 +7,7 @@
   "required": [
     "session_id",
     "analysis_id",
+    "analysis_mode",
     "status",
     "captured_at",
     "body_profile",
@@ -20,6 +21,9 @@
     "analysis_id": {
       "type": "string",
       "minLength": 1
+    },
+    "analysis_mode": {
+      "enum": ["mock", "ai"]
     },
     "status": {
       "const": "ready"

@@ -18,7 +18,7 @@ app.use(express.json({ limit: "12mb" }));
 app.get("/api/health", (_request, response) => {
   response.json({
     status: "ok",
-    analyzer: "mock",
+    analyzer: hasGeminiKey() ? "mock+gemini" : "mock",
     body_schema_version: "1.2",
     outfit_schema_version: "1.0"
   });
@@ -51,7 +51,10 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
   const result = await analyzeDressroomImage(parsedInput.data);
   if (!result.ok) {
     response.status(501).json({
-      error: "AI 分析接口已预留，但真实模型调用尚未接入。请先使用 Mock 分析，或接入 Gemini 后再启用 AI 模式。",
+      error:
+        result.error_code === "AI_ANALYZER_NOT_CONFIGURED"
+          ? "Gemini API key 未配置。请设置 GEMINI_API_KEY 或 GOOGLE_API_KEY，重启服务后再使用 AI 分析。"
+          : "Gemini AI 分析失败。请检查 key、模型权限、图片大小和结构化输出 schema。",
       details: result
     });
     return;
@@ -95,3 +98,7 @@ app.delete("/api/sessions/:sessionId", (request, response) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`AIDA capture API listening on http://localhost:${port}`);
 });
+
+function hasGeminiKey() {
+  return Boolean(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY);
+}
