@@ -1,5 +1,6 @@
 export type GenderPresentation = "female" | "male" | "neutral";
 export type AgeRange = "18-25" | "26-35" | "36-45" | "46+";
+export type AnalysisMode = "mock" | "ai";
 
 export interface ManualProfile {
   height_cm: number;
@@ -94,6 +95,7 @@ export interface OutfitProfile {
 export interface AnalysisHandoff {
   session_id: string;
   analysis_id: string;
+  analysis_mode: AnalysisMode;
   status: "ready";
   captured_at: string;
   body_profile: BodyProfile;

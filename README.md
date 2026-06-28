@@ -25,17 +25,46 @@ npm run dev
 
 ## 当前分析模式
 
-后端当前使用确定性的 mock 分析，目的是先稳定页面、HTTP 接口和下游契约。替换点位于：
+图片分析能力现在以 Google ADK `FunctionTool` 形式交付，HTTP API 只作为本地前端 demo 的兼容层。
 
-```text
-server/mock-analysis.ts
+ADK Agent 可直接引入：
+
+```ts
+import { analyzeFullBodyDressroomImageTool } from "./dist-server/image-analysis-tool.js";
+
+const tools = [analyzeFullBodyDressroomImageTool];
 ```
 
-接入 Gemini 时应继续输出同一份正式 Schema：
+Tool 名称：
+
+```text
+analyze_full_body_dressroom_image
+```
+
+输入参数：
+
+- `capture_data_url`: 正面全身照，格式为 `data:image/*;base64,...`
+- `manual_profile`: 用户手动提供的 `height_cm`、`weight_kg`、`gender_presentation`、`age_range`
+- `analysis_mode`: `mock` 或 `ai`
+- `session_id`: 可选；不传时 tool 会生成 `tool_ses_*`
+
+Tool 成功时返回 `body_profile` 与 `outfit_profile`，继续遵守：
 
 - `schemas/body-profile.schema.json`
 - `schemas/outfit-profile.schema.json`
 - `schemas/analysis-handoff.schema.json`
+
+当前 `mock` 模式使用确定性的 mock 分析，目的是先稳定页面、tool 参数和下游契约。替换点位于：
+
+```text
+server/image-analysis-tool.ts
+```
+
+`ai` 模式的入口已经预留，但真实多模态模型调用尚未接入；接入 Gemini 时应替换 `analyzeDressroomImage` 中的 AI 分支，并继续输出同一份正式 Schema：
+
+```text
+server/image-analysis-tool.ts
+```
 
 ## MediaPipe 模型
 

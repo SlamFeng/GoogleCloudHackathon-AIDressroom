@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { analyzeCapture, confirmAnalysis, createSession } from "./api";
 import type {
   AnalysisHandoff,
+  AnalysisMode,
   AppStep,
   BodyProfile,
   BodyShape,
@@ -89,12 +90,26 @@ const translations = {
       autoReady: "AUTO CAPTURE ON",
       manualReady: "MANUAL READY",
       autoNote: "Auto countdown starts after the pose is stable.",
-      manualCapture: "Manual capture"
+      manualCapture: "Manual capture",
+      uploadTitle: "Upload full-body photo",
+      uploadText: "Use an existing front-facing full-body image instead of the camera.",
+      uploadButton: "Choose photo",
+      uploadError: "Please upload an image file."
     },
     analyzing: {
       step: "ANALYZING",
       title: "Reading outfit signals from the image…",
       alt: "Captured photo waiting for analysis",
+      modeLabel: "Analysis mode",
+      modeOptions: {
+        mock: "Mock analysis",
+        ai: "AI analysis"
+      },
+      modeNotes: {
+        mock: "Fast deterministic demo output for UI and contract testing.",
+        ai: "Calls the configured multimodal AI analyzer when the backend key is available."
+      },
+      start: "Start analysis",
       steps: [
         "Full-body image quality check",
         "Body proportion and silhouette analysis",
@@ -240,12 +255,26 @@ const translations = {
       autoReady: "AUTO CAPTURE ON",
       manualReady: "MANUAL READY",
       autoNote: "符合条件并保持稳定后会自动倒计时。",
-      manualCapture: "手动拍摄"
+      manualCapture: "手动拍摄",
+      uploadTitle: "上传全身照",
+      uploadText: "也可以选择一张已有的正面全身照，不使用摄像头。",
+      uploadButton: "选择照片",
+      uploadError: "请上传图片文件。"
     },
     analyzing: {
       step: "ANALYZING",
       title: "正在读懂画面里的穿搭线索…",
       alt: "等待分析的拍摄照片",
+      modeLabel: "分析模式",
+      modeOptions: {
+        mock: "Mock 分析",
+        ai: "AI 分析"
+      },
+      modeNotes: {
+        mock: "使用稳定的演示数据，适合测试界面和数据契约。",
+        ai: "在后端配置多模态 AI key 后，会调用真实 AI 分析。"
+      },
+      start: "开始分析",
       steps: ["全身画面质量检查", "身体比例与轮廓分析", "当前服装类别与颜色识别", "整理为推荐 Agent 可用数据"],
       note: "围度只会在依据足够时给出近似值；不可靠的字段会保留为空。"
     },
@@ -384,12 +413,26 @@ const translations = {
       autoReady: "AUTO CAPTURE ON",
       manualReady: "MANUAL READY",
       autoNote: "条件が整い姿勢が安定すると自動でカウントダウンします。",
-      manualCapture: "手動で撮影"
+      manualCapture: "手動で撮影",
+      uploadTitle: "全身写真をアップロード",
+      uploadText: "カメラの代わりに、既存の正面全身写真を選択できます。",
+      uploadButton: "写真を選択",
+      uploadError: "画像ファイルをアップロードしてください。"
     },
     analyzing: {
       step: "ANALYZING",
       title: "画像内のコーディネート情報を読み取り中…",
       alt: "分析待ちの撮影写真",
+      modeLabel: "分析モード",
+      modeOptions: {
+        mock: "Mock 分析",
+        ai: "AI 分析"
+      },
+      modeNotes: {
+        mock: "UI とデータ契約の確認用に安定したデモ結果を返します。",
+        ai: "バックエンドにマルチモーダル AI key が設定されている場合に実分析します。"
+      },
+      start: "分析を開始",
       steps: ["全身画像の品質チェック", "身体比率とシルエット分析", "現在の服カテゴリと色の検出", "推薦 Agent 用データに整理"],
       note: "採寸値は根拠が十分な場合のみ概算し、不確かな項目は空欄にします。"
     },
@@ -488,6 +531,8 @@ function App() {
   const [manualProfile, setManualProfile] = useState<ManualProfile>(initialProfile);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [captureDataUrl, setCaptureDataUrl] = useState<string | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("mock");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisHandoff | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -508,17 +553,26 @@ function App() {
   }
 
   async function submitCapture(dataUrl: string) {
-    if (!sessionId) return;
     setCaptureDataUrl(dataUrl);
+    setAnalysis(null);
+    setIsAnalyzing(false);
     setStep("analyzing");
     setError(null);
+  }
+
+  async function runAnalysis() {
+    if (!sessionId || !captureDataUrl) return;
+    setIsAnalyzing(true);
+    setError(null);
     try {
-      const result = await analyzeCapture(sessionId, manualProfile, dataUrl);
+      const result = await analyzeCapture(sessionId, manualProfile, captureDataUrl, analysisMode);
       setAnalysis(result);
       setStep("review");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : copy.errors.analyze);
-      setStep("capture");
+      setStep("analyzing");
+    } finally {
+      setIsAnalyzing(false);
     }
   }
 
@@ -539,6 +593,8 @@ function App() {
     setManualProfile(initialProfile);
     setSessionId(null);
     setCaptureDataUrl(null);
+    setAnalysisMode("mock");
+    setIsAnalyzing(false);
     setAnalysis(null);
     setError(null);
   }
@@ -583,7 +639,17 @@ function App() {
           onCaptured={(dataUrl) => void submitCapture(dataUrl)}
         />
       )}
-      {step === "analyzing" && <Analyzing copy={copy} captureDataUrl={captureDataUrl} />}
+      {step === "analyzing" && (
+        <Analyzing
+          copy={copy}
+          captureDataUrl={captureDataUrl}
+          analysisMode={analysisMode}
+          isAnalyzing={isAnalyzing}
+          onModeChange={setAnalysisMode}
+          onBack={() => setStep("capture")}
+          onStart={() => void runAnalysis()}
+        />
+      )}
       {step === "review" && analysis && (
         <Review
           copy={copy}
@@ -888,8 +954,23 @@ function CameraStage({
   onBack: () => void;
   onCaptured: (dataUrl: string) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { videoRef, modelState, cameraError, assessment, progress, countdown, capture } =
     useCameraCapture({ messages: copy.pose, onCaptured });
+
+  function handleUpload(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      window.alert(copy.capture.uploadError);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") onCaptured(reader.result);
+    });
+    reader.readAsDataURL(file);
+  }
 
   return (
     <section className="capture-page">
@@ -947,13 +1028,48 @@ function CameraStage({
           <button className="secondary-button full-button" onClick={capture}>
             {copy.capture.manualCapture}
           </button>
+          <div className="upload-box">
+            <div>
+              <strong>{copy.capture.uploadTitle}</strong>
+              <p>{copy.capture.uploadText}</p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(event) => handleUpload(event.target.files?.[0])}
+            />
+            <button
+              className="secondary-button full-button"
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {copy.capture.uploadButton}
+            </button>
+          </div>
         </aside>
       </div>
     </section>
   );
 }
 
-function Analyzing({ copy, captureDataUrl }: { copy: Copy; captureDataUrl: string | null }) {
+function Analyzing({
+  copy,
+  captureDataUrl,
+  analysisMode,
+  isAnalyzing,
+  onModeChange,
+  onBack,
+  onStart
+}: {
+  copy: Copy;
+  captureDataUrl: string | null;
+  analysisMode: AnalysisMode;
+  isAnalyzing: boolean;
+  onModeChange: (mode: AnalysisMode) => void;
+  onBack: () => void;
+  onStart: () => void;
+}) {
   return (
     <section className="analyzing-page">
       <div className="scan-preview">
@@ -964,14 +1080,46 @@ function Analyzing({ copy, captureDataUrl }: { copy: Copy; captureDataUrl: strin
       <div className="analysis-copy">
         <p className="step-label">{copy.analyzing.step}</p>
         <h2>{copy.analyzing.title}</h2>
+        <fieldset className="mode-control">
+          <legend>{copy.analyzing.modeLabel}</legend>
+          <div className="mode-toggle">
+            {(["mock", "ai"] as const).map((mode) => (
+              <button
+                className={analysisMode === mode ? "active" : ""}
+                disabled={isAnalyzing}
+                key={mode}
+                type="button"
+                onClick={() => onModeChange(mode)}
+              >
+                {copy.analyzing.modeOptions[mode]}
+              </button>
+            ))}
+          </div>
+          <p>{copy.analyzing.modeNotes[analysisMode]}</p>
+        </fieldset>
         <div className="analysis-steps">
           {copy.analyzing.steps.map((step, index) => (
-            <span className={index === 0 ? "done" : index === 1 ? "active" : ""} key={step}>
+            <span
+              className={isAnalyzing ? (index === 0 ? "done" : index === 1 ? "active" : "") : ""}
+              key={step}
+            >
               {step}
             </span>
           ))}
         </div>
         <p>{copy.analyzing.note}</p>
+        <div className="analysis-actions">
+          <button className="text-button" disabled={isAnalyzing} onClick={onBack}>
+            {copy.common.back}
+          </button>
+          <button
+            className="primary-button"
+            disabled={!captureDataUrl || isAnalyzing}
+            onClick={onStart}
+          >
+            {isAnalyzing ? copy.analyzing.step : copy.analyzing.start} <span>→</span>
+          </button>
+        </div>
       </div>
     </section>
   );

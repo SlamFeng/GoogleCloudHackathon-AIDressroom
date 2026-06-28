@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
 import cors from "cors";
 import express from "express";
-import { buildMockAnalysis, type ManualProfile } from "./mock-analysis.js";
+import {
+  analyzeDressroomImage,
+  imageAnalysisInputSchema,
+  type ImageAnalysisToolResult
+} from "./image-analysis-tool.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
-const analyses = new Map<string, ReturnType<typeof buildMockAnalysis>>();
+type StoredAnalysis = Extract<ImageAnalysisToolResult, { ok: true }>["analysis"];
+const analyses = new Map<string, StoredAnalysis>();
 
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
@@ -27,23 +32,33 @@ app.post("/api/sessions", (_request, response) => {
 });
 
 app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
-  const profile = request.body?.manual_profile as ManualProfile | undefined;
-  const captureDataUrl = request.body?.capture_data_url as string | undefined;
+  const parsedInput = imageAnalysisInputSchema.safeParse({
+    session_id: request.params.sessionId,
+    manual_profile: request.body?.manual_profile,
+    capture_data_url: request.body?.capture_data_url,
+    analysis_mode: request.body?.analysis_mode ?? "mock"
+  });
 
-  if (!isValidProfile(profile)) {
-    response.status(400).json({ error: "manual_profile 不完整或超出允许范围。" });
+  if (!parsedInput.success) {
+    response.status(400).json({
+      error: parsedInput.error.issues[0]?.message ?? "分析参数不完整或超出允许范围。"
+    });
     return;
   }
-  if (!captureDataUrl?.startsWith("data:image/")) {
-    response.status(400).json({ error: "capture_data_url 必须是一张图片。" });
-    return;
-  }
 
-  // Simulate an external multimodal model call while preserving the HTTP boundary.
+  // Keep the demo delay while the HTTP route acts as a thin compatibility layer over the ADK tool.
   await new Promise((resolve) => setTimeout(resolve, 1450));
-  const analysis = buildMockAnalysis(request.params.sessionId, profile);
-  analyses.set(analysis.analysis_id, analysis);
-  response.status(201).json(analysis);
+  const result = await analyzeDressroomImage(parsedInput.data);
+  if (!result.ok) {
+    response.status(501).json({
+      error: "AI 分析接口已预留，但真实模型调用尚未接入。请先使用 Mock 分析，或接入 Gemini 后再启用 AI 模式。",
+      details: result
+    });
+    return;
+  }
+
+  analyses.set(result.analysis.analysis_id, result.analysis);
+  response.status(201).json(result.analysis);
 });
 
 app.post("/api/analyses/:analysisId/confirm", (request, response) => {
@@ -80,17 +95,3 @@ app.delete("/api/sessions/:sessionId", (request, response) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`AIDA capture API listening on http://localhost:${port}`);
 });
-
-function isValidProfile(value: ManualProfile | undefined): value is ManualProfile {
-  if (!value) return false;
-  return (
-    Number.isFinite(value.height_cm) &&
-    value.height_cm >= 100 &&
-    value.height_cm <= 230 &&
-    Number.isFinite(value.weight_kg) &&
-    value.weight_kg >= 25 &&
-    value.weight_kg <= 250 &&
-    ["female", "male", "neutral"].includes(value.gender_presentation) &&
-    ["18-25", "26-35", "36-45", "46+"].includes(value.age_range)
-  );
-}

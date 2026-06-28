@@ -1,4 +1,4 @@
-import type { AnalysisHandoff, BodyProfile, ManualProfile } from "./types";
+import type { AnalysisHandoff, AnalysisMode, BodyProfile, ManualProfile } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -26,13 +26,15 @@ export async function createSession(): Promise<{ session_id: string }> {
 export async function analyzeCapture(
   sessionId: string,
   manualProfile: ManualProfile,
-  captureDataUrl: string
+  captureDataUrl: string,
+  analysisMode: AnalysisMode
 ): Promise<AnalysisHandoff> {
   return request(`/api/sessions/${sessionId}/analyses`, {
     method: "POST",
     body: JSON.stringify({
       manual_profile: manualProfile,
-      capture_data_url: captureDataUrl
+      capture_data_url: captureDataUrl,
+      analysis_mode: analysisMode
     })
   });
 }

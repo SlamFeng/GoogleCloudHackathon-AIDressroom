@@ -7,7 +7,13 @@ export interface ManualProfile {
   age_range: "18-25" | "26-35" | "36-45" | "46+";
 }
 
-export function buildMockAnalysis(sessionId: string, profile: ManualProfile) {
+export type AnalysisMode = "mock" | "ai";
+
+export function buildMockAnalysis(
+  sessionId: string,
+  profile: ManualProfile,
+  analysisMode: AnalysisMode = "mock"
+) {
   const analysisId = `ana_${randomUUID().slice(0, 12)}`;
   const captureId = `cap_${randomUUID().slice(0, 12)}`;
   const bmi = profile.weight_kg / Math.pow(profile.height_cm / 100, 2);
@@ -16,6 +22,7 @@ export function buildMockAnalysis(sessionId: string, profile: ManualProfile) {
   return {
     session_id: sessionId,
     analysis_id: analysisId,
+    analysis_mode: analysisMode,
     status: "ready" as const,
     captured_at: new Date().toISOString(),
     body_profile: {
