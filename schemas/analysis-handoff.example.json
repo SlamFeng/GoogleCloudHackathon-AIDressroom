@@ -1,0 +1,143 @@
+{
+  "session_id": "ses_demo_001",
+  "analysis_id": "ana_demo_001",
+  "status": "ready",
+  "captured_at": "2026-06-26T10:30:00+09:00",
+  "body_profile": {
+    "schema_version": "1.2",
+    "height_cm": 168,
+    "weight_kg": 58,
+    "gender_presentation": "female",
+    "age_range": "26-35",
+    "body_shape": "hourglass",
+    "body_size": "average",
+    "proportions": {
+      "shoulder_width": "average",
+      "waist_definition": "defined",
+      "hip_width": "average",
+      "leg_to_torso": "balanced"
+    },
+    "measurements": {
+      "bust_cm": null,
+      "waist_cm": null,
+      "hip_cm": null,
+      "shoulder_cm": 39,
+      "inseam_cm": 76,
+      "foot_length_cm": null
+    },
+    "skin_tone": "light",
+    "extraction": {
+      "source_capture_id": "cap_demo_001",
+      "captured_views": ["front"],
+      "overall_confidence": 0.76,
+      "field_confidence": {
+        "body_shape": 0.82,
+        "body_size": 0.9,
+        "proportions": {
+          "shoulder_width": 0.83,
+          "waist_definition": 0.58,
+          "hip_width": 0.74,
+          "leg_to_torso": 0.88
+        },
+        "measurements": {
+          "bust_cm": 0,
+          "waist_cm": 0,
+          "hip_cm": 0,
+          "shoulder_cm": 0.69,
+          "inseam_cm": 0.73,
+          "foot_length_cm": 0
+        },
+        "skin_tone": 0.61
+      },
+      "analysis_warnings": [
+        {
+          "code": "SINGLE_VIEW_LIMITATION",
+          "affected_fields": [
+            "measurements.bust_cm",
+            "measurements.waist_cm",
+            "measurements.hip_cm"
+          ],
+          "message": "Circumference estimates were omitted because only a front view was captured."
+        }
+      ]
+    },
+    "notes": ""
+  },
+  "outfit_profile": {
+    "schema_version": "1.0",
+    "overall_style": ["smart_casual", "minimal"],
+    "dominant_colors": [
+      {
+        "name": "navy",
+        "hex": "#24324A",
+        "coverage": 0.42
+      },
+      {
+        "name": "white",
+        "hex": "#F4F2EC",
+        "coverage": 0.25
+      }
+    ],
+    "items": [
+      {
+        "item_id": "detected_top_1",
+        "category": "top",
+        "subcategory": "shirt",
+        "layer": "inner",
+        "colors": [
+          {
+            "name": "white",
+            "hex": "#F4F2EC"
+          }
+        ],
+        "pattern": "solid",
+        "fit": "regular",
+        "sleeve_length": "long",
+        "length": null,
+        "material_appearance": ["woven"],
+        "style_tags": ["minimal", "smart_casual"],
+        "visible": true,
+        "confidence": 0.91
+      },
+      {
+        "item_id": "detected_bottom_1",
+        "category": "bottom",
+        "subcategory": "trousers",
+        "layer": "base",
+        "colors": [
+          {
+            "name": "navy",
+            "hex": "#24324A"
+          }
+        ],
+        "pattern": "solid",
+        "fit": "straight",
+        "sleeve_length": null,
+        "length": "full",
+        "material_appearance": ["woven"],
+        "style_tags": ["minimal"],
+        "visible": true,
+        "confidence": 0.88
+      }
+    ],
+    "styling_observations": {
+      "color_palette": "neutral",
+      "formality": "smart_casual",
+      "silhouette": "balanced",
+      "layering": "light"
+    },
+    "extraction": {
+      "source_capture_id": "cap_demo_001",
+      "captured_views": ["front"],
+      "overall_confidence": 0.86,
+      "analysis_warnings": [
+        {
+          "code": "BODY_PART_CROPPED",
+          "affected_items": [],
+          "message": "Feet are partially outside the captured frame."
+        }
+      ]
+    },
+    "notes": ""
+  }
+}

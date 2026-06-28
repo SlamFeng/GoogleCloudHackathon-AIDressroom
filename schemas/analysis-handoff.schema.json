@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aidressroom.example/schemas/analysis-handoff.schema.json",
+  "title": "Image Analysis Handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_id",
+    "analysis_id",
+    "status",
+    "captured_at",
+    "body_profile",
+    "outfit_profile"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "analysis_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "const": "ready"
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "body_profile": {
+      "$ref": "body-profile.schema.json#/properties/body_profile"
+    },
+    "outfit_profile": {
+      "$ref": "outfit-profile.schema.json#/properties/outfit_profile"
+    }
+  }
+}

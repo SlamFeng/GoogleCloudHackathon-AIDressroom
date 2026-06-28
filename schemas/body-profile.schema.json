@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aidressroom.example/schemas/body-profile.schema.json",
+  "title": "Body Profile v1.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["body_profile"],
+  "properties": {
+    "body_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "height_cm",
+        "weight_kg",
+        "gender_presentation",
+        "age_range",
+        "body_shape",
+        "body_size",
+        "proportions",
+        "measurements",
+        "skin_tone",
+        "extraction",
+        "notes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.2"
+        },
+        "height_cm": {
+          "type": "number",
+          "minimum": 80,
+          "maximum": 250
+        },
+        "weight_kg": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 350
+        },
+        "gender_presentation": {
+          "enum": ["female", "male", "neutral"]
+        },
+        "age_range": {
+          "enum": ["18-25", "26-35", "36-45", "46+"]
+        },
+        "body_shape": {
+          "type": ["string", "null"],
+          "enum": [
+            "hourglass",
+            "pear",
+            "apple",
+            "rectangle",
+            "inverted_triangle",
+            "trapezoid",
+            "triangle",
+            "oval",
+            "unknown",
+            null
+          ]
+        },
+        "body_size": {
+          "type": ["string", "null"],
+          "enum": ["slim", "average", "curvy", "plus", "unknown", null]
+        },
+        "proportions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "shoulder_width",
+            "waist_definition",
+            "hip_width",
+            "leg_to_torso"
+          ],
+          "properties": {
+            "shoulder_width": {
+              "type": ["string", "null"],
+              "enum": ["narrow", "average", "broad", "unknown", null]
+            },
+            "waist_definition": {
+              "type": ["string", "null"],
+              "enum": ["defined", "moderate", "straight", "unknown", null]
+            },
+            "hip_width": {
+              "type": ["string", "null"],
+              "enum": ["narrow", "average", "wide", "unknown", null]
+            },
+            "leg_to_torso": {
+              "type": ["string", "null"],
+              "enum": ["short", "balanced", "long", "unknown", null]
+            }
+          }
+        },
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bust_cm",
+            "waist_cm",
+            "hip_cm",
+            "shoulder_cm",
+            "inseam_cm",
+            "foot_length_cm"
+          ],
+          "properties": {
+            "bust_cm": {"$ref": "#/$defs/nullableMeasurement"},
+            "waist_cm": {"$ref": "#/$defs/nullableMeasurement"},
+            "hip_cm": {"$ref": "#/$defs/nullableMeasurement"},
+            "shoulder_cm": {"$ref": "#/$defs/nullableMeasurement"},
+            "inseam_cm": {"$ref": "#/$defs/nullableMeasurement"},
+            "foot_length_cm": {"$ref": "#/$defs/nullableMeasurement"}
+          }
+        },
+        "skin_tone": {
+          "type": ["string", "null"],
+          "enum": ["fair", "light", "medium", "tan", "deep", "unknown", null]
+        },
+        "extraction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_capture_id",
+            "captured_views",
+            "overall_confidence",
+            "field_confidence",
+            "analysis_warnings"
+          ],
+          "properties": {
+            "source_capture_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "captured_views": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "enum": ["front", "side"]
+              }
+            },
+            "overall_confidence": {"$ref": "#/$defs/confidence"},
+            "field_confidence": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "body_shape",
+                "body_size",
+                "proportions",
+                "measurements",
+                "skin_tone"
+              ],
+              "properties": {
+                "body_shape": {"$ref": "#/$defs/confidence"},
+                "body_size": {"$ref": "#/$defs/confidence"},
+                "proportions": {
+                  "$ref": "#/$defs/proportionConfidence"
+                },
+                "measurements": {
+                  "$ref": "#/$defs/measurementConfidence"
+                },
+                "skin_tone": {"$ref": "#/$defs/confidence"}
+              }
+            },
+            "analysis_warnings": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/warning"}
+            }
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "nullableMeasurement": {
+      "type": ["number", "null"],
+      "exclusiveMinimum": 0
+    },
+    "proportionConfidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shoulder_width",
+        "waist_definition",
+        "hip_width",
+        "leg_to_torso"
+      ],
+      "properties": {
+        "shoulder_width": {"$ref": "#/$defs/confidence"},
+        "waist_definition": {"$ref": "#/$defs/confidence"},
+        "hip_width": {"$ref": "#/$defs/confidence"},
+        "leg_to_torso": {"$ref": "#/$defs/confidence"}
+      }
+    },
+    "measurementConfidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bust_cm",
+        "waist_cm",
+        "hip_cm",
+        "shoulder_cm",
+        "inseam_cm",
+        "foot_length_cm"
+      ],
+      "properties": {
+        "bust_cm": {"$ref": "#/$defs/confidence"},
+        "waist_cm": {"$ref": "#/$defs/confidence"},
+        "hip_cm": {"$ref": "#/$defs/confidence"},
+        "shoulder_cm": {"$ref": "#/$defs/confidence"},
+        "inseam_cm": {"$ref": "#/$defs/confidence"},
+        "foot_length_cm": {"$ref": "#/$defs/confidence"}
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "affected_fields", "message"],
+      "properties": {
+        "code": {
+          "enum": [
+            "LOW_LIGHT",
+            "OVEREXPOSED",
+            "MOTION_BLUR",
+            "BODY_PART_CROPPED",
+            "POSE_NOT_FRONTAL",
+            "LOOSE_CLOTHING",
+            "HEAVY_OUTERWEAR",
+            "BODY_OCCLUDED",
+            "FEET_NOT_VISIBLE",
+            "MULTIPLE_PEOPLE",
+            "SINGLE_VIEW_LIMITATION",
+            "LOW_MODEL_CONFIDENCE"
+          ]
+        },
+        "affected_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

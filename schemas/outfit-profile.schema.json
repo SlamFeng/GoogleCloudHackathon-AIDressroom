@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aidressroom.example/schemas/outfit-profile.schema.json",
+  "title": "Outfit Profile v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["outfit_profile"],
+  "properties": {
+    "outfit_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "overall_style",
+        "dominant_colors",
+        "items",
+        "styling_observations",
+        "extraction",
+        "notes"
+      ],
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "overall_style": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/style"}
+        },
+        "dominant_colors": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/dominantColor"}
+        },
+        "items": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/item"}
+        },
+        "styling_observations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color_palette", "formality", "silhouette", "layering"],
+          "properties": {
+            "color_palette": {
+              "enum": [
+                "neutral",
+                "warm",
+                "cool",
+                "earthy",
+                "pastel",
+                "bright",
+                "dark",
+                "monochrome",
+                "mixed",
+                "unknown"
+              ]
+            },
+            "formality": {
+              "enum": ["casual", "smart_casual", "business", "formal", "unknown"]
+            },
+            "silhouette": {
+              "enum": [
+                "fitted",
+                "balanced",
+                "relaxed",
+                "oversized",
+                "top_heavy",
+                "bottom_heavy",
+                "unknown"
+              ]
+            },
+            "layering": {
+              "enum": ["none", "light", "moderate", "heavy", "unknown"]
+            }
+          }
+        },
+        "extraction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_capture_id",
+            "captured_views",
+            "overall_confidence",
+            "analysis_warnings"
+          ],
+          "properties": {
+            "source_capture_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "captured_views": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"enum": ["front", "side"]}
+            },
+            "overall_confidence": {"$ref": "#/$defs/confidence"},
+            "analysis_warnings": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/warning"}
+            }
+          }
+        },
+        "notes": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "style": {
+      "enum": [
+        "casual",
+        "smart_casual",
+        "formal",
+        "business",
+        "minimal",
+        "streetwear",
+        "sporty",
+        "athleisure",
+        "classic",
+        "preppy",
+        "romantic",
+        "bohemian",
+        "vintage",
+        "workwear",
+        "outdoor",
+        "avant_garde",
+        "other",
+        "unknown"
+      ]
+    },
+    "colorName": {
+      "enum": [
+        "black",
+        "white",
+        "gray",
+        "silver",
+        "brown",
+        "beige",
+        "cream",
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "olive",
+        "blue",
+        "navy",
+        "purple",
+        "pink",
+        "gold",
+        "multicolor",
+        "unknown"
+      ]
+    },
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "hex"],
+      "properties": {
+        "name": {"$ref": "#/$defs/colorName"},
+        "hex": {
+          "type": ["string", "null"],
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        }
+      }
+    },
+    "dominantColor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "hex", "coverage"],
+      "properties": {
+        "name": {"$ref": "#/$defs/colorName"},
+        "hex": {
+          "type": ["string", "null"],
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "coverage": {"$ref": "#/$defs/confidence"}
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "category",
+        "subcategory",
+        "layer",
+        "colors",
+        "pattern",
+        "fit",
+        "sleeve_length",
+        "length",
+        "material_appearance",
+        "style_tags",
+        "visible",
+        "confidence"
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "outerwear",
+            "top",
+            "bottom",
+            "dress",
+            "one_piece",
+            "shoes",
+            "headwear",
+            "bag",
+            "accessory",
+            "unknown"
+          ]
+        },
+        "subcategory": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "layer": {
+          "enum": ["base", "inner", "mid", "outer", "accessory", "unknown"]
+        },
+        "colors": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {"$ref": "#/$defs/color"}
+        },
+        "pattern": {
+          "enum": [
+            "solid",
+            "striped",
+            "checked",
+            "plaid",
+            "floral",
+            "polka_dot",
+            "graphic",
+            "animal",
+            "camouflage",
+            "abstract",
+            "color_block",
+            "other",
+            "unknown"
+          ]
+        },
+        "fit": {
+          "enum": [
+            "slim",
+            "regular",
+            "relaxed",
+            "oversized",
+            "straight",
+            "wide",
+            "unknown"
+          ]
+        },
+        "sleeve_length": {
+          "type": ["string", "null"],
+          "enum": [
+            "sleeveless",
+            "short",
+            "elbow",
+            "three_quarter",
+            "long",
+            "unknown",
+            null
+          ]
+        },
+        "length": {
+          "type": ["string", "null"],
+          "enum": [
+            "mini",
+            "above_knee",
+            "knee",
+            "midi",
+            "ankle",
+            "full",
+            "unknown",
+            null
+          ]
+        },
+        "material_appearance": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "denim",
+              "knit",
+              "woven",
+              "leather_like",
+              "suede_like",
+              "silk_like",
+              "linen_like",
+              "fleece",
+              "sheer",
+              "quilted",
+              "other",
+              "unknown"
+            ]
+          }
+        },
+        "style_tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/style"}
+        },
+        "visible": {"type": "boolean"},
+        "confidence": {"$ref": "#/$defs/confidence"}
+      }
+    },
+    "warning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "affected_items", "message"],
+      "properties": {
+        "code": {
+          "enum": [
+            "LOW_LIGHT",
+            "OVEREXPOSED",
+            "MOTION_BLUR",
+            "BODY_PART_CROPPED",
+            "MULTIPLE_PEOPLE",
+            "ITEM_OCCLUDED",
+            "COLOR_UNCERTAIN",
+            "CATEGORY_UNCERTAIN",
+            "MATERIAL_UNCERTAIN",
+            "LOW_MODEL_CONFIDENCE"
+          ]
+        },
+        "affected_items": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
