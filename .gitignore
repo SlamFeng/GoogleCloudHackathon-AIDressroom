@@ -6,3 +6,10 @@ dist-server/
 *.log
 .DS_Store
 coverage/
+
+# python
+__pycache__/
+*.py[cod]
+
+# image_tryon generation output
+image_tryon/_generated/
