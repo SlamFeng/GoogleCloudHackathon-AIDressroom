@@ -1,0 +1,231 @@
+{
+  "version": "1.0",
+  "source": "image_tryon/assets/base-models",
+  "count": 14,
+  "models": [
+    {
+      "base_id": "f_apple_average",
+      "gender_presentation": "female",
+      "body_shape": "apple",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_apple_average/f_apple_average_front.png",
+        "side": "image_tryon/assets/base-models/female/f_apple_average/f_apple_average_side.png",
+        "back": "image_tryon/assets/base-models/female/f_apple_average/f_apple_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "f_apple_plus",
+      "gender_presentation": "female",
+      "body_shape": "apple",
+      "body_size": "plus",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_apple_plus/f_apple_plus_front.png",
+        "side": "image_tryon/assets/base-models/female/f_apple_plus/f_apple_plus_side.png",
+        "back": "image_tryon/assets/base-models/female/f_apple_plus/f_apple_plus_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "f_hourglass_average",
+      "gender_presentation": "female",
+      "body_shape": "hourglass",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_hourglass_average/f_hourglass_average_front.png",
+        "side": "image_tryon/assets/base-models/female/f_hourglass_average/f_hourglass_average_side.png",
+        "back": "image_tryon/assets/base-models/female/f_hourglass_average/f_hourglass_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "f_inverted_triangle_average",
+      "gender_presentation": "female",
+      "body_shape": "inverted_triangle",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_inverted_triangle_average/f_inverted_triangle_average_front.png",
+        "side": "image_tryon/assets/base-models/female/f_inverted_triangle_average/f_inverted_triangle_average_side.png",
+        "back": "image_tryon/assets/base-models/female/f_inverted_triangle_average/f_inverted_triangle_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "f_pear_average",
+      "gender_presentation": "female",
+      "body_shape": "pear",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_pear_average/f_pear_average_front.png",
+        "side": "image_tryon/assets/base-models/female/f_pear_average/f_pear_average_side.png",
+        "back": "image_tryon/assets/base-models/female/f_pear_average/f_pear_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "f_pear_curvy",
+      "gender_presentation": "female",
+      "body_shape": "pear",
+      "body_size": "curvy",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_pear_curvy/f_pear_curvy_front.png",
+        "side": "image_tryon/assets/base-models/female/f_pear_curvy/f_pear_curvy_side.png",
+        "back": "image_tryon/assets/base-models/female/f_pear_curvy/f_pear_curvy_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "warn"
+    },
+    {
+      "base_id": "f_rectangle_average",
+      "gender_presentation": "female",
+      "body_shape": "rectangle",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_rectangle_average/f_rectangle_average_front.png",
+        "side": "image_tryon/assets/base-models/female/f_rectangle_average/f_rectangle_average_side.png",
+        "back": "image_tryon/assets/base-models/female/f_rectangle_average/f_rectangle_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "f_rectangle_slim",
+      "gender_presentation": "female",
+      "body_shape": "rectangle",
+      "body_size": "slim",
+      "views": {
+        "front": "image_tryon/assets/base-models/female/f_rectangle_slim/f_rectangle_slim_front.png",
+        "side": "image_tryon/assets/base-models/female/f_rectangle_slim/f_rectangle_slim_side.png",
+        "back": "image_tryon/assets/base-models/female/f_rectangle_slim/f_rectangle_slim_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "m_inverted_triangle_average",
+      "gender_presentation": "male",
+      "body_shape": "inverted_triangle",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/male/m_inverted_triangle_average/m_inverted_triangle_average_front.png",
+        "side": "image_tryon/assets/base-models/male/m_inverted_triangle_average/m_inverted_triangle_average_side.png",
+        "back": "image_tryon/assets/base-models/male/m_inverted_triangle_average/m_inverted_triangle_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "warn"
+    },
+    {
+      "base_id": "m_inverted_triangle_slim",
+      "gender_presentation": "male",
+      "body_shape": "inverted_triangle",
+      "body_size": "slim",
+      "views": {
+        "front": "image_tryon/assets/base-models/male/m_inverted_triangle_slim/m_inverted_triangle_slim_front.png",
+        "side": "image_tryon/assets/base-models/male/m_inverted_triangle_slim/m_inverted_triangle_slim_side.png",
+        "back": "image_tryon/assets/base-models/male/m_inverted_triangle_slim/m_inverted_triangle_slim_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "m_oval_plus",
+      "gender_presentation": "male",
+      "body_shape": "oval",
+      "body_size": "plus",
+      "views": {
+        "front": "image_tryon/assets/base-models/male/m_oval_plus/m_oval_plus_front.png",
+        "side": "image_tryon/assets/base-models/male/m_oval_plus/m_oval_plus_side.png",
+        "back": "image_tryon/assets/base-models/male/m_oval_plus/m_oval_plus_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "warn"
+    },
+    {
+      "base_id": "m_rectangle_average",
+      "gender_presentation": "male",
+      "body_shape": "rectangle",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/male/m_rectangle_average/m_rectangle_average_front.png",
+        "side": "image_tryon/assets/base-models/male/m_rectangle_average/m_rectangle_average_side.png",
+        "back": "image_tryon/assets/base-models/male/m_rectangle_average/m_rectangle_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "pass"
+    },
+    {
+      "base_id": "m_trapezoid_average",
+      "gender_presentation": "male",
+      "body_shape": "trapezoid",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/male/m_trapezoid_average/m_trapezoid_average_front.png",
+        "side": "image_tryon/assets/base-models/male/m_trapezoid_average/m_trapezoid_average_side.png",
+        "back": "image_tryon/assets/base-models/male/m_trapezoid_average/m_trapezoid_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "warn"
+    },
+    {
+      "base_id": "m_triangle_average",
+      "gender_presentation": "male",
+      "body_shape": "triangle",
+      "body_size": "average",
+      "views": {
+        "front": "image_tryon/assets/base-models/male/m_triangle_average/m_triangle_average_front.png",
+        "side": "image_tryon/assets/base-models/male/m_triangle_average/m_triangle_average_side.png",
+        "back": "image_tryon/assets/base-models/male/m_triangle_average/m_triangle_average_back.png"
+      },
+      "image_size": [
+        768,
+        1024
+      ],
+      "qa_status": "warn"
+    }
+  ]
+}
