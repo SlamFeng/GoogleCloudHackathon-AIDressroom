@@ -188,6 +188,7 @@
         "category",
         "subcategory",
         "layer",
+        "region",
         "colors",
         "pattern",
         "fit",
@@ -224,6 +225,7 @@
         "layer": {
           "enum": ["base", "inner", "mid", "outer", "accessory", "unknown"]
         },
+        "region": {"$ref": "#/$defs/itemRegion"},
         "colors": {
           "type": "array",
           "maxItems": 3,
@@ -307,9 +309,50 @@
           "uniqueItems": true,
           "items": {"$ref": "#/$defs/style"}
         },
+        "product_image_data_url": {
+          "type": ["string", "null"],
+          "pattern": "^data:image/[a-zA-Z0-9.+-]+;base64,"
+        },
         "visible": {"type": "boolean"},
         "confidence": {"$ref": "#/$defs/confidence"}
       }
+    },
+    "itemRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height", "anchor"],
+      "properties": {
+        "x": {"$ref": "#/$defs/normalizedCoordinate"},
+        "y": {"$ref": "#/$defs/normalizedCoordinate"},
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "anchor": {
+          "enum": [
+            "head",
+            "neck",
+            "upper_body",
+            "waist",
+            "lower_body",
+            "feet",
+            "left_side",
+            "right_side",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "normalizedCoordinate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
     },
     "warning": {
       "type": "object",

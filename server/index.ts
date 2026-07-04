@@ -3,6 +3,8 @@ import cors from "cors";
 import express from "express";
 import {
   analyzeDressroomImage,
+  getGeminiModel,
+  getGeminiImageModel,
   imageAnalysisInputSchema,
   type ImageAnalysisToolResult
 } from "./image-analysis-tool.js";
@@ -19,6 +21,8 @@ app.get("/api/health", (_request, response) => {
   response.json({
     status: "ok",
     analyzer: hasGeminiKey() ? "mock+gemini" : "mock",
+    gemini_model: getGeminiModel(),
+    gemini_image_model: getGeminiImageModel(),
     body_schema_version: "1.2",
     outfit_schema_version: "1.0"
   });
@@ -36,7 +40,7 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
     session_id: request.params.sessionId,
     manual_profile: request.body?.manual_profile,
     capture_data_url: request.body?.capture_data_url,
-    analysis_mode: request.body?.analysis_mode ?? "mock"
+    analysis_mode: request.body?.analysis_mode ?? "ai"
   });
 
   if (!parsedInput.success) {

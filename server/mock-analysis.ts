@@ -9,6 +9,8 @@ export interface ManualProfile {
 
 export type AnalysisMode = "mock" | "ai";
 
+const emptyProductImage: string | null = null;
+
 export function buildMockAnalysis(
   sessionId: string,
   profile: ManualProfile,
@@ -81,7 +83,7 @@ export function buildMockAnalysis(
           }
         ]
       },
-      notes: "Mock analysis result. Replace buildMockAnalysis with Gemini structured output."
+      notes: "Deterministic contract-test fallback. Customer OOTD analysis uses Gemini."
     },
     outfit_profile: {
       schema_version: "1.0" as const,
@@ -96,6 +98,7 @@ export function buildMockAnalysis(
           category: "top",
           subcategory: "shirt",
           layer: "inner",
+          region: { x: 0.28, y: 0.22, width: 0.44, height: 0.24, anchor: "upper_body" },
           colors: [{ name: "white", hex: "#F4F2EC" }],
           pattern: "solid",
           fit: "regular",
@@ -103,6 +106,7 @@ export function buildMockAnalysis(
           length: null,
           material_appearance: ["woven"],
           style_tags: ["minimal", "smart_casual"],
+          product_image_data_url: emptyProductImage,
           visible: true,
           confidence: 0.91
         },
@@ -111,6 +115,7 @@ export function buildMockAnalysis(
           category: "bottom",
           subcategory: "trousers",
           layer: "base",
+          region: { x: 0.27, y: 0.45, width: 0.46, height: 0.34, anchor: "lower_body" },
           colors: [{ name: "navy", hex: "#24324A" }],
           pattern: "solid",
           fit: "straight",
@@ -118,6 +123,7 @@ export function buildMockAnalysis(
           length: "full",
           material_appearance: ["woven"],
           style_tags: ["minimal"],
+          product_image_data_url: emptyProductImage,
           visible: true,
           confidence: 0.88
         },
@@ -126,6 +132,7 @@ export function buildMockAnalysis(
           category: "shoes",
           subcategory: "sneakers",
           layer: "base",
+          region: { x: 0.31, y: 0.79, width: 0.38, height: 0.14, anchor: "feet" },
           colors: [{ name: "white", hex: "#E9E8E2" }],
           pattern: "solid",
           fit: "regular",
@@ -133,6 +140,7 @@ export function buildMockAnalysis(
           length: null,
           material_appearance: ["leather_like"],
           style_tags: ["casual", "minimal"],
+          product_image_data_url: emptyProductImage,
           visible: true,
           confidence: 0.8
         }
@@ -149,7 +157,7 @@ export function buildMockAnalysis(
         overall_confidence: 0.86,
         analysis_warnings: []
       },
-      notes: "Mock outfit result."
+      notes: "Deterministic contract-test fallback. Customer OOTD analysis uses Gemini."
     }
   };
 }

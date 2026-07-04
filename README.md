@@ -45,7 +45,7 @@ analyze_full_body_dressroom_image
 
 - `capture_data_url`: 正面全身照，格式为 `data:image/*;base64,...`
 - `manual_profile`: 用户手动提供的 `height_cm`、`weight_kg`、`gender_presentation`、`age_range`
-- `analysis_mode`: `mock` 或 `ai`
+- `analysis_mode`: 可选，默认 `ai`；`mock` 仅用于本地契约测试
 - `session_id`: 可选；不传时 tool 会生成 `tool_ses_*`
 
 Tool 成功时返回 `body_profile` 与 `outfit_profile`，继续遵守：
@@ -54,14 +54,11 @@ Tool 成功时返回 `body_profile` 与 `outfit_profile`，继续遵守：
 - `schemas/outfit-profile.schema.json`
 - `schemas/analysis-handoff.schema.json`
 
-当前 `mock` 模式使用确定性的 mock 分析，目的是先稳定页面、tool 参数和下游契约。
-
-`ai` 模式会在服务端调用 Gemini。启动前设置：
+当前正式 OOTD 识别路径会在服务端调用 Gemini。启动前设置：
 
 ```bash
-export GEMINI_API_KEY="你的 Google AI Studio API key"
-# 可选，默认 gemini-2.5-flash
-export GEMINI_MODEL="gemini-2.5-flash"
+cp .env.example .env
+# 然后在 .env 中填写 GEMINI_API_KEY
 ```
 
 也可以使用 `GOOGLE_API_KEY` 作为 key 环境变量。Gemini 调用位于：
@@ -75,7 +72,11 @@ server/image-analysis-tool.ts
 - API key 只在服务端读取，不暴露到浏览器。
 - 图片从 tool 参数 `capture_data_url` 解析为 Gemini inline image data。
 - 使用项目现有 JSON Schema 生成 `responseJsonSchema`，要求 Gemini 返回结构化 JSON。
+- OOTD 识别会把正面全身照拆成可见单品、主色、风格、版型、材质外观和定位区域。
+- 每个可见单品会先根据归一化区域生成服务端定位参考图，再由 Gemini 图片模型做单品提取/重建，最后生成干净背景的商品风图片；定位参考图不会作为前端单品图展示，也不推断品牌、价格或 SKU。
 - `session_id`、`analysis_id`、`analysis_mode`、`captured_at`、`source_capture_id` 由工具侧生成或覆盖，避免模型编造系统字段。
+
+当前默认使用 `gemini-3.5-flash` 做图片理解与结构化输出，使用 `gemini-3-pro-image` 生成高保真商品风单品图片。如果你的 key 暂时没有模型权限，或想切换到更新的 Nano Banana / Gemini 图片编辑模型，可以分别通过 `GEMINI_MODEL` 或 `GEMINI_IMAGE_MODEL` 覆盖。
 
 ## MediaPipe 模型
 
@@ -94,5 +95,5 @@ public/mediapipe/wasm/*
 - 未同意时不启动摄像头。
 - 不做人脸身份识别。
 - HTTP 响应只返回内部 `source_capture_id`。
-- 当前 mock 服务不持久化原始图片。
+- 当前本地服务不持久化原始图片。
 - 正式云端实现需在会话结束时删除对象存储中的原图。
