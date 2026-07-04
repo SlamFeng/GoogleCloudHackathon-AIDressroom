@@ -1,12 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeCapture, confirmAnalysis, createSession } from "./api";
 import { AgentRuntimePanel } from "./AgentRuntimePanel";
 import type {
   AnalysisHandoff,
-  AnalysisMode,
   AppStep,
-  BodyProfile,
-  BodyShape,
+  OutfitItem,
   ManualProfile
 } from "./types";
 import { useCameraCapture } from "./useCameraCapture";
@@ -101,16 +99,9 @@ const translations = {
       step: "ANALYZING",
       title: "Reading outfit signals from the image…",
       alt: "Captured photo waiting for analysis",
-      modeLabel: "Analysis mode",
-      modeOptions: {
-        mock: "Mock analysis",
-        ai: "AI analysis"
-      },
-      modeNotes: {
-        mock: "Fast deterministic demo output for UI and contract testing.",
-        ai: "Calls the configured multimodal AI analyzer when the backend key is available."
-      },
       start: "Start analysis",
+      waitNote: "OOTD analysis usually takes 1-2 minutes.",
+      progressLabel: "Analyzing OOTD",
       steps: [
         "Full-body image quality check",
         "Body proportion and silhouette analysis",
@@ -121,25 +112,48 @@ const translations = {
         "Circumferences are only estimated when evidence is sufficient; unreliable fields stay empty."
     },
     review: {
-      step: "STEP 04 · REVIEW",
-      title: "Here’s what we see. You can adjust it.",
-      confidence: "Overall confidence",
+      step: "STEP 04 · OOTD",
+      title: "Today's OOTD breakdown",
       photoAlt: "Customer front-facing full-body photo",
-      retake: "Retake",
-      bodyTitle: "Body profile",
-      bodyIntro: "Used for model matching and soft size recommendations",
+      retake: "Use another photo",
+      outfitTitle: "Today's OOTD",
+      outfitIntro: "Separated into visible pieces for the styling Agent",
+      visiblePieces: "Visible pieces",
+      dominantColors: "Dominant colors",
+      styleSignals: "Style signals",
+      centerLook: "Full look",
+      clothingBreakdown: "Clothing Breakdown",
+      itemColor: "Color",
+      itemMaterial: "Material",
+      itemStyle: "Style notes",
+      noVisibleItems: "No separate visible item detected",
+      bodyProfileTitle: "Body profile",
+      bodyProfileIntro: "Supporting sizing and model-matching signals",
+      manualTitle: "Manual profile",
+      proportionsTitle: "Proportions",
+      measurementsTitle: "Estimated measurements",
+      warningsTitle: "Image limits",
+      height: "Height",
+      weight: "Weight",
+      gender: "Gender",
+      age: "Age range",
       bodyShape: "Body silhouette",
       bodySize: "Body volume",
-      measurements: {
-        shoulder: "Shoulder width (est.)",
-        inseam: "Inseam (est.)",
-        circumference: "Bust / waist / hip",
-        singleView: "Not from one photo"
-      },
-      outfitTitle: "Current outfit",
+      skinTone: "Skin tone",
+      shoulderWidth: "Shoulder width",
+      waistDefinition: "Waist definition",
+      hipWidth: "Hip width",
+      legToTorso: "Leg / torso",
+      shoulder: "Shoulder",
+      inseam: "Inseam",
+      bust: "Bust",
+      waist: "Waist",
+      hip: "Hip",
+      footLength: "Foot",
+      unavailable: "Not available",
       note:
-        "These are recommendation signals, not precise body measurements. Data is sent to the styling Agent only after you confirm.",
-      confirm: "Confirm and start styling"
+        "This editorial OOTD board uses generated item images from visible clothes only. No brands, prices, or intimate apparel are inferred.",
+      confirm: "Use this OOTD"
     },
     complete: {
       eyebrow: "HANDOFF READY",
@@ -154,24 +168,6 @@ const translations = {
     },
     common: {
       back: "← Back"
-    },
-    bodyShapes: {
-      hourglass: "Hourglass",
-      pear: "Pear",
-      apple: "Apple",
-      rectangle: "Rectangle",
-      inverted_triangle: "Inverted triangle",
-      trapezoid: "Trapezoid",
-      triangle: "Triangle",
-      oval: "Oval",
-      unknown: "Unknown"
-    },
-    bodySizes: {
-      slim: "Slim",
-      average: "Average",
-      curvy: "Curvy",
-      plus: "Plus",
-      unknown: "Unknown"
     },
     pose: {
       preparing: "Preparing pose detection…",
@@ -266,38 +262,54 @@ const translations = {
       step: "ANALYZING",
       title: "正在读懂画面里的穿搭线索…",
       alt: "等待分析的拍摄照片",
-      modeLabel: "分析模式",
-      modeOptions: {
-        mock: "Mock 分析",
-        ai: "AI 分析"
-      },
-      modeNotes: {
-        mock: "使用稳定的演示数据，适合测试界面和数据契约。",
-        ai: "在后端配置多模态 AI key 后，会调用真实 AI 分析。"
-      },
       start: "开始分析",
+      waitNote: "OOTD 分析通常需要 1-2 分钟。",
+      progressLabel: "正在分析 OOTD",
       steps: ["全身画面质量检查", "身体比例与轮廓分析", "当前服装类别与颜色识别", "整理为推荐 Agent 可用数据"],
       note: "围度只会在依据足够时给出近似值；不可靠的字段会保留为空。"
     },
     review: {
-      step: "STEP 04 · REVIEW",
-      title: "这是我们看到的你，可以随时修正。",
-      confidence: "综合置信度",
+      step: "STEP 04 · OOTD",
+      title: "今日 OOTD 拆解",
       photoAlt: "顾客正面全身照",
-      retake: "重新拍摄",
-      bodyTitle: "身体特征",
-      bodyIntro: "用于模特匹配和软性尺码推荐",
+      retake: "换一张照片",
+      outfitTitle: "今日 OOTD",
+      outfitIntro: "已拆分为造型 Agent 可继续使用的可见单品",
+      visiblePieces: "可见单品",
+      dominantColors: "主色",
+      styleSignals: "风格信号",
+      centerLook: "全身造型",
+      clothingBreakdown: "服装拆解",
+      itemColor: "颜色",
+      itemMaterial: "材质",
+      itemStyle: "风格备注",
+      noVisibleItems: "未识别到独立可见单品",
+      bodyProfileTitle: "身体特征",
+      bodyProfileIntro: "用于尺码推荐和模特匹配的辅助信号",
+      manualTitle: "手动资料",
+      proportionsTitle: "身体比例",
+      measurementsTitle: "估算尺寸",
+      warningsTitle: "图像限制",
+      height: "身高",
+      weight: "体重",
+      gender: "性别呈现",
+      age: "年龄段",
       bodyShape: "体型轮廓",
       bodySize: "整体体量",
-      measurements: {
-        shoulder: "肩宽（估算）",
-        inseam: "内长（估算）",
-        circumference: "胸 / 腰 / 臀围",
-        singleView: "单图不输出"
-      },
-      outfitTitle: "当前穿搭",
-      note: "这些是推荐参考，不是精确量体结果。你确认后，数据才会发送给下一阶段的造型 Agent。",
-      confirm: "确认并开始搭配"
+      skinTone: "肤色",
+      shoulderWidth: "肩宽",
+      waistDefinition: "腰线",
+      hipWidth: "臀宽",
+      legToTorso: "腿身比例",
+      shoulder: "肩宽",
+      inseam: "内长",
+      bust: "胸围",
+      waist: "腰围",
+      hip: "臀围",
+      footLength: "脚长",
+      unavailable: "暂不可用",
+      note: "这张编辑感 OOTD 板只会根据可见衣物生成单品图，不会推测品牌、价格或私密衣物。",
+      confirm: "使用这个 OOTD"
     },
     complete: {
       eyebrow: "HANDOFF READY",
@@ -312,24 +324,6 @@ const translations = {
     },
     common: {
       back: "← 返回"
-    },
-    bodyShapes: {
-      hourglass: "沙漏型",
-      pear: "梨型",
-      apple: "苹果型",
-      rectangle: "直线型",
-      inverted_triangle: "倒三角型",
-      trapezoid: "梯型",
-      triangle: "三角型",
-      oval: "椭圆型",
-      unknown: "暂不确定"
-    },
-    bodySizes: {
-      slim: "纤细",
-      average: "适中",
-      curvy: "曲线明显",
-      plus: "丰满",
-      unknown: "暂不确定"
     },
     pose: {
       preparing: "正在准备姿态检测…",
@@ -424,38 +418,54 @@ const translations = {
       step: "ANALYZING",
       title: "画像内のコーディネート情報を読み取り中…",
       alt: "分析待ちの撮影写真",
-      modeLabel: "分析モード",
-      modeOptions: {
-        mock: "Mock 分析",
-        ai: "AI 分析"
-      },
-      modeNotes: {
-        mock: "UI とデータ契約の確認用に安定したデモ結果を返します。",
-        ai: "バックエンドにマルチモーダル AI key が設定されている場合に実分析します。"
-      },
       start: "分析を開始",
+      waitNote: "OOTD 分析は通常 1-2 分ほどかかります。",
+      progressLabel: "OOTD を分析中",
       steps: ["全身画像の品質チェック", "身体比率とシルエット分析", "現在の服カテゴリと色の検出", "推薦 Agent 用データに整理"],
       note: "採寸値は根拠が十分な場合のみ概算し、不確かな項目は空欄にします。"
     },
     review: {
-      step: "STEP 04 · REVIEW",
-      title: "StyleAI の見立てです。いつでも修正できます。",
-      confidence: "総合信頼度",
+      step: "STEP 04 · OOTD",
+      title: "今日の OOTD 分解",
       photoAlt: "顧客の正面全身写真",
-      retake: "撮り直す",
-      bodyTitle: "身体プロフィール",
-      bodyIntro: "モデル照合とソフトなサイズ推薦に使用",
+      retake: "別の写真を使う",
+      outfitTitle: "今日の OOTD",
+      outfitIntro: "スタイリング Agent が使えるよう可視アイテムに分解しました",
+      visiblePieces: "可視アイテム",
+      dominantColors: "主要カラー",
+      styleSignals: "スタイル信号",
+      centerLook: "全身ルック",
+      clothingBreakdown: "服の分解",
+      itemColor: "カラー",
+      itemMaterial: "素材",
+      itemStyle: "スタイルメモ",
+      noVisibleItems: "個別の可視アイテムは未検出",
+      bodyProfileTitle: "身体プロフィール",
+      bodyProfileIntro: "サイズ推薦とモデル照合用の補助情報",
+      manualTitle: "入力プロフィール",
+      proportionsTitle: "身体バランス",
+      measurementsTitle: "推定サイズ",
+      warningsTitle: "画像上の制限",
+      height: "身長",
+      weight: "体重",
+      gender: "性別表現",
+      age: "年齢層",
       bodyShape: "体型シルエット",
       bodySize: "全体ボリューム",
-      measurements: {
-        shoulder: "肩幅（推定）",
-        inseam: "股下（推定）",
-        circumference: "バスト / ウエスト / ヒップ",
-        singleView: "1枚写真では出力しない"
-      },
-      outfitTitle: "現在のコーディネート",
-      note: "これは推薦用の参考情報であり、正確な採寸ではありません。確認後にのみ次のスタイリング Agent へ送信します。",
-      confirm: "確認してスタイリングへ"
+      skinTone: "肌トーン",
+      shoulderWidth: "肩幅",
+      waistDefinition: "ウエスト",
+      hipWidth: "ヒップ幅",
+      legToTorso: "脚 / 胴",
+      shoulder: "肩幅",
+      inseam: "股下",
+      bust: "バスト",
+      waist: "ウエスト",
+      hip: "ヒップ",
+      footLength: "足長",
+      unavailable: "未取得",
+      note: "このエディトリアル OOTD ボードは可視アイテムだけから生成します。ブランド、価格、下着類は推定しません。",
+      confirm: "この OOTD を使う"
     },
     complete: {
       eyebrow: "HANDOFF READY",
@@ -470,24 +480,6 @@ const translations = {
     },
     common: {
       back: "← 戻る"
-    },
-    bodyShapes: {
-      hourglass: "砂時計型",
-      pear: "洋梨型",
-      apple: "りんご型",
-      rectangle: "長方形型",
-      inverted_triangle: "逆三角形",
-      trapezoid: "台形",
-      triangle: "三角形",
-      oval: "楕円型",
-      unknown: "不明"
-    },
-    bodySizes: {
-      slim: "スリム",
-      average: "標準",
-      curvy: "曲線的",
-      plus: "大きめ",
-      unknown: "不明"
     },
     pose: {
       preparing: "姿勢検出を準備中…",
@@ -532,7 +524,6 @@ function App() {
   const [manualProfile, setManualProfile] = useState<ManualProfile>(initialProfile);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [captureDataUrl, setCaptureDataUrl] = useState<string | null>(null);
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("mock");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisHandoff | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -566,7 +557,7 @@ function App() {
     setIsAnalyzing(true);
     setError(null);
     try {
-      const result = await analyzeCapture(sessionId, manualProfile, captureDataUrl, analysisMode);
+      const result = await analyzeCapture(sessionId, manualProfile, captureDataUrl);
       setAnalysis(result);
       setStep("review");
     } catch (requestError) {
@@ -594,7 +585,6 @@ function App() {
     setManualProfile(initialProfile);
     setSessionId(null);
     setCaptureDataUrl(null);
-    setAnalysisMode("mock");
     setIsAnalyzing(false);
     setAnalysis(null);
     setError(null);
@@ -644,9 +634,7 @@ function App() {
         <Analyzing
           copy={copy}
           captureDataUrl={captureDataUrl}
-          analysisMode={analysisMode}
           isAnalyzing={isAnalyzing}
-          onModeChange={setAnalysisMode}
           onBack={() => setStep("capture")}
           onStart={() => void runAnalysis()}
         />
@@ -656,9 +644,6 @@ function App() {
           copy={copy}
           analysis={analysis}
           captureDataUrl={captureDataUrl}
-          onChange={(bodyProfile) =>
-            setAnalysis((current) => (current ? { ...current, body_profile: bodyProfile } : current))
-          }
           onRetake={() => setStep("capture")}
           onConfirm={() => void confirm()}
         />
@@ -1057,20 +1042,33 @@ function CameraStage({
 function Analyzing({
   copy,
   captureDataUrl,
-  analysisMode,
   isAnalyzing,
-  onModeChange,
   onBack,
   onStart
 }: {
   copy: Copy;
   captureDataUrl: string | null;
-  analysisMode: AnalysisMode;
   isAnalyzing: boolean;
-  onModeChange: (mode: AnalysisMode) => void;
   onBack: () => void;
   onStart: () => void;
 }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setProgress(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const interval = window.setInterval(() => {
+      const elapsedSeconds = (Date.now() - startedAt) / 1000;
+      setProgress(Math.min(94, Math.round(8 + elapsedSeconds * 1.15)));
+    }, 800);
+
+    return () => window.clearInterval(interval);
+  }, [isAnalyzing]);
+
   return (
     <section className="analyzing-page">
       <div className="scan-preview">
@@ -1081,23 +1079,16 @@ function Analyzing({
       <div className="analysis-copy">
         <p className="step-label">{copy.analyzing.step}</p>
         <h2>{copy.analyzing.title}</h2>
-        <fieldset className="mode-control">
-          <legend>{copy.analyzing.modeLabel}</legend>
-          <div className="mode-toggle">
-            {(["mock", "ai"] as const).map((mode) => (
-              <button
-                className={analysisMode === mode ? "active" : ""}
-                disabled={isAnalyzing}
-                key={mode}
-                type="button"
-                onClick={() => onModeChange(mode)}
-              >
-                {copy.analyzing.modeOptions[mode]}
-              </button>
-            ))}
+        <div className={`analysis-progress ${isAnalyzing ? "active" : ""}`}>
+          <div>
+            <span>{copy.analyzing.progressLabel}</span>
+            <strong>{isAnalyzing ? `${progress}%` : "0%"}</strong>
           </div>
-          <p>{copy.analyzing.modeNotes[analysisMode]}</p>
-        </fieldset>
+          <i>
+            <b style={{ width: `${isAnalyzing ? progress : 0}%` }} />
+          </i>
+          <p>{copy.analyzing.waitNote}</p>
+        </div>
         <div className="analysis-steps">
           {copy.analyzing.steps.map((step, index) => (
             <span
@@ -1130,19 +1121,22 @@ function Review({
   copy,
   analysis,
   captureDataUrl,
-  onChange,
   onRetake,
   onConfirm
 }: {
   copy: Copy;
   analysis: AnalysisHandoff;
   captureDataUrl: string | null;
-  onChange: (bodyProfile: BodyProfile) => void;
   onRetake: () => void;
   onConfirm: () => void;
 }) {
   const body = analysis.body_profile;
   const outfit = analysis.outfit_profile;
+  const boardEntries = getUniqueOutfitItems(outfit.items).map((item, position) => ({
+    item,
+    position,
+    callout: getCalloutPlacement(item.region, position)
+  }));
 
   return (
     <section className="review-page">
@@ -1151,140 +1145,345 @@ function Review({
           <p className="step-label">{copy.review.step}</p>
           <h2>{copy.review.title}</h2>
         </div>
-        <div className="confidence-badge">
-          <strong>{Math.round(body.extraction.overall_confidence * 100)}%</strong>
-          {copy.review.confidence}
-        </div>
       </div>
-      <div className="review-grid">
-        <div className="review-photo-card">
-          {captureDataUrl && <img src={captureDataUrl} alt={copy.review.photoAlt} />}
-          <button onClick={onRetake}>{copy.review.retake}</button>
-        </div>
-        <div className="review-content">
-          <article className="result-card">
-            <div className="card-title">
-              <span>01</span>
+      <div className="review-content">
+        <article className="result-card ootd-card">
+          <div className="card-title">
+            <span>01</span>
+            <div>
+              <h3>{copy.review.outfitTitle}</h3>
+              <p>{copy.review.outfitIntro}</p>
+            </div>
+          </div>
+          <div className="ootd-summary">
+            <div>
+              <span>{copy.review.visiblePieces}</span>
+              <strong>{boardEntries.length}</strong>
+            </div>
+            <div>
+              <span>{copy.review.styleSignals}</span>
+              <strong>{formatTokenList(outfit.overall_style)}</strong>
+            </div>
+          </div>
+          {outfit.dominant_colors.length > 0 && (
+            <div className="ootd-colors" aria-label={copy.review.dominantColors}>
+              <span>{copy.review.dominantColors}</span>
               <div>
-                <h3>{copy.review.bodyTitle}</h3>
-                <p>{copy.review.bodyIntro}</p>
+                {outfit.dominant_colors.map((color) => (
+                  <i
+                    aria-label={formatToken(color.name)}
+                    key={`${color.name}-${color.hex ?? "unknown"}`}
+                    style={{ background: color.hex ?? "#d8d8d2" }}
+                    title={`${formatToken(color.name)} ${Math.round(color.coverage * 100)}%`}
+                  />
+                ))}
               </div>
             </div>
-            <div className="editable-grid">
-              <label>
-                <span>{copy.review.bodyShape}</span>
-                <select
-                  value={body.body_shape ?? "unknown"}
-                  onChange={(event) =>
-                    onChange({ ...body, body_shape: event.target.value as BodyShape })
-                  }
-                >
-                  {Object.entries(copy.bodyShapes).map(([value, label]) => (
-                    <option value={value} key={value}>
-                      {label}
-                    </option>
+          )}
+          <div className="fashion-board">
+            <div className="board-center">
+              <p>{copy.review.centerLook}</p>
+              <div className="review-photo-card board-photo">
+                {captureDataUrl && <img src={captureDataUrl} alt={copy.review.photoAlt} />}
+                <svg className="ootd-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <marker
+                      id="ootd-arrow"
+                      markerHeight="5"
+                      markerWidth="5"
+                      orient="auto"
+                      refX="4"
+                      refY="2.5"
+                    >
+                      <path d="M0,0 L5,2.5 L0,5 Z" />
+                    </marker>
+                  </defs>
+                  {boardEntries.map(({ item, position, callout }) => (
+                    <line
+                      key={`${item.item_id}-${position}-line`}
+                      markerEnd="url(#ootd-arrow)"
+                      x1={toPercent(callout.labelX)}
+                      x2={toPercent(callout.pinX)}
+                      y1={toPercent(callout.labelY)}
+                      y2={toPercent(callout.pinY)}
+                    />
                   ))}
-                </select>
-              </label>
-              <label>
-                <span>{copy.review.bodySize}</span>
-                <select
-                  value={body.body_size ?? "unknown"}
-                  onChange={(event) =>
-                    onChange({
-                      ...body,
-                      body_size: event.target.value as BodyProfile["body_size"]
-                    })
-                  }
-                >
-                  {Object.entries(copy.bodySizes).map(([value, label]) => (
-                    <option value={value} key={value}>
-                      {label}
-                    </option>
+                </svg>
+                <div className="ootd-callouts" aria-hidden="true">
+                  {boardEntries.map(({ item, position, callout }) => (
+                    <span
+                      className={`ootd-callout ${callout.side}`}
+                      key={`${item.item_id}-${position}-callout`}
+                      style={getCalloutStyle(callout)}
+                    >
+                      <b>{String(position + 1).padStart(2, "0")}</b>
+                      <em>{formatToken(item.subcategory)}</em>
+                    </span>
                   ))}
-                </select>
-              </label>
+                </div>
+                <button onClick={onRetake}>{copy.review.retake}</button>
+              </div>
             </div>
-            <div className="measurement-row">
-              <Metric
-                label={copy.review.measurements.shoulder}
-                value={body.measurements.shoulder_cm}
-                unit="cm"
-              />
-              <Metric
-                label={copy.review.measurements.inseam}
-                value={body.measurements.inseam_cm}
-                unit="cm"
-              />
-              <Metric
-                label={copy.review.measurements.circumference}
-                value={null}
-                unit={copy.review.measurements.singleView}
-              />
-            </div>
-          </article>
 
-          <article className="result-card">
+            <section className="board-panel board-panel-items">
+              <div className="board-panel-heading">
+                <h4>{copy.review.clothingBreakdown}</h4>
+                <p>{formatToken(outfit.styling_observations.silhouette)}</p>
+              </div>
+              <div className="board-item-list">
+                {boardEntries.length > 0 ? (
+                  boardEntries.map(({ item, position }) => (
+                    <BoardItem copy={copy} item={item} key={`${item.item_id}-${position}`} position={position} />
+                  ))
+                ) : (
+                  <p className="empty-board-note">{copy.review.noVisibleItems}</p>
+                )}
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article className="result-card body-profile-card">
             <div className="card-title">
               <span>02</span>
               <div>
-                <h3>{copy.review.outfitTitle}</h3>
-                <p>{outfit.overall_style.join(" · ")}</p>
+                <h3>{copy.review.bodyProfileTitle}</h3>
+                <p>{copy.review.bodyProfileIntro}</p>
               </div>
             </div>
-            <div className="outfit-items">
-              {outfit.items.map((item) => (
-                <div className="outfit-item" key={item.item_id}>
-                  <div
-                    className="color-swatch"
-                    style={{ background: item.colors[0]?.hex ?? "#d8d8d2" }}
-                  />
-                  <div>
-                    <strong>{item.subcategory.replaceAll("_", " ")}</strong>
-                    <span>
-                      {item.colors[0]?.name ?? "unknown"} · {item.fit}
-                    </span>
-                  </div>
-                  <small>{Math.round(item.confidence * 100)}%</small>
+            <div className="body-profile-grid">
+              <section>
+                <h4>{copy.review.manualTitle}</h4>
+                <div className="profile-facts">
+                  <ProfileFact label={copy.review.height} value={`${body.height_cm} cm`} />
+                  <ProfileFact label={copy.review.weight} value={`${body.weight_kg} kg`} />
+                  <ProfileFact label={copy.review.gender} value={formatToken(body.gender_presentation)} />
+                  <ProfileFact label={copy.review.age} value={body.age_range} />
                 </div>
-              ))}
+              </section>
+              <section>
+                <h4>{copy.review.bodyProfileTitle}</h4>
+                <div className="profile-facts">
+                  <ProfileFact label={copy.review.bodyShape} value={formatToken(body.body_shape)} />
+                  <ProfileFact label={copy.review.bodySize} value={formatToken(body.body_size)} />
+                  <ProfileFact label={copy.review.skinTone} value={formatToken(body.skin_tone)} />
+                </div>
+              </section>
+              <section>
+                <h4>{copy.review.proportionsTitle}</h4>
+                <div className="profile-facts">
+                  <ProfileFact
+                    label={copy.review.shoulderWidth}
+                    value={formatToken(body.proportions.shoulder_width)}
+                  />
+                  <ProfileFact
+                    label={copy.review.waistDefinition}
+                    value={formatToken(body.proportions.waist_definition)}
+                  />
+                  <ProfileFact label={copy.review.hipWidth} value={formatToken(body.proportions.hip_width)} />
+                  <ProfileFact label={copy.review.legToTorso} value={formatToken(body.proportions.leg_to_torso)} />
+                </div>
+              </section>
+              <section>
+                <h4>{copy.review.measurementsTitle}</h4>
+                <div className="profile-facts">
+                  <ProfileFact
+                    label={copy.review.shoulder}
+                    value={formatMeasurement(body.measurements.shoulder_cm, copy.review.unavailable)}
+                  />
+                  <ProfileFact
+                    label={copy.review.inseam}
+                    value={formatMeasurement(body.measurements.inseam_cm, copy.review.unavailable)}
+                  />
+                  <ProfileFact
+                    label={copy.review.bust}
+                    value={formatMeasurement(body.measurements.bust_cm, copy.review.unavailable)}
+                  />
+                  <ProfileFact
+                    label={copy.review.waist}
+                    value={formatMeasurement(body.measurements.waist_cm, copy.review.unavailable)}
+                  />
+                  <ProfileFact
+                    label={copy.review.hip}
+                    value={formatMeasurement(body.measurements.hip_cm, copy.review.unavailable)}
+                  />
+                  <ProfileFact
+                    label={copy.review.footLength}
+                    value={formatMeasurement(body.measurements.foot_length_cm, copy.review.unavailable)}
+                  />
+                </div>
+              </section>
             </div>
-          </article>
+            {body.extraction.analysis_warnings.length > 0 && (
+              <div className="profile-warnings">
+                <h4>{copy.review.warningsTitle}</h4>
+                {body.extraction.analysis_warnings.map((warning) => (
+                  <p key={`${warning.code}-${warning.message}`}>
+                    <strong>{formatToken(warning.code)}</strong>
+                    {warning.message}
+                  </p>
+                ))}
+              </div>
+            )}
+        </article>
 
-          <div className="review-note">
-            <span>i</span>
-            {copy.review.note}
-          </div>
-          <div className="review-actions">
-            <button className="secondary-button" onClick={onRetake}>
-              {copy.review.retake}
-            </button>
-            <button className="primary-button" onClick={onConfirm}>
-              {copy.review.confirm} <span>→</span>
-            </button>
-          </div>
+        <div className="review-note">
+          <span>i</span>
+          {copy.review.note}
+        </div>
+        <div className="review-actions">
+          <button className="secondary-button" onClick={onRetake}>
+            {copy.review.retake}
+          </button>
+          <button className="primary-button" onClick={onConfirm}>
+            {copy.review.confirm} <span>→</span>
+          </button>
         </div>
       </div>
     </section>
   );
 }
 
-function Metric({
-  label,
-  value,
-  unit
+function BoardItem({
+  copy,
+  item,
+  position
 }: {
-  label: string;
-  value: number | null;
-  unit: string;
+  copy: Copy;
+  item: OutfitItem;
+  position: number;
 }) {
+  return (
+    <div className="board-item">
+      <span className="board-item-number">{String(position + 1).padStart(2, "0")}</span>
+      <div className="board-item-image">
+        <ProductItemImage item={item} />
+      </div>
+      <div className="board-item-content">
+        <strong>{formatToken(item.subcategory)}</strong>
+        <dl className="board-item-meta">
+          <div>
+            <dt>{copy.review.itemColor}</dt>
+            <dd>{formatTokenList(item.colors.map((color) => color.name))}</dd>
+          </div>
+          <div>
+            <dt>{copy.review.itemMaterial}</dt>
+            <dd>{formatItemMaterial(item)}</dd>
+          </div>
+          <div>
+            <dt>{copy.review.itemStyle}</dt>
+            <dd>{formatTokenList([item.fit, ...item.style_tags].filter(Boolean) as string[])}</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function ProductItemImage({ item }: { item: OutfitItem }) {
+  const imageUrl = item.product_image_data_url;
+
+  if (imageUrl) {
+    return <img src={imageUrl} alt={formatToken(item.subcategory)} />;
+  }
+
+  return null;
+}
+
+function formatToken(value: string | null | undefined) {
+  return value ? value.replaceAll("_", " ") : "unknown";
+}
+
+function formatTokenList(values: string[]) {
+  return values.length > 0 ? values.map(formatToken).join(" · ") : "unknown";
+}
+
+function formatItemMaterial(item: OutfitItem) {
+  const parts = [
+    ...item.material_appearance,
+    item.pattern !== "unknown" ? item.pattern : null
+  ].filter(Boolean) as string[];
+  return parts.length > 0 ? formatTokenList(parts) : "material unknown";
+}
+
+function formatMeasurement(value: number | null, unavailableLabel: string) {
+  return value === null ? unavailableLabel : `${value} cm`;
+}
+
+function ProfileFact({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span>{label}</span>
-      <strong>{value ?? "—"}</strong>
-      <small>{unit}</small>
+      <strong>{value}</strong>
     </div>
   );
+}
+
+type CalloutPlacement = {
+  labelX: number;
+  labelY: number;
+  pinX: number;
+  pinY: number;
+  side: "left" | "right";
+};
+
+function getUniqueOutfitItems(items: OutfitItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => item.visible && item.product_image_data_url).filter((item) => {
+    const key = getOutfitItemKey(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getOutfitItemKey(item: OutfitItem) {
+  const region = item.region;
+  return [
+    item.category,
+    item.subcategory,
+    item.layer,
+    region.anchor,
+    Math.round(region.x * 8),
+    Math.round(region.y * 8),
+    Math.round(region.width * 8),
+    Math.round(region.height * 8)
+  ].join("|");
+}
+
+function getCalloutPlacement(region: OutfitItem["region"], position: number): CalloutPlacement {
+  const pinX = clamp01(region.x + region.width / 2);
+  const pinY = clamp01(region.y + region.height / 2);
+  const side: CalloutPlacement["side"] = pinX < 0.5 ? "left" : "right";
+  const labelOffset = side === "left" ? -0.22 : 0.22;
+  const stagger = ((position % 3) - 1) * 0.045;
+
+  return {
+    pinX,
+    pinY,
+    labelX: clamp(pinX + labelOffset, side === "left" ? 0.22 : 0.58, side === "left" ? 0.42 : 0.78),
+    labelY: clamp(pinY + stagger, 0.1, 0.88),
+    side
+  };
+}
+
+function getCalloutStyle(callout: CalloutPlacement): CSSProperties {
+  return {
+    left: toPercent(callout.labelX),
+    top: toPercent(callout.labelY)
+  };
+}
+
+function toPercent(value: number) {
+  return `${value * 100}%`;
+}
+
+function clamp01(value: number) {
+  return clamp(value, 0, 1);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function Complete({

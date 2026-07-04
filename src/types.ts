@@ -61,6 +61,22 @@ export interface OutfitItem {
   category: string;
   subcategory: string;
   layer: string;
+  region: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    anchor:
+      | "head"
+      | "neck"
+      | "upper_body"
+      | "waist"
+      | "lower_body"
+      | "feet"
+      | "left_side"
+      | "right_side"
+      | "unknown";
+  };
   colors: Array<{ name: string; hex: string | null }>;
   pattern: string;
   fit: string;
@@ -68,6 +84,7 @@ export interface OutfitItem {
   length: string | null;
   material_appearance: string[];
   style_tags: string[];
+  product_image_data_url?: string | null;
   visible: boolean;
   confidence: number;
 }

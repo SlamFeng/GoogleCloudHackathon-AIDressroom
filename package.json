@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c magenta,cyan \"tsx watch server/index.ts\" \"vite --host 0.0.0.0\"",
-    "dev:api": "tsx watch server/index.ts",
+    "dev": "concurrently -k -n api,web -c magenta,cyan \"tsx watch --env-file-if-exists=.env server/index.ts\" \"vite --host 0.0.0.0\"",
+    "dev:api": "tsx watch --env-file-if-exists=.env server/index.ts",
     "dev:web": "vite --host 0.0.0.0",
     "setup:assets": "node scripts/setup-mediapipe-assets.mjs",
     "smoke:agent": "node scripts/smoke-agent-runtime.mjs",
     "build": "tsc -b && vite build && tsc -p server/tsconfig.json",
-    "start": "node dist-server/index.js",
+    "start": "node --env-file-if-exists=.env dist-server/index.js",
     "check": "tsc -b --pretty false && tsc -p server/tsconfig.json --pretty false"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "express": "^5.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "sharp": "^0.35.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -7,3 +7,10 @@ dist-server/
 .DS_Store
 coverage/
 .aida-agent-sessions.json
+
+# python
+__pycache__/
+*.py[cod]
+
+# image_tryon generation output
+image_tryon/_generated/
