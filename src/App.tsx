@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { analyzeCapture, confirmAnalysis, createSession } from "./api";
+import { AgentRuntimePanel } from "./AgentRuntimePanel";
 import type {
   AnalysisHandoff,
   AnalysisMode,
@@ -1327,6 +1328,7 @@ function Complete({
         </button>
       </div>
       {showJson && <pre className="json-preview">{JSON.stringify(analysis, null, 2)}</pre>}
+      <AgentRuntimePanel analysis={analysis} />
     </section>
   );
 }

@@ -6,3 +6,4 @@ dist-server/
 *.log
 .DS_Store
 coverage/
+.aida-agent-sessions.json
