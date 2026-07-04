@@ -84,6 +84,13 @@
         "category": "top",
         "subcategory": "shirt",
         "layer": "inner",
+        "region": {
+          "x": 0.28,
+          "y": 0.22,
+          "width": 0.44,
+          "height": 0.24,
+          "anchor": "upper_body"
+        },
         "colors": [
           {
             "name": "white",
@@ -96,6 +103,7 @@
         "length": null,
         "material_appearance": ["woven"],
         "style_tags": ["minimal", "smart_casual"],
+        "product_image_data_url": null,
         "visible": true,
         "confidence": 0.91
       },
@@ -104,6 +112,13 @@
         "category": "bottom",
         "subcategory": "trousers",
         "layer": "base",
+        "region": {
+          "x": 0.27,
+          "y": 0.45,
+          "width": 0.46,
+          "height": 0.34,
+          "anchor": "lower_body"
+        },
         "colors": [
           {
             "name": "navy",
@@ -116,6 +131,7 @@
         "length": "full",
         "material_appearance": ["woven"],
         "style_tags": ["minimal"],
+        "product_image_data_url": null,
         "visible": true,
         "confidence": 0.88
       }
