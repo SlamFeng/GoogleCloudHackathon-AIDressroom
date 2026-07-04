@@ -1,16 +1,25 @@
 node_modules/
 dist/
 dist-server/
+build/
+.next/
+
 .env
-.env.local
+.env.*
+!.env.example
+.aida-agent-sessions.json
+
 *.log
 .DS_Store
 coverage/
-.aida-agent-sessions.json
+.coverage
+.pytest_cache/
 
 # python
 __pycache__/
 *.py[cod]
+.venv/
+venv/
 
 # image_tryon generation output
 image_tryon/_generated/
