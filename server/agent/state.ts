@@ -19,6 +19,15 @@ export interface FeedbackHistoryEntry {
   created_at: string;
 }
 
+export type ReservationState =
+  | { reservation_id: string; status: string }
+  | { ok: false; reason: string; shortfalls: Array<{ product_id: string; size: string; requested: number; available: number }> };
+
+export interface StoreRouteState {
+  summary: string;
+  stops: Array<{ product_id: string; name: string; area: string; shelf: string }>;
+}
+
 export interface AgentState {
   session_id: string;
   scene_type: SceneType;
@@ -35,6 +44,8 @@ export interface AgentState {
   selected_set_id?: string;
   feedback_history: FeedbackHistoryEntry[];
   camera_processing_consent: boolean;
+  reservation?: ReservationState;
+  store_route?: StoreRouteState;
   face: FaceConsentState;
   aha_demo: AhaDemoState;
   lucy_session_status: "idle" | "ready" | "previewing" | "stopped" | "failed";

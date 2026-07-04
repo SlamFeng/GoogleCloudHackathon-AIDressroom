@@ -214,3 +214,7 @@ export const previewStatusPayloadSchema = z.object({
   reason: z.string().optional(),
   lucy_session_id: z.string().optional()
 });
+
+export const purchasePayloadSchema = z.object({
+  set_id: z.string().optional()
+});

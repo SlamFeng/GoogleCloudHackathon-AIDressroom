@@ -51,7 +51,7 @@ export class AgentWorkflow {
     };
   }
 
-  handleCustomerInput(state: AgentState, text: string): WorkflowResult {
+  async handleCustomerInput(state: AgentState, text: string): Promise<WorkflowResult> {
     this.ensureBodyTemplate(state);
     const route = routeIntent(text);
     state.route = route;
@@ -75,7 +75,7 @@ export class AgentWorkflow {
 
     const requestedTypes: RecommendationType[] =
       route === "explicit" ? ["explicit_need"] : ["similar", "style", "seasonal"];
-    const response = this.callGetRecommendations(state, requestedTypes);
+    const response = await this.callGetRecommendations(state, requestedTypes);
     return {
       state,
       output: {
@@ -202,7 +202,7 @@ export class AgentWorkflow {
     };
   }
 
-  applyFeedback(state: AgentState, feedback: FeedbackPayloadInput): WorkflowResult {
+  async applyFeedback(state: AgentState, feedback: FeedbackPayloadInput): Promise<WorkflowResult> {
     if (feedback.feedback_type === "confirm") {
       state.selected_set_id = feedback.set_id;
       state.status = "confirmed";
@@ -256,7 +256,7 @@ export class AgentWorkflow {
       };
     }
 
-    const response = this.callRefineRecommendations(state, feedback.set_id, delta);
+    const response = await this.callRefineRecommendations(state, feedback.set_id, delta);
     return {
       state,
       output: {
@@ -290,6 +290,20 @@ export class AgentWorkflow {
     state.status = "handoff_ready";
     state.loop_status = "confirmed";
     state.lucy_session_status = "stopped";
+
+    // Place a hold on the selected outfit's stock. A failure here (an item sold
+    // out between recommendation and confirmation) is surfaced so the flow can
+    // re-plan the affected slot instead of silently proceeding.
+    const reservation = await this.tools.reserveOutfit({ session_id: state.session_id, set: selected });
+    if (reservation.ok) {
+      state.reservation = {
+        reservation_id: reservation.reservation.reservation_id,
+        status: reservation.reservation.status
+      };
+    } else {
+      state.reservation = { ok: false, reason: reservation.reason, shortfalls: reservation.shortfalls };
+      state.errors.push("reservation_failed");
+    }
     state.aha_demo = {
       ...state.aha_demo,
       stage: "handoff_ready",
@@ -349,7 +363,8 @@ export class AgentWorkflow {
       state,
       output: {
         type: "tryon_handoff",
-        handoff: accepted
+        handoff: accepted,
+        reservation: state.reservation
       }
     };
   }
@@ -370,12 +385,12 @@ export class AgentWorkflow {
     return result.template_id;
   }
 
-  private callGetRecommendations(
+  private async callGetRecommendations(
     state: AgentState,
     requestedTypes: RecommendationType[]
-  ): RecommendationResponse {
+  ): Promise<RecommendationResponse> {
     state.recommendation_round += 1;
-    const response = this.tools.getRecommendations({
+    const response = await this.tools.getRecommendations({
       session_id: state.session_id,
       route: state.route,
       requested_types: requestedTypes,
@@ -389,13 +404,13 @@ export class AgentWorkflow {
     return response;
   }
 
-  private callRefineRecommendations(
+  private async callRefineRecommendations(
     state: AgentState,
     previousSetId: string,
     delta: ConstraintDelta
-  ): RecommendationResponse {
+  ): Promise<RecommendationResponse> {
     state.recommendation_round += 1;
-    const response = this.tools.refineRecommendations({
+    const response = await this.tools.refineRecommendations({
       session_id: state.session_id,
       route: state.route === "unclear" ? "recommendation" : state.route,
       previous_set_id: previousSetId,
@@ -408,6 +423,44 @@ export class AgentWorkflow {
     addRecommendationResponse(state, response);
     syncToolCalls(state, this.tools);
     return response;
+  }
+
+  /**
+   * Terminal purchase step (user picked "确认购买"). Commits the hold placed at
+   * confirm time to a real stock decrement and returns the in-store pickup route.
+   */
+  async purchaseSelected(state: AgentState): Promise<WorkflowResult> {
+    const held = state.reservation;
+    if (!held || !("reservation_id" in held)) {
+      return { state, output: { type: "failed", reason: "no_active_reservation" } };
+    }
+
+    const reservation = await this.tools.confirmPurchase({
+      session_id: state.session_id,
+      reservation_id: held.reservation_id
+    });
+    if (!reservation || reservation.status !== "confirmed") {
+      state.errors.push("purchase_failed");
+      syncToolCalls(state, this.tools);
+      return { state, output: { type: "failed", reason: "purchase_failed" } };
+    }
+
+    const selected = findSet(state, state.selected_set_id ?? "");
+    const productIds = selected ? selected.products.map((product) => product.product_id) : [];
+    const route = await this.tools.createStoreRoute({ session_id: state.session_id, product_ids: productIds });
+
+    state.reservation = { reservation_id: reservation.reservation_id, status: reservation.status };
+    state.store_route = route;
+    state.loop_status = "confirmed";
+    syncToolCalls(state, this.tools);
+    return {
+      state,
+      output: {
+        type: "purchase_completed",
+        reservation_id: reservation.reservation_id,
+        store_route: route
+      }
+    };
   }
 }
 
