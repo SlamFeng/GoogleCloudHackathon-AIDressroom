@@ -89,6 +89,75 @@ public/mediapipe/wasm/*
 `npm run setup:assets` 会把 `@mediapipe/tasks-vision` 的 WASM 文件复制到 `public/mediapipe/wasm`，
 并在缺失时下载 Pose Landmarker Lite 模型。模型加载失败时仍保留手动拍摄作为演示兜底。
 
+## 库存管理子系统
+
+单店铺库存子系统，为造型 Agent 提供商品检索、库存预约与真实扣减，并暴露一套运营接口。完整契约见 `INVENTORY_CONTRACT.md`。
+
+代码位于 `server/inventory/`，业务逻辑只依赖 `InventoryRepository` 接口，底层可切换内存或 Firestore。
+
+### 后端切换
+
+```bash
+# 默认：内存后端，自动灌 40+ 件种子商品，零配置，测试用
+INVENTORY_BACKEND=memory
+
+# 生产：Cloud Firestore（需先灌库，见下）
+INVENTORY_BACKEND=firestore
+```
+
+`GET /api/health` 会回显当前 `inventory_backend`。
+
+### 运营 HTTP API（`/api/inventory`）
+
+```text
+GET    /products?category=&color=&style=&avoid_color=&max_price=&size=&in_stock=&limit=
+GET    /products/:id
+POST   /products              新增商品
+PATCH  /products/:id          修改商品
+DELETE /products/:id          下架（软删除）
+GET    /levels · /levels/:id  库存量
+POST   /levels/:id/restock    补货  { "additions": { "M": 5 } }
+PATCH  /levels/:id            覆盖设定在库  { "on_hand_by_size": { "M": 2 } }
+GET    /low-stock             低库存清单
+GET    /reservations?session_id=&status=
+POST   /reservations · /reservations/:id/confirm · /reservations/:id/release
+```
+
+### Agent 工具
+
+造型 Agent 通过以下工具消费库存，全部写入 `tool_calls` 日志：
+
+- `search_inventory`（推荐时按约束检索实时库存）
+- `reserve_items`（确认搭配时锁定库存，全有或全无）
+- `confirm_purchase`（`POST /api/agent/sessions/:id/purchase` 触发，真实扣减在库）
+- `create_store_route`（按仓位生成店内取货路线）
+
+### 本地跑 Firestore（模拟器）
+
+```bash
+# 需要 Firebase CLI 或 gcloud
+firebase emulators:start --only firestore        # 或 gcloud emulators firestore start
+export FIRESTORE_EMULATOR_HOST=localhost:8080
+export INVENTORY_BACKEND=firestore
+export GOOGLE_CLOUD_PROJECT=demo-aidressroom      # 模拟器下任意 id 即可
+npm run seed:inventory                            # 灌种子数据
+npm run dev
+```
+
+### 部署到 Cloud Run（真 Firestore）
+
+1. 建 GCP 项目并开启 Firestore（Native 模式）。
+2. `gcloud auth application-default login`，或给 Cloud Run 服务账号 `roles/datastore.user`。
+3. 设 `INVENTORY_BACKEND=firestore`、`GOOGLE_CLOUD_PROJECT=<项目 id>`（不要设 `FIRESTORE_EMULATOR_HOST`）。
+4. `npm run seed:inventory` 灌一次库。
+
+### 测试
+
+```bash
+npm run test        # 库存单元测试：可用量、防超卖并发、预约生命周期、补货、低库存
+npm run smoke:agent # 端到端：Agent 会话 → 推荐 → 预约 → 确认购买 → 取货路线
+```
+
 ## 隐私边界
 
 - 未同意时不启动摄像头。
