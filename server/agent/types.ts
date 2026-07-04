@@ -5,6 +5,7 @@ import {
   feedbackPayloadSchema,
   previewStatusPayloadSchema,
   previewTryonSchema,
+  purchasePayloadSchema,
   startAgentSessionSchema
 } from "./contracts.js";
 
@@ -14,6 +15,7 @@ export type FeedbackPayloadInput = z.infer<typeof feedbackPayloadSchema>;
 export type PreviewTryonInput = z.infer<typeof previewTryonSchema>;
 export type PreviewStatusPayloadInput = z.infer<typeof previewStatusPayloadSchema>;
 export type ConfirmPayloadInput = z.infer<typeof confirmPayloadSchema>;
+export type PurchasePayloadInput = z.infer<typeof purchasePayloadSchema>;
 
 export interface AgentRequestContext {
   origin?: string;

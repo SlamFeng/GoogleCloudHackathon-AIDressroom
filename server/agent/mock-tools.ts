@@ -14,6 +14,18 @@ import type {
   TryonHandoffPayload
 } from "./contracts.js";
 import { createLucyPreviewToken } from "../providers/lucy.js";
+import { getInventoryService } from "../inventory/factory.js";
+import type { InventoryService, StoreRoute } from "../inventory/service.js";
+import {
+  standardColorSchema,
+  styleTagSchema,
+  type ProductAvailability,
+  type ProductCategory,
+  type Reservation,
+  type ReserveResult,
+  type StandardColor,
+  type StyleTag
+} from "../inventory/types.js";
 
 export class ToolCallLog {
   readonly calls: ToolCallRecord[] = [];
@@ -32,6 +44,8 @@ export class MockAgentTools {
   readonly log = new ToolCallLog();
   readonly feedbackStore: Array<Record<string, unknown>> = [];
 
+  constructor(private readonly inventoryProvider: () => Promise<InventoryService> = getInventoryService) {}
+
   matchBodyTemplate(input: { session_id: string; body_profile: BodyProfile }): BodyTemplateResult {
     const shape = input.body_profile.body_shape ?? "unknown";
     const size = input.body_profile.body_size ?? "unknown";
@@ -48,7 +62,7 @@ export class MockAgentTools {
     return output;
   }
 
-  getRecommendations(input: {
+  async getRecommendations(input: {
     session_id: string;
     route: Route;
     requested_types: RecommendationType[];
@@ -56,13 +70,14 @@ export class MockAgentTools {
     current_style: string[];
     constraints: AgentConstraints;
     round: number;
-  }): RecommendationResponse {
+  }): Promise<RecommendationResponse> {
+    const candidates = await this.searchInventory(input.session_id, input.constraints);
     const sets = input.requested_types.map((type, index) =>
       this.buildRecommendationSet({
         type,
         round: input.round,
         index,
-        constraints: input.constraints,
+        candidates,
         currentStyle: input.current_style,
         matchedBodyTemplateId: input.matched_body_template_id
       })
@@ -72,7 +87,7 @@ export class MockAgentTools {
       round: input.round,
       route: input.route,
       sets,
-      warnings: []
+      warnings: candidates.length === 0 ? ["no_inventory_matches"] : []
     };
     this.log.append("get_recommendations", input as unknown as Record<string, unknown>, {
       round: response.round,
@@ -81,7 +96,7 @@ export class MockAgentTools {
     return response;
   }
 
-  refineRecommendations(input: {
+  async refineRecommendations(input: {
     session_id: string;
     route: Route;
     previous_set_id: string;
@@ -90,14 +105,14 @@ export class MockAgentTools {
     current_style: string[];
     constraints: AgentConstraints;
     round: number;
-  }): RecommendationResponse {
+  }): Promise<RecommendationResponse> {
     const requestedTypes: RecommendationType[] = input.delta.avoid.some(
       (constraint) => constraint.dimension === "style"
     )
       ? ["style", "seasonal", "similar"]
       : ["similar", "style", "seasonal"];
 
-    const response = this.getRecommendations({
+    const response = await this.getRecommendations({
       session_id: input.session_id,
       route: input.route,
       requested_types: requestedTypes,
@@ -112,6 +127,63 @@ export class MockAgentTools {
       set_ids: response.sets.map((set) => set.set_id)
     });
     return response;
+  }
+
+  /** Live inventory search — the tool that replaces the old hard-coded catalog. Logged as `search_inventory`. */
+  async searchInventory(sessionId: string, constraints: AgentConstraints): Promise<Product[]> {
+    const service = await this.inventoryProvider();
+    const query = buildSearchQuery(constraints);
+    const results = await service.search(query);
+    const products = results.map(toRecProduct);
+    this.log.append(
+      "search_inventory",
+      { session_id: sessionId, ...query },
+      { count: products.length, product_ids: products.map((p) => p.product_id) }
+    );
+    return products;
+  }
+
+  /** Reserve one unit (first available size) of every product in a set. Logged as `reserve_items`. */
+  async reserveOutfit(input: { session_id: string; set: RecommendationSet }): Promise<ReserveResult> {
+    const service = await this.inventoryProvider();
+    const items = input.set.products
+      .map((product) => {
+        const size = firstAvailableSize(product);
+        return size ? { product_id: product.product_id, size, qty: 1 } : null;
+      })
+      .filter((item): item is { product_id: string; size: string; qty: number } => item !== null);
+
+    if (items.length === 0) {
+      const empty: ReserveResult = { ok: false, reason: "insufficient_stock", shortfalls: [] };
+      this.log.append("reserve_items", { session_id: input.session_id, set_id: input.set.set_id, items }, { ok: false });
+      return empty;
+    }
+
+    const result = await service.reserve({ session_id: input.session_id, items });
+    this.log.append(
+      "reserve_items",
+      { session_id: input.session_id, set_id: input.set.set_id, items },
+      result.ok
+        ? { ok: true, reservation_id: result.reservation.reservation_id }
+        : { ok: false, reason: result.reason, shortfalls: result.shortfalls }
+    );
+    return result;
+  }
+
+  /** Commit a reservation to a real stock decrement. Logged as `confirm_purchase`. */
+  async confirmPurchase(input: { session_id: string; reservation_id: string }): Promise<Reservation | null> {
+    const service = await this.inventoryProvider();
+    const reservation = await service.confirmPurchase(input.reservation_id);
+    this.log.append("confirm_purchase", input, { status: reservation?.status ?? "not_found" });
+    return reservation;
+  }
+
+  /** Build an in-store pickup route from the selected products' shelf locations. Logged as `create_store_route`. */
+  async createStoreRoute(input: { session_id: string; product_ids: string[] }): Promise<StoreRoute> {
+    const service = await this.inventoryProvider();
+    const route = await service.buildStoreRoute(input.product_ids);
+    this.log.append("create_store_route", input, { stops: route.stops.length, summary: route.summary });
+    return route;
   }
 
   recordFeedback(input: {
@@ -208,13 +280,12 @@ export class MockAgentTools {
     type: RecommendationType;
     round: number;
     index: number;
-    constraints: AgentConstraints;
+    candidates: Product[];
     currentStyle: string[];
     matchedBodyTemplateId: string;
   }): RecommendationSet {
-    const available = filterProducts(catalog, input.constraints);
     const anchorStyle = input.type === "similar" ? input.currentStyle[0] : styleForType(input.type);
-    const sorted = [...available].sort((a, b) => scoreProduct(b, anchorStyle) - scoreProduct(a, anchorStyle));
+    const sorted = [...input.candidates].sort((a, b) => scoreProduct(b, anchorStyle) - scoreProduct(a, anchorStyle));
     const products = chooseOutfitProducts(sorted, input.type, input.index);
     const setId = `set_r${input.round}_${input.type}_${input.index + 1}`;
     return {
@@ -228,20 +299,70 @@ export class MockAgentTools {
   }
 }
 
-function filterProducts(products: Product[], constraints: AgentConstraints) {
-  const avoidColors = constraints.avoid
-    .filter((constraint) => constraint.dimension === "color")
-    .map((constraint) => constraint.value);
-  const avoidStyles = constraints.avoid
-    .filter((constraint) => constraint.dimension === "style")
-    .map((constraint) => constraint.value);
+/** Category → try-on slot. one_piece maps to the dress slot; headwear/bag fold into accessory. */
+const SLOT_BY_CATEGORY: Record<ProductCategory, OutfitSlotName> = {
+  outerwear: "outerwear",
+  top: "top",
+  bottom: "bottom",
+  dress: "dress",
+  one_piece: "dress",
+  shoes: "shoes",
+  headwear: "accessory",
+  bag: "accessory",
+  accessory: "accessory"
+};
 
-  return products.filter((product) => {
-    if (constraints.budget_yen && product.price_yen > constraints.budget_yen) return false;
-    if (avoidColors.some((color) => product.colors.includes(color))) return false;
-    if (avoidStyles.some((style) => product.style_tags.includes(style))) return false;
-    return Object.values(product.stock).some((quantity) => quantity > 0);
-  });
+function toRecProduct(pa: ProductAvailability): Product {
+  const stock: Record<string, number> = {};
+  for (const size of pa.availability) stock[size.size] = size.available;
+  return {
+    product_id: pa.product.product_id,
+    sku: pa.product.sku,
+    name: pa.product.name,
+    category: SLOT_BY_CATEGORY[pa.product.category],
+    price_yen: pa.product.price_yen,
+    colors: pa.product.colors,
+    style_tags: pa.product.style_tags,
+    body_template_tags: pa.product.body_template_tags,
+    seasonal_rank: pa.product.seasonal_rank,
+    stock,
+    image_url: pa.product.image_url,
+    vton_reference_image_url: pa.product.vton_reference_image_url,
+    vton_prompt: pa.product.vton_prompt
+  };
+}
+
+function buildSearchQuery(constraints: AgentConstraints) {
+  const avoidColors = constraints.avoid
+    .filter((c) => c.dimension === "color")
+    .map((c) => c.value)
+    .filter(isStandardColor);
+  const avoidStyles = constraints.avoid
+    .filter((c) => c.dimension === "style")
+    .map((c) => c.value)
+    .filter(isStyleTag);
+  return {
+    avoid_colors: avoidColors,
+    avoid_style_tags: avoidStyles,
+    max_price_yen: constraints.budget_yen,
+    in_stock_only: true,
+    limit: 200
+  };
+}
+
+function isStandardColor(value: string): value is StandardColor {
+  return (standardColorSchema.options as readonly string[]).includes(value);
+}
+
+function isStyleTag(value: string): value is StyleTag {
+  return (styleTagSchema.options as readonly string[]).includes(value);
+}
+
+function firstAvailableSize(product: Product): string | undefined {
+  for (const [size, quantity] of Object.entries(product.stock)) {
+    if (quantity > 0) return size;
+  }
+  return undefined;
 }
 
 function styleForType(type: RecommendationType) {
@@ -263,11 +384,13 @@ function chooseOutfitProducts(products: Product[], type: RecommendationType, ind
   const outerwear = products.filter((product) => product.category === "outerwear");
   const tops = products.filter((product) => product.category === "top");
   const bottoms = products.filter((product) => product.category === "bottom");
+  const shoes = products.filter((product) => product.category === "shoes");
   const offset = type === "seasonal" ? 1 : index;
   return [
     outerwear[offset % Math.max(outerwear.length, 1)],
     tops[(offset + 1) % Math.max(tops.length, 1)],
-    bottoms[(offset + 2) % Math.max(bottoms.length, 1)]
+    bottoms[(offset + 2) % Math.max(bottoms.length, 1)],
+    shoes[(offset + 3) % Math.max(shoes.length, 1)]
   ].filter(Boolean);
 }
 
@@ -289,102 +412,3 @@ function reasonForType(type: RecommendationType, templateId: string) {
   if (type === "seasonal") return `Prioritizes seasonal and high-stock items for ${templateId}.`;
   return `Matches the explicit customer request and current stock for ${templateId}.`;
 }
-
-const catalog: Product[] = [
-  {
-    product_id: "p_outer_001",
-    sku: "JK-001",
-    name: "Navy cropped jacket",
-    category: "outerwear",
-    price_yen: 9800,
-    colors: ["navy", "blue"],
-    style_tags: ["casual", "minimal", "smart_casual"],
-    body_template_tags: ["body_template_pear_average", "body_template_rectangle_average"],
-    seasonal_rank: 8,
-    stock: { M: 4, L: 2 },
-    image_url: "/mock-products/navy-jacket.jpg",
-    vton_reference_image_url: "/mock-products/navy-jacket-vton.png",
-    vton_prompt:
-      "Substitute the current outerwear with a navy cropped jacket. Keep face, body shape, pose, hands, and background unchanged."
-  },
-  {
-    product_id: "p_outer_002",
-    sku: "JK-002",
-    name: "Light casual shirt jacket",
-    category: "outerwear",
-    price_yen: 7600,
-    colors: ["white", "beige"],
-    style_tags: ["casual", "smart_casual"],
-    body_template_tags: ["body_template_pear_average", "body_template_unknown_unknown"],
-    seasonal_rank: 7,
-    stock: { M: 3, L: 3 },
-    image_url: "/mock-products/light-shirt-jacket.jpg",
-    vton_reference_image_url: "/mock-products/light-shirt-jacket-vton.png",
-    vton_prompt:
-      "Substitute the current outerwear with a light beige casual shirt jacket. Keep the original person and camera scene unchanged."
-  },
-  {
-    product_id: "p_top_001",
-    sku: "TP-001",
-    name: "White fitted knit top",
-    category: "top",
-    price_yen: 5200,
-    colors: ["white"],
-    style_tags: ["minimal", "smart_casual"],
-    body_template_tags: ["body_template_rectangle_average", "body_template_pear_average"],
-    seasonal_rank: 6,
-    stock: { S: 2, M: 7 },
-    image_url: "/mock-products/white-knit.jpg",
-    vton_reference_image_url: "/mock-products/white-knit-vton.png",
-    vton_prompt:
-      "Substitute the current top with a clean white fitted knit top. Preserve face, pose, hair, hands, and background."
-  },
-  {
-    product_id: "p_top_002",
-    sku: "TP-002",
-    name: "Soft pink relaxed blouse",
-    category: "top",
-    price_yen: 5900,
-    colors: ["pink"],
-    style_tags: ["romantic", "casual"],
-    body_template_tags: ["body_template_pear_average"],
-    seasonal_rank: 9,
-    stock: { M: 5 },
-    image_url: "/mock-products/pink-blouse.jpg",
-    vton_reference_image_url: "/mock-products/pink-blouse-vton.png",
-    vton_prompt:
-      "Substitute the current top with a soft pink relaxed blouse. Keep identity, body shape, and room lighting unchanged."
-  },
-  {
-    product_id: "p_bottom_001",
-    sku: "BT-001",
-    name: "Dark straight-leg denim",
-    category: "bottom",
-    price_yen: 8800,
-    colors: ["navy", "blue"],
-    style_tags: ["casual", "classic"],
-    body_template_tags: ["body_template_pear_average", "body_template_rectangle_average"],
-    seasonal_rank: 7,
-    stock: { M: 3, L: 2 },
-    image_url: "/mock-products/dark-denim.jpg",
-    vton_reference_image_url: "/mock-products/dark-denim-vton.png",
-    vton_prompt:
-      "Substitute the current bottoms with dark straight-leg denim pants. Keep upper body, face, pose, and background stable."
-  },
-  {
-    product_id: "p_bottom_002",
-    sku: "BT-002",
-    name: "Black tapered trousers",
-    category: "bottom",
-    price_yen: 9200,
-    colors: ["black"],
-    style_tags: ["business", "minimal", "smart_casual"],
-    body_template_tags: ["body_template_rectangle_average", "body_template_pear_average"],
-    seasonal_rank: 5,
-    stock: { S: 2, M: 2 },
-    image_url: "/mock-products/black-trousers.jpg",
-    vton_reference_image_url: "/mock-products/black-trousers-vton.png",
-    vton_prompt:
-      "Substitute the current bottoms with black tapered trousers. Keep the person and background unchanged."
-  }
-];

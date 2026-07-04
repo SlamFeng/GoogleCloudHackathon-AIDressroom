@@ -16,6 +16,7 @@ import {
   feedbackPayloadSchema,
   previewStatusPayloadSchema,
   previewTryonSchema,
+  purchasePayloadSchema,
   startAgentSessionSchema
 } from "./contracts.js";
 
@@ -28,7 +29,8 @@ type AgentCommand =
   | { action: "preview"; payload: unknown; requestContext?: Record<string, unknown> }
   | { action: "preview_status"; payload: unknown; requestContext?: Record<string, unknown> }
   | { action: "feedback"; payload: unknown; requestContext?: Record<string, unknown> }
-  | { action: "confirm"; payload: unknown; requestContext?: Record<string, unknown> };
+  | { action: "confirm"; payload: unknown; requestContext?: Record<string, unknown> }
+  | { action: "purchase"; payload: unknown; requestContext?: Record<string, unknown> };
 
 export interface AdkRunResult {
   result: WorkflowResult;
@@ -117,6 +119,10 @@ class DressroomWorkflowAgent extends BaseAgent {
     if (command.action === "feedback") {
       const parsed = feedbackPayloadSchema.parse(command.payload ?? {});
       return this.workflow.applyFeedback(state, parsed);
+    }
+    if (command.action === "purchase") {
+      purchasePayloadSchema.parse(command.payload ?? {});
+      return this.workflow.purchaseSelected(state);
     }
 
     const parsed = confirmPayloadSchema.parse(command.payload ?? {});
@@ -245,7 +251,7 @@ function commandToContent(command: AgentCommand): Content {
 function parseCommand(content?: Content): AgentCommand {
   const text = content?.parts?.map((part) => part.text ?? "").join("") ?? "";
   const parsed = JSON.parse(text) as AgentCommand;
-  if (!["start", "chat", "preview", "preview_status", "feedback", "confirm"].includes(parsed.action)) {
+  if (!["start", "chat", "preview", "preview_status", "feedback", "confirm", "purchase"].includes(parsed.action)) {
     throw new Error(`Unsupported ADK agent action: ${String(parsed.action)}`);
   }
   return parsed;

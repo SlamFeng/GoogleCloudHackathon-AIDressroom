@@ -9,6 +9,8 @@ import {
   type ImageAnalysisToolResult
 } from "./image-analysis-tool.js";
 import { agentRouter } from "./agent/api.js";
+import { inventoryRouter } from "./inventory/api.js";
+import { getInventoryService, resolveBackend } from "./inventory/factory.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -18,6 +20,7 @@ const analyses = new Map<string, StoredAnalysis>();
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
 app.use("/api/agent", agentRouter);
+app.use("/api/inventory", inventoryRouter);
 
 app.get("/api/health", (_request, response) => {
   response.json({
@@ -26,6 +29,7 @@ app.get("/api/health", (_request, response) => {
     agent: "adk_control_plane",
     gemini_model: getGeminiModel(),
     gemini_image_model: getGeminiImageModel(),
+    inventory_backend: resolveBackend(),
     body_schema_version: "1.2",
     outfit_schema_version: "1.0"
   });
@@ -105,6 +109,9 @@ app.delete("/api/sessions/:sessionId", (request, response) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(`AIDA capture API listening on http://localhost:${port}`);
 });
+
+// Release abandoned reservation holds back to available stock on a timer.
+void getInventoryService().then((service) => service.startExpirySweeper());
 
 function hasGeminiKey() {
   return Boolean(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY);

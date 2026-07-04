@@ -119,6 +119,10 @@ router.post("/sessions/:sessionId/confirm", async (request, response) => {
   await runAdkCommand(request.params.sessionId, "confirm", parsed.data, requestOrigin(request), response);
 });
 
+router.post("/sessions/:sessionId/purchase", async (request, response) => {
+  await runAdkCommand(request.params.sessionId, "purchase", request.body ?? {}, requestOrigin(request), response);
+});
+
 router.get("/tool-calls", (_request, response) => {
   response.json({
     tool_calls: Array.from(sessions.values()).flatMap((state) =>
@@ -136,7 +140,7 @@ export const agentSessions = sessions;
 
 async function runAdkCommand(
   agentSessionId: string,
-  action: "chat" | "preview" | "preview_status" | "feedback" | "confirm",
+  action: "chat" | "preview" | "preview_status" | "feedback" | "confirm" | "purchase",
   payload: unknown,
   origin: string | undefined,
   response: Response

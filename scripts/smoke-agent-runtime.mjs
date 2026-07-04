@@ -107,7 +107,19 @@ async function main() {
   assertEqual(confirmed.output.type, "tryon_handoff", "final try-on handoff generated");
   assertEqual(confirmed.state.aha_demo.stage, "handoff_ready", "Aha state reaches handoff");
   assertEqual(confirmed.output.handoff.use_own_face, false, "no consent uses default face path");
+  assert(confirmed.output.reservation?.reservation_id, "confirm places an inventory hold on the selected outfit");
   assertNoClientTokenInEvents(confirmed.adk_events);
+
+  const purchased = await request(`/api/agent/sessions/${agentSessionId}/purchase`, {
+    method: "POST",
+    body: "{}"
+  });
+  assertEqual(purchased.output.type, "purchase_completed", "purchase commits the reservation to a real stock decrement");
+  assert(purchased.output.store_route?.stops?.length >= 1, "purchase returns an in-store pickup route");
+  const toolNames = new Set(purchased.state.tool_calls.map((call) => call.tool));
+  for (const tool of ["search_inventory", "reserve_items", "confirm_purchase", "create_store_route"]) {
+    assert(toolNames.has(tool), `inventory tool ${tool} appears in the Agent tool trace`);
+  }
 
   const restored = await request(`/api/agent/sessions/${agentSessionId}`);
   assertEqual(restored.state.status, "handoff_ready", "session can be read back after writes");
