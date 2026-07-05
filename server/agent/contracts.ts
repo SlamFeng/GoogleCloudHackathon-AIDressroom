@@ -194,12 +194,24 @@ export const previewTryonSchema = z.object({
   duration_limit_sec: z.number().int().min(3).max(30).default(12)
 });
 
+export const feedbackSourceSchema = z.enum([
+  "voice",
+  "quick_tag",
+  "ui_click",
+  "staff_input",
+  "system"
+]);
+export type FeedbackSource = z.infer<typeof feedbackSourceSchema>;
+
 export const feedbackPayloadSchema = z.object({
   set_id: z.string().min(1),
   feedback_type: feedbackTypeSchema.default("partial_adjust"),
   dimension: feedbackDimensionSchema.optional(),
   dimension_value: z.string().optional(),
-  raw_voice_text: z.string().optional()
+  raw_voice_text: z.string().optional(),
+  // Shared TEAM_CONTRACTS `source` enum; optional here since the local runtime
+  // does not branch on it, but accepted so callers can pass it through.
+  source: feedbackSourceSchema.optional()
 });
 
 export const confirmPayloadSchema = z.object({

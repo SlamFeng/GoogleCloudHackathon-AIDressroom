@@ -103,7 +103,7 @@ Differentiators:
 
 - Store inventory is part of the decision, not an afterthought.
 - Feedback is captured as structured constraints.
-- The same Agent foundation supports mirror, storefront, and staff iPad flows.
+- The same Agent runtime supports mirror, entrance screen, and staff iPad flows.
 - Try-on generation is the final handoff, not the whole product.
 
 ## 7. Project Risks and Responses

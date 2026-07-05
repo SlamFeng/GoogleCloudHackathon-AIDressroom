@@ -40,7 +40,7 @@
 | 场景 | 用途 | 交互模式 |
 | --- | --- | --- |
 | 试衣间镜子（fitting room mirror） | 自助式搭配推荐与试穿流程 | 顾客直接与镜面 UI + 语音交互 |
-| 门口大屏（storefront screen） | 引流与快速推荐 | 低门槛、短会话交互 |
+| 门口大屏（entrance screen，`scene_type=entrance_screen`） | 引流与快速推荐 | 低门槛、短会话交互 |
 | 店员 iPad（staff iPad） | 一对一辅助销售 | 店员可引导或接管整个流程 |
 
 三个场景**共用同一套后端**，区别只在会话的 `scene_type` 字段。
@@ -350,9 +350,9 @@ flowchart TB
 | 字段 | 含义 |
 | --- | --- |
 | `session_id` | 本次服务会话 |
-| `scene_type` | `mirror` / `storefront_screen` / `staff_ipad` |
+| `scene_type` | `mirror` / `entrance_screen` / `staff_ipad` |
 | `store_id` | 门店 ID |
-| `status` | `analyzing` / `communicating` / `recommending` / `refining` / `confirmed` / `ended` |
+| `status` | `communicating` / `recommending` / `previewing` / `confirmed` / `handoff_ready` / `staff_takeover` / `ended`（与 `server/agent/contracts.ts` 的 `sessionStatusSchema` 一致） |
 | `route` | `explicit` / `recommendation` / `unclear` |
 | `started_at` | 开始时间 |
 | `ended_at` | 结束时间 |

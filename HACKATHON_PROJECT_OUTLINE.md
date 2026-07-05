@@ -1,9 +1,11 @@
 # 动态 AI 试衣间：Hackathon 项目大纲
 
 > 项目暂定名：Dynamic AI Dress Room / AI Styling Agent  
-> 文档状态：初版大纲  
+> 文档状态：**初版大纲（历史）**——最新主开发文档见 [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md)  
 > 更新日期：2026-06-14  
 > 官方页面：[DevOps × AI Agent Hackathon](https://findy.notion.site/devops-ai-agent-hackathon-2026)
+>
+> 隐私边界（与当前实现一致）：系统**不做人脸身份识别**（face consent 仅用于状态跟踪与试穿分支）；**不估算/不共享精确身体围度**（`measurements` 已从契约移除），仅以体型模板与类目标签（如 slim/average/curvy/plus）呈现。
 
 ## 1. 项目定位
 

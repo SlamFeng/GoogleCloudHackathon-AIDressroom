@@ -5,6 +5,7 @@ import {
   analyzeDressroomImage,
   getGeminiModel,
   getGeminiImageModel,
+  hasGeminiApiKey,
   imageAnalysisInputSchema,
   type ImageAnalysisToolResult
 } from "./image-analysis-tool.js";
@@ -25,7 +26,7 @@ app.use("/api/inventory", inventoryRouter);
 app.get("/api/health", (_request, response) => {
   response.json({
     status: "ok",
-    analyzer: hasGeminiKey() ? "mock+gemini" : "mock",
+    analyzer: hasGeminiApiKey() ? "auto+gemini" : "auto+mock",
     agent: "adk_control_plane",
     gemini_model: getGeminiModel(),
     gemini_image_model: getGeminiImageModel(),
@@ -47,7 +48,7 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
     session_id: request.params.sessionId,
     manual_profile: request.body?.manual_profile,
     capture_data_url: request.body?.capture_data_url,
-    analysis_mode: request.body?.analysis_mode ?? "ai"
+    analysis_mode: request.body?.analysis_mode ?? "auto"
   });
 
   if (!parsedInput.success) {
@@ -64,7 +65,7 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
     response.status(501).json({
       error:
         result.error_code === "AI_ANALYZER_NOT_CONFIGURED"
-          ? "Gemini API key 未配置。请设置 GEMINI_API_KEY 或 GOOGLE_API_KEY，重启服务后再使用 AI 分析。"
+          ? "Gemini API key 未配置。请设置 GEMINI_API_KEY 或 GOOGLE_API_KEY，重启服务后再使用 AI 分析，或使用 auto/mock 分析模式。"
           : "Gemini AI 分析失败。请检查 key、模型权限、图片大小和结构化输出 schema。",
       details: result
     });
@@ -112,7 +113,3 @@ app.listen(port, "0.0.0.0", () => {
 
 // Release abandoned reservation holds back to available stock on a timer.
 void getInventoryService().then((service) => service.startExpirySweeper());
-
-function hasGeminiKey() {
-  return Boolean(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY);
-}

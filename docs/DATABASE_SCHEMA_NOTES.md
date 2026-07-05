@@ -65,9 +65,9 @@ Recommendation tools should avoid out-of-stock products.
 | Field | Type Hint | Required | Notes |
 |---|---|---|---|
 | `session_id` | string | yes | Dynamic data root |
-| `scene_type` | enum | yes | mirror, storefront_screen, staff_ipad |
+| `scene_type` | enum | yes | mirror, entrance_screen, staff_ipad |
 | `store_id` | string | yes | Store reference |
-| `status` | enum | yes | analyzing, communicating, recommending, refining, confirmed, ended |
+| `status` | enum | yes | communicating, recommending, previewing, confirmed, handoff_ready, staff_takeover, ended (matches `sessionStatusSchema` in `server/agent/contracts.ts`) |
 | `route` | enum | optional | explicit, recommendation, unclear |
 | `started_at` | timestamp | yes | Start time |
 | `ended_at` | timestamp | optional | End time |
@@ -163,4 +163,4 @@ Likely useful indexes:
 - Does recommendation need `stock_quantity` or only `in_stock`?
 - Should `style_tags` be a fixed enum or free tag list in the MVP?
 - Who owns deletion jobs for `photo_url` and `face_data_encrypted`?
-- Does storefront screen need shorter session expiry than mirror/iPad?
+- Does the entrance screen (`entrance_screen`) need shorter session expiry than mirror/iPad?

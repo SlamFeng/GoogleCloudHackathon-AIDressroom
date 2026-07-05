@@ -25,6 +25,10 @@ export function getGeminiImageModel() {
   return process.env.GEMINI_IMAGE_MODEL ?? DEFAULT_GEMINI_IMAGE_MODEL;
 }
 
+export function hasGeminiApiKey() {
+  return Boolean(process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY);
+}
+
 export const imageAnalysisInputSchema = z.object({
   session_id: z
     .string()
@@ -32,9 +36,9 @@ export const imageAnalysisInputSchema = z.object({
     .optional()
     .describe("Optional caller session id. A tool-scoped id is generated when omitted."),
   analysis_mode: z
-    .enum(["mock", "ai"])
-    .default("ai")
-    .describe("Use ai for production OOTD extraction. Mock is only for deterministic contract tests."),
+    .enum(["auto", "mock", "ai"])
+    .default("auto")
+    .describe("Use auto for local/demo fallback, ai to require Gemini, or mock for deterministic contract tests."),
   capture_data_url: z
     .string()
     .refine((value) => value.startsWith("data:image/"), "Must be an image data URL.")
@@ -71,12 +75,14 @@ export type ImageAnalysisToolResult =
 export async function analyzeDressroomImage(
   input: ImageAnalysisToolInput
 ): Promise<ImageAnalysisToolResult> {
-  if (input.analysis_mode === "ai") {
+  const effectiveMode = input.analysis_mode === "auto" ? (hasGeminiApiKey() ? "ai" : "mock") : input.analysis_mode;
+
+  if (effectiveMode === "ai") {
     return analyzeWithGemini(input);
   }
 
   const sessionId = input.session_id ?? `tool_ses_${randomUUID().slice(0, 12)}`;
-  const analysis = buildMockAnalysis(sessionId, input.manual_profile, input.analysis_mode);
+  const analysis = buildMockAnalysis(sessionId, input.manual_profile, "mock");
   return { ok: true, analysis };
 }
 
@@ -409,8 +415,8 @@ function buildGeminiPrompt({
     "Use enum values exactly as defined by the response schema. Use unknown or null when evidence is insufficient.",
     "Do not infer age range or gender presentation from the image; use the manual_profile values exactly.",
     "Do not perform face identity recognition.",
-    "Use null for measurements or skin tone when the image evidence is insufficient.",
-    "For single front-view photos, avoid circumference measurements unless clearly justified.",
+    "Do not estimate or output numeric body measurements or circumferences. Body handling is template-based only.",
+    "Use null for skin tone when the image evidence is insufficient.",
     `session_id: ${sessionId}`,
     `analysis_id: ${analysisId}`,
     "analysis_mode: ai",

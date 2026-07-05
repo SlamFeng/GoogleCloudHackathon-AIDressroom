@@ -7,7 +7,7 @@ This is an integrated clothing-store Agent that combines camera-based outfit ana
 | Touchpoint | Purpose |
 |---|---|
 | Fitting room mirror | Self-service recommendation and virtual try-on flow |
-| Storefront screen | Traffic attraction and short-session recommendation |
+| Entrance screen (`entrance_screen`) | Traffic attraction and short-session recommendation |
 | Staff iPad | One-to-one assisted selling and staff takeover |
 
 The core product claim is that the system behaves like a sales consultant, not a static recommender. It should understand customer intent, call inventory/recommendation tools, react to structured feedback, refine constraints, and hand off confirmed outfits to the try-on generation module.
@@ -67,9 +67,10 @@ Important variables:
 
 ```text
 GEMINI_API_KEY=
+VITE_ANALYSIS_MODE=auto
 GOOGLE_CLOUD_PROJECT=
 GOOGLE_CLOUD_LOCATION=asia-northeast1
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash
 GEMINI_IMAGE_MODEL=gemini-3-pro-image
 DECART_API_KEY=
 LUCY_MODEL=lucy-vton-3
@@ -92,7 +93,7 @@ Input highlights:
 
 - `capture_data_url`: front-facing full-body image as `data:image/*;base64,...`
 - `manual_profile`: user-provided `height_cm`, `weight_kg`, `gender_presentation`, `age_range`
-- `analysis_mode`: `ai` or `mock`
+- `analysis_mode`: `auto`, `ai`, or `mock`; `auto` uses Gemini when configured and mock analysis locally
 - `session_id`: optional caller session id
 
 Output contracts:
@@ -105,12 +106,13 @@ Implementation notes:
 
 - API keys are server-side only.
 - The tool does not perform face identity recognition.
+- Body handling is template-based. Exact body measurements are never estimated, stored, or shared; the `measurements` field was dropped from the v1.2 contract.
 - OOTD recognition extracts visible items, dominant colors, style tags, fit, material appearance, and item regions.
 - System fields such as `session_id`, `analysis_id`, `analysis_mode`, `captured_at`, and `source_capture_id` are generated or overwritten by the tool.
 
 ## ADK Agent Runtime
 
-The Agent runtime lives in `server/agent/` and is mounted at `/api/agent`.
+The active Agent runtime lives in `server/agent/` and is mounted at `/api/agent`. Legacy Python Agent prototypes have been removed so integration code has one runtime surface.
 
 Core capabilities:
 

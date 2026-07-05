@@ -1,8 +1,8 @@
 # image_tryon — Try-on Generation Module
 
-The Image/Try-on team's module. It runs as a **standalone service** exposing 3
-tools the Agent foundation calls as "tools". For wiring it into the agent loop,
-see **[INTEGRATION.md](INTEGRATION.md)**.
+The Image/Try-on team's module. It runs as a **standalone HTTP service** that the
+active **TS/ADK Agent runtime** (`server/agent/`) calls as tools over HTTP. For
+wiring it into the agent loop, see **[INTEGRATION.md](INTEGRATION.md)**.
 
 Contracts: [docs/TEAM_CONTRACTS.md](../docs/TEAM_CONTRACTS.md) ·
 [docs/TOOL_SCHEMAS.md](../docs/TOOL_SCHEMAS.md).
@@ -53,4 +53,4 @@ python3 -m unittest discover -s tests
   writes to local `_generated/`, single instance).
 - **Preset face library** (faces.py currently reuses the base figure's face);
   real-face flows resolve `face_profile_id` via the biometric/consent channel.
-- After the agent merge, import shared enums from `agent_foundation.contracts`.
+- Add the TypeScript HTTP adapter from `server/agent/` to this service.

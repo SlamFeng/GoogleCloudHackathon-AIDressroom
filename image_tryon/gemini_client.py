@@ -15,7 +15,7 @@ import urllib.request
 from . import config
 
 _ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-_DEFAULT_MODEL = "gemini-2.5-flash-image"
+_DEFAULT_MODEL = "gemini-3-pro-image"
 # 这些状态码多为瞬时(高负载/内部错误),自动退避重试
 _RETRY_CODES = {429, 500, 503}
 

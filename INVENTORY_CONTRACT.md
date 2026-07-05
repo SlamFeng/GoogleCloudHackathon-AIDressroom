@@ -9,7 +9,7 @@
 
 ## 1. 背景与边界
 
-Agent 拿顾客当前穿搭（`outfit_profile`，见 `OUTFIT_PROFILE_CONTRACT.md`）识别出的**类别 / 颜色 / 风格**去查询库存。因此本契约的类别、颜色、风格枚举**必须与 `outfit_profile` v1.0 对齐**，否则检索会静默漏项。
+Agent 拿顾客当前穿搭（`outfit_profile`，权威定义见 [`schemas/outfit-profile.schema.json`](schemas/outfit-profile.schema.json)）识别出的**类别 / 颜色 / 风格**去查询库存。因此本契约的类别、颜色、风格枚举**必须与 outfit-profile schema v1.0 对齐**，否则检索会静默漏项。
 
 负责：
 - 商品主数据的增删改查。
@@ -75,7 +75,7 @@ Agent 拿顾客当前穿搭（`outfit_profile`，见 `OUTFIT_PROFILE_CONTRACT.md
 outerwear  top  bottom  dress  one_piece  shoes  headwear  bag  accessory
 ```
 
-`colors` 与 `style_tags` 直接复用 `OUTFIT_PROFILE_CONTRACT.md` §6.1 / §6.2 的标准枚举。
+`colors` 与 `style_tags` 直接复用 [`schemas/outfit-profile.schema.json`](schemas/outfit-profile.schema.json) 的 `$defs.colorName` / `$defs.style` 标准枚举。
 
 > 注：代码里的 `outfitSlotSchema`（outerwear/top/bottom/dress/shoes/accessory）是**试穿槽位**，是本类别集的子集；库存接回 Agent 时做一层映射，两者不冲突。
 

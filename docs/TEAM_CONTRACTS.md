@@ -1,8 +1,24 @@
 # Team Contracts
 
-Status: proposal for teammate review.
+Status: v0.2 agreed local integration contract.
 
 Purpose: define cross-team payloads that must be stable across Agent, inventory, frontend, and try-on teams. Each team can implement internal tables and services differently as long as these contracts are satisfied.
+
+> **Authoritative runtime shapes.** The DTOs below are the *abstract, transport-neutral* contract. The concrete, code-enforced shapes the running app actually sends/receives live in TypeScript and win on any conflict:
+> - Agent request/response schemas & enums: [`server/agent/contracts.ts`](../server/agent/contracts.ts)
+> - Frontend/API types: [`src/api.ts`](../src/api.ts), [`src/types.ts`](../src/types.ts)
+> - Inventory subsystem: [`INVENTORY_CONTRACT.md`](../INVENTORY_CONTRACT.md)
+> - Analysis handoff / body / outfit: the JSON Schemas under [`schemas/`](../schemas)
+>
+> **Abstract → runtime field mapping** (where the generic contract and the TS runtime differ in naming):
+>
+> | Abstract DTO field | Runtime field | Where |
+> |---|---|---|
+> | `product_combo: string[]` | `outfit.slots[]` (slot-structured) / `products[]` | `RecommendationSet`, `TryonHandoffPayload` |
+> | `base_template_id` | `template_id` / `matched_body_template_id` | `TryOnHandoffRequest` |
+> | `price` + `currency` (JPY) | `price_yen` (int) | `Product` |
+> | `total_price` + `currency` | derived from `products[].price_yen` | `RecommendationSet` |
+> | `FeedbackPayload.source` | `source` (optional; runtime does not branch on it) | feedback |
 
 ## 1. Ownership Boundary
 
@@ -35,9 +51,9 @@ Internal tables can change freely if shared request/response contracts remain co
 ## 3. Global Enums
 
 ```text
-scene_type = mirror | storefront_screen | staff_ipad
+scene_type = mirror | entrance_screen | staff_ipad
 route = explicit | recommendation | unclear
-session_status = analyzing | communicating | recommending | refining | confirmed | ended
+session_status = communicating | recommending | previewing | confirmed | handoff_ready | staff_takeover | ended
 rec_type = similar | style | seasonal | explicit_need
 feedback_type = reject_all | partial_adjust | positive_keep | confirm
 feedback_dimension = color | fit | style | price | overall
@@ -77,13 +93,17 @@ Optional:
 - `route`
 - `status`
 
-### 4.2 `AnalysisResult`
+### 4.2 `AnalysisResult` / `BodyTemplateResult`
 
-Provided by image/body/style analysis and consumed by Agent, recommendation, and try-on.
+Provided by image/body/style analysis and normalized by the Agent before recommendation and try-on.
 
 ```json
 {
-  "matched_body_template_id": "body_template_03",
+  "body_profile": {
+    "schema_version": "1.2",
+    "body_shape": "rectangle",
+    "body_size": "average"
+  },
   "current_style": ["casual", "minimal"],
   "dominant_colors": ["black", "white"],
   "confidence": 0.82,
@@ -93,7 +113,7 @@ Provided by image/body/style analysis and consumed by Agent, recommendation, and
 
 Required:
 
-- `matched_body_template_id`
+- `body_profile`
 - `current_style`
 - `confidence`
 
@@ -105,8 +125,10 @@ Optional:
 
 Policy:
 
-- Do not include exact body measurements in the shared DTO.
-- Use body template ID instead of precise biometric body data.
+- Analysis may provide `BodyProfile`, but it must not share exact body measurements.
+- `measurements` is optional and, if present, every measurement value must be `null`.
+- The Agent calls `match_body_template` and stores `matched_body_template_id` in session state.
+- Recommendation and try-on read `matched_body_template_id` from Agent state, not from exact body measurements.
 
 ### 4.3 `UserNeedConstraints`
 
@@ -285,10 +307,10 @@ Required:
 - `session_id`
 - `set_id`
 - `feedback_type`
-- `source`
 
 Optional:
 
+- `source` (accepted by the runtime as an optional enum; it does not branch on it)
 - `dimension`
 - `dimension_value`
 - `raw_voice_text`

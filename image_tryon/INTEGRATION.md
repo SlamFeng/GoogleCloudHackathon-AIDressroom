@@ -3,9 +3,11 @@
 Audience: **Agent foundation owner**, wiring the try-on module into the agent loop.
 
 This module is the Image/Try-on team's deliverable. It replaces the try-on and
-default-face methods currently stubbed by `agent_foundation/mock_tools.py`
-(`MockRetailTools`). It owns body-template matching, default-face selection, and
-the try-on image generation pipeline (Gemini 2.5 Flash Image, a.k.a. "nano banana").
+default-face handoff currently represented by the TS/ADK runtime in
+`server/agent/`. It owns body-template matching, default-face selection, and
+the try-on image generation pipeline (Gemini 3 Pro Image / "Nano Banana Pro",
+model id `gemini-3-pro-image`; the high-volume alternative is Nano Banana 2 /
+`gemini-3.1-flash-image`).
 
 Contracts: [docs/TEAM_CONTRACTS.md](../docs/TEAM_CONTRACTS.md) ·
 [docs/TOOL_SCHEMAS.md](../docs/TOOL_SCHEMAS.md).
@@ -34,7 +36,12 @@ background thread. The agent (or frontend) polls `get_generation_status` until
 Both call the **same functions** in `image_tryon/tools.py`. Business logic lives
 below `tools.py`; `service.py` is a thin HTTP shell with no logic.
 
-### A. In-process import (recommended if the agent runs Python)
+> **Use path B (HTTP) for this repo.** The active Agent runtime is the TS/ADK
+> runtime in `server/agent/`, so it integrates over HTTP (§2.B). Path A
+> (in-process import) is only for a Python caller that owns the orchestration —
+> it is not how this repo wires the agent.
+
+### A. In-process import (Python-only, not used by this repo)
 
 ```python
 from image_tryon import (
@@ -45,8 +52,9 @@ from image_tryon import (
 )
 ```
 
-Drop the `image_tryon/` package next to `agent_foundation/` and call the
-functions directly. No network hop. See the adapter in §4.
+Use this only when a Python caller owns the orchestration. The active Agent
+runtime in this repo is TypeScript, so local integration should use the HTTP
+service path below.
 
 ### B. HTTP service (separate deployment / Cloud Run)
 
@@ -189,92 +197,46 @@ Unknown `generation_id` → `status: failed`, `generation_status: failed`,
 
 ---
 
-## 4. Mapping to the current `MockRetailTools`
+## 4. Mapping to the TS/ADK Agent runtime
 
-The agent workflow (`agent_foundation/workflow.py`) today calls two methods on
-`self.tools`. Their names and shapes **differ** from ours, so the cleanest path
-is a thin adapter that exposes the agent's expected signatures and delegates to
-our functions. Three differences to be aware of:
+The active Agent workflow (`server/agent/workflow.ts`) currently builds a
+`TryonHandoffPayload` and logs `handoff_tryon_generation`. Full try-on
+integration should replace that mock handoff with a TypeScript adapter that
+calls the HTTP service in §2.B. Three differences to be aware of:
 
-| # | Agent's `MockRetailTools` | Our function | Gap |
+| # | TS/ADK runtime today | Image try-on service | Gap |
 |---|---|---|---|
-| 1 | `select_default_face_template(matched_body_template_id=…)` | `select_default_face_template(template_id=…)` | **param name only**; return shape already matches |
-| 2 | `handoff_tryon_generation(product_combo: list[str], base_template_id=…, face_mode=…, face_profile_id=…, default_face_template_id=…)` | `generate_tryon(outfit: dict, template_id=…, use_own_face=…, user_face=…)` | **name + shape**; see §4.1 |
-| 3 | `matched_body_template_id` comes from upstream image analysis | `match_body_template(body_profile)` | who runs matching? see §4.2 |
+| 1 | `state.matched_body_template_id` | `template_id` | **param name only** |
+| 2 | `TryonHandoffPayload.outfit.slots` | `generate_tryon(outfit: dict, template_id=…, use_own_face=…, user_face=…)` | **slot shape bridge**; see §4.1 |
+| 3 | `matched_body_template_id` is stored in Agent state | `match_body_template(body_profile)` | Agent runs matching before recommendation and handoff |
 
 ### 4.1 The `product_combo` → `outfit` gap (most important)
 
-`handoff_tryon_generation` hands us a **flat list of product IDs**
-(`product_combo: list[str]`). We need, per garment: a **slot**, a **category**,
-and an **image reference** (`image_url`). Someone must enrich product IDs into
-the slot-structured `outfit` before calling `generate_tryon`.
+The TS runtime already carries slot-structured outfit data in
+`TryonHandoffPayload.outfit.slots`. The adapter still needs to map those slots to
+the exact `image_tryon` category names and image fields expected by
+`generate_tryon`.
 
-That enrichment (id → category + product image URL) is **inventory data**, not
-ours. Options:
-1. The inventory tool returns the `outfit` payload (slot-structured, with image
-   URLs) alongside `product_combo` — preferred, keeps us decoupled.
-2. The adapter calls an inventory lookup to resolve each id.
-
-Until that's settled, the adapter below shows the boundary explicitly.
+That enrichment is now sourced from inventory-backed recommendation sets:
+`product_id`, `slot`, `image_url`, `vton_reference_image_url`, and `prompt`.
 
 ### 4.2 Who runs body matching?
 
-The current workflow takes `matched_body_template_id` from
-`state.analysis` (the image-analysis handoff upstream). If upstream already
-emits a `template_id` using **our** taxonomy, `match_body_template` is optional.
-If upstream emits a raw `body_profile`, route it through `match_body_template`
-first. Please confirm which one upstream produces — see Open Questions (§7).
+The image-analysis handoff produces `BodyProfile`. The Agent calls
+`match_body_template`, stores `matched_body_template_id`, and then passes that
+template ID to recommendation and try-on.
 
-### 4.3 Adapter shim (in-process)
+### 4.3 Adapter path
 
-```python
-from image_tryon import (
-    select_default_face_template as _select_face,
-    generate_tryon as _generate_tryon,
-    get_generation_status,
-)
-from agent_foundation.contracts import FaceMode, ToolStatus
+Implement a TS adapter under `server/agent/` or `server/providers/`:
 
-class ImageTryonTools:
-    """Drop-in replacement for the try-on methods of MockRetailTools."""
-
-    def select_default_face_template(
-        self, session_id, matched_body_template_id, style_context,
-        explicit_user_choice, idempotency_key,
-    ):
-        return _select_face(
-            session_id=session_id,
-            template_id=matched_body_template_id,   # name bridge
-            style_context=style_context,
-            explicit_user_choice=explicit_user_choice,
-            idempotency_key=idempotency_key,
-        )
-
-    def handoff_tryon_generation(
-        self, session_id, set_id, product_combo, base_template_id,
-        face_mode, idempotency_key,
-        face_profile_id=None, default_face_template_id=None,
-    ):
-        outfit = resolve_products_to_outfit(product_combo)   # §4.1 — inventory-owned
-        use_own_face = face_mode == FaceMode.REAL_FACE
-        user_face = load_face_pixels(face_profile_id) if use_own_face else None
-        return _generate_tryon(
-            session_id=session_id,
-            set_id=set_id,
-            template_id=base_template_id,            # name bridge
-            outfit=outfit,
-            idempotency_key=idempotency_key,
-            use_own_face=use_own_face,
-            user_face=user_face,
-        )
-
-    # new: the agent/frontend polls this until succeeded
-    def get_tryon_status(self, generation_id):
-        return get_generation_status(generation_id)
+```text
+TryonHandoffPayload
+  -> POST /tools/generate_tryon
+  -> store generation_id in Agent state
+  -> poll GET /tools/generation_status/{id}
+  -> expose result_url to frontend
 ```
-
-We can ship this adapter as `image_tryon/adapter.py` if you prefer real code over
-a snippet — just say the word.
 
 ---
 
@@ -324,7 +286,7 @@ For a Cloud Run single instance this in-memory store is fine for the demo. Multi
 | Item | Value |
 |---|---|
 | Env | `GEMINI_API_KEY` (env var or repo-root `.env`) |
-| Model | `gemini-2.5-flash-image` (REST via stdlib `urllib`; retries on 429/500/503) |
+| Model | `gemini-3-pro-image` (Nano Banana Pro; REST via stdlib `urllib`; retries on 429/500/503). High-volume alt: `gemini-3.1-flash-image` (Nano Banana 2) |
 | Deps | `fastapi`, `uvicorn`, `pydantic` (HTTP mode only; tools layer is stdlib) |
 | Results | `image_tryon/_generated/{generation_id}/{view}.png` (gitignored) |
 | Deploy | `uvicorn image_tryon.service:app` → container → Cloud Run |

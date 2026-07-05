@@ -1,10 +1,12 @@
 # Tool Schemas
 
-Status: proposal for teammate review.
+Status: v0.2 agreed local integration contract.
 
-This file defines the first shared tool contracts for the Agent foundation. Tools can be implemented as mock functions, HTTP endpoints, ADK tools, or service adapters. The payload shape should remain compatible.
+This file defines the first shared tool contracts for the TS/ADK Agent runtime (`server/agent/`). Tools can be implemented as mock functions, HTTP endpoints, ADK tools, or service adapters. The payload shape should remain compatible.
 
 See [TEAM_CONTRACTS.md](TEAM_CONTRACTS.md) for shared DTO definitions.
+
+> **Authoritative shapes.** These JSON examples are transport-neutral. The code-enforced request/response schemas the running Agent actually uses live in [`server/agent/contracts.ts`](../server/agent/contracts.ts) and win on any conflict (e.g. runtime uses `price_yen`, `outfit.slots`, `template_id`; see the mapping table in TEAM_CONTRACTS.md). Inventory tools (`search_inventory` / `reserve_items` / `confirm_purchase` / `create_store_route`) are specified in [`INVENTORY_CONTRACT.md`](../INVENTORY_CONTRACT.md).
 
 ## 1. General Tool Rules
 
@@ -58,6 +60,10 @@ Request:
   "requested_rec_types": ["similar", "style", "seasonal"]
 }
 ```
+
+Note: `matched_body_template_id` is produced by the Agent-owned `match_body_template`
+normalization step and stored in Agent session state. The shared recommendation
+tool receives the template ID; it must not require exact body measurements.
 
 Response:
 
@@ -179,6 +185,8 @@ Request:
   "idempotency_key": "s001-set001-feedback-color-red"
 }
 ```
+
+`feedback.source` is optional: the runtime accepts the `voice | quick_tag | ui_click | staff_input | system` enum but does not branch on it.
 
 Response:
 

@@ -1,6 +1,7 @@
 import type { AnalysisHandoff, BodyProfile, ManualProfile } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const ANALYSIS_MODE = import.meta.env.VITE_ANALYSIS_MODE ?? "auto";
 
 export type SceneType = "mirror" | "entrance_screen" | "staff_ipad";
 export type Route = "explicit" | "recommendation" | "unclear";
@@ -227,7 +228,7 @@ export async function analyzeCapture(
     body: JSON.stringify({
       manual_profile: manualProfile,
       capture_data_url: captureDataUrl,
-      analysis_mode: "ai"
+      analysis_mode: ANALYSIS_MODE
     })
   });
 }

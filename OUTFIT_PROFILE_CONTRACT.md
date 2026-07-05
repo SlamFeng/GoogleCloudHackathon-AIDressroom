@@ -2,6 +2,7 @@
 
 > 版本：**v1.0**｜日期：2026-06-26  
 > 状态：MVP 正式契约  
+> 权威 schema：[`schemas/outfit-profile.schema.json`](schemas/outfit-profile.schema.json)（字段/枚举以 schema 为准；schema 另含 `items[].region` 归一化坐标与 `product_image_data_url` 等字段）  
 > 用途：定义信息提取模块从顾客当前全身照中识别出的穿搭信息。  
 > 消费方：穿搭推荐 Agent、相似商品检索、试穿预览和推荐解释模块。
 
