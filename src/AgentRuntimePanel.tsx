@@ -391,8 +391,9 @@ function RuntimeTrace({
   outputType: string;
   toolCalls: ToolCallRecord[];
 }) {
-  const latestToolCalls = toolCalls.slice(-6);
-  const latestEvents = adkEvents.slice(-3);
+  const [openTool, setOpenTool] = useState<number | null>(null);
+  const latestEvents = adkEvents.slice(-4);
+  const failedCount = toolCalls.filter((call) => deriveToolStatus(call.output).tone === "danger").length;
   return (
     <div className="agent-trace">
       <div className="trace-head">
@@ -401,34 +402,108 @@ function RuntimeTrace({
         <RuntimeBadge label="events" value={String(adkEvents.length)} />
         <RuntimeBadge label="tools" value={String(toolCalls.length)} />
       </div>
-      <div className="trace-grid">
-        <div className="trace-column">
-          <span>TOOL CALLS</span>
-          {latestToolCalls.length === 0 ? (
-            <code>none</code>
-          ) : (
-            latestToolCalls.map((call) => (
-              <code key={`${call.tool}_${call.called_at}`}>
-                {call.tool} · {new Date(call.called_at).toLocaleTimeString()}
-              </code>
-            ))
-          )}
+
+      <div className="tool-timeline">
+        <div className="tool-timeline-head">
+          <span>Tool call trace</span>
+          <span className="tool-timeline-hint">
+            {toolCalls.length === 0
+              ? "click a call to inspect input / output"
+              : `${toolCalls.length} calls${failedCount > 0 ? ` · ${failedCount} failed` : ""} · click to inspect`}
+          </span>
         </div>
-        <div className="trace-column">
-          <span>ADK EVENTS</span>
-          {latestEvents.length === 0 ? (
-            <code>none</code>
-          ) : (
-            latestEvents.map((event) => (
-              <code key={event.invocation_id ?? event.id}>
-                {event.author} · {event.state_delta_keys.join(",") || "no_delta"}
-              </code>
-            ))
-          )}
-        </div>
+        {toolCalls.length === 0 ? (
+          <div className="tool-timeline-empty">
+            No tool calls yet. Start the agent and ask for a recommendation to see the Agent execute
+            <code>match_body_template</code>, <code>get_recommendations</code> and the inventory tools.
+          </div>
+        ) : (
+          <ol className="tool-call-list">
+            {toolCalls.map((call, index) => {
+              const status = deriveToolStatus(call.output);
+              const open = openTool === index;
+              return (
+                <li
+                  key={`${call.tool}_${call.called_at}_${index}`}
+                  className={open ? "tool-call open" : "tool-call"}
+                >
+                  <button
+                    type="button"
+                    className="tool-call-row"
+                    aria-expanded={open}
+                    onClick={() => setOpenTool(open ? null : index)}
+                  >
+                    <span className="tool-call-index">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="tool-call-name">{call.tool}</span>
+                    <span className={`tool-call-status ${status.tone}`}>{status.label}</span>
+                    <span className="tool-call-time">
+                      {new Date(call.called_at).toLocaleTimeString()}
+                    </span>
+                    <span className="tool-call-caret" aria-hidden="true">
+                      {open ? "−" : "+"}
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="tool-call-body">
+                      <div className="tool-io">
+                        <span>Input</span>
+                        <pre>{formatTracePayload(call.input)}</pre>
+                      </div>
+                      <div className="tool-io">
+                        <span>Output</span>
+                        <pre>{formatTracePayload(call.output)}</pre>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+
+      <div className="trace-column adk-events-column">
+        <span>ADK EVENTS</span>
+        {latestEvents.length === 0 ? (
+          <code>none</code>
+        ) : (
+          latestEvents.map((event) => (
+            <code key={event.invocation_id ?? event.id}>
+              {event.author} · {event.state_delta_keys.join(",") || "no_delta"}
+            </code>
+          ))
+        )}
       </div>
     </div>
   );
+}
+
+function deriveToolStatus(output: ToolCallRecord["output"]): { label: string; tone: string } {
+  if (output && typeof output === "object") {
+    const record = output as Record<string, unknown>;
+    if (record.ok === false) return { label: "failed", tone: "danger" };
+    const status = record.status;
+    if (typeof status === "string") {
+      const tone =
+        status === "confirmed" || status === "held" || status === "success"
+          ? "ok"
+          : status === "not_found" || status === "failed"
+            ? "danger"
+            : "neutral";
+      return { label: status, tone };
+    }
+  }
+  return { label: "ok", tone: "ok" };
+}
+
+function formatTracePayload(value: unknown) {
+  try {
+    const json = JSON.stringify(value, null, 2);
+    if (!json) return String(value);
+    return json.length > 1400 ? `${json.slice(0, 1400)}\n… (truncated)` : json;
+  } catch {
+    return String(value);
+  }
 }
 
 function RuntimeBadge({ label, value }: { label: string; value: string }) {
