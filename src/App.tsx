@@ -109,7 +109,7 @@ const translations = {
         "Packaging data for the recommendation Agent"
       ],
       note:
-        "Circumferences are only estimated when evidence is sufficient; unreliable fields stay empty."
+        "The Agent keeps body handling template-based; exact body measurements are not stored or shared."
     },
     review: {
       step: "STEP 04 · OOTD",
@@ -131,7 +131,7 @@ const translations = {
       bodyProfileIntro: "Supporting sizing and model-matching signals",
       manualTitle: "Manual profile",
       proportionsTitle: "Proportions",
-      measurementsTitle: "Estimated measurements",
+      measurementsTitle: "Measurements not retained",
       warningsTitle: "Image limits",
       height: "Height",
       weight: "Weight",
@@ -266,7 +266,7 @@ const translations = {
       waitNote: "OOTD 分析通常需要 1-2 分钟。",
       progressLabel: "正在分析 OOTD",
       steps: ["全身画面质量检查", "身体比例与轮廓分析", "当前服装类别与颜色识别", "整理为推荐 Agent 可用数据"],
-      note: "围度只会在依据足够时给出近似值；不可靠的字段会保留为空。"
+      note: "Agent 只保留模板化体型信号；不会存储或共享精确身体围度。"
     },
     review: {
       step: "STEP 04 · OOTD",
@@ -288,7 +288,7 @@ const translations = {
       bodyProfileIntro: "用于尺码推荐和模特匹配的辅助信号",
       manualTitle: "手动资料",
       proportionsTitle: "身体比例",
-      measurementsTitle: "估算尺寸",
+      measurementsTitle: "测量值不保留",
       warningsTitle: "图像限制",
       height: "身高",
       weight: "体重",
@@ -422,7 +422,7 @@ const translations = {
       waitNote: "OOTD 分析は通常 1-2 分ほどかかります。",
       progressLabel: "OOTD を分析中",
       steps: ["全身画像の品質チェック", "身体比率とシルエット分析", "現在の服カテゴリと色の検出", "推薦 Agent 用データに整理"],
-      note: "採寸値は根拠が十分な場合のみ概算し、不確かな項目は空欄にします。"
+      note: "Agent は体型テンプレート中心で扱い、正確な身体採寸値は保存・共有しません。"
     },
     review: {
       step: "STEP 04 · OOTD",
@@ -444,7 +444,7 @@ const translations = {
       bodyProfileIntro: "サイズ推薦とモデル照合用の補助情報",
       manualTitle: "入力プロフィール",
       proportionsTitle: "身体バランス",
-      measurementsTitle: "推定サイズ",
+      measurementsTitle: "採寸値は保持しません",
       warningsTitle: "画像上の制限",
       height: "身長",
       weight: "体重",
@@ -1289,27 +1289,27 @@ function Review({
                 <div className="profile-facts">
                   <ProfileFact
                     label={copy.review.shoulder}
-                    value={formatMeasurement(body.measurements.shoulder_cm, copy.review.unavailable)}
+                    value={formatMeasurement(undefined, copy.review.unavailable)}
                   />
                   <ProfileFact
                     label={copy.review.inseam}
-                    value={formatMeasurement(body.measurements.inseam_cm, copy.review.unavailable)}
+                    value={formatMeasurement(undefined, copy.review.unavailable)}
                   />
                   <ProfileFact
                     label={copy.review.bust}
-                    value={formatMeasurement(body.measurements.bust_cm, copy.review.unavailable)}
+                    value={formatMeasurement(undefined, copy.review.unavailable)}
                   />
                   <ProfileFact
                     label={copy.review.waist}
-                    value={formatMeasurement(body.measurements.waist_cm, copy.review.unavailable)}
+                    value={formatMeasurement(undefined, copy.review.unavailable)}
                   />
                   <ProfileFact
                     label={copy.review.hip}
-                    value={formatMeasurement(body.measurements.hip_cm, copy.review.unavailable)}
+                    value={formatMeasurement(undefined, copy.review.unavailable)}
                   />
                   <ProfileFact
                     label={copy.review.footLength}
-                    value={formatMeasurement(body.measurements.foot_length_cm, copy.review.unavailable)}
+                    value={formatMeasurement(undefined, copy.review.unavailable)}
                   />
                 </div>
               </section>
@@ -1406,8 +1406,8 @@ function formatItemMaterial(item: OutfitItem) {
   return parts.length > 0 ? formatTokenList(parts) : "material unknown";
 }
 
-function formatMeasurement(value: number | null, unavailableLabel: string) {
-  return value === null ? unavailableLabel : `${value} cm`;
+function formatMeasurement(_value: null | undefined, unavailableLabel: string) {
+  return unavailableLabel;
 }
 
 function ProfileFact({ label, value }: { label: string; value: string }) {

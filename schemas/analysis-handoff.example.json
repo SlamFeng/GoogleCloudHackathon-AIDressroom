@@ -1,6 +1,7 @@
 {
   "session_id": "ses_demo_001",
   "analysis_id": "ana_demo_001",
+  "analysis_mode": "mock",
   "status": "ready",
   "captured_at": "2026-06-26T10:30:00+09:00",
   "body_profile": {
@@ -17,14 +18,6 @@
       "hip_width": "average",
       "leg_to_torso": "balanced"
     },
-    "measurements": {
-      "bust_cm": null,
-      "waist_cm": null,
-      "hip_cm": null,
-      "shoulder_cm": 39,
-      "inseam_cm": 76,
-      "foot_length_cm": null
-    },
     "skin_tone": "light",
     "extraction": {
       "source_capture_id": "cap_demo_001",
@@ -39,25 +32,13 @@
           "hip_width": 0.74,
           "leg_to_torso": 0.88
         },
-        "measurements": {
-          "bust_cm": 0,
-          "waist_cm": 0,
-          "hip_cm": 0,
-          "shoulder_cm": 0.69,
-          "inseam_cm": 0.73,
-          "foot_length_cm": 0
-        },
         "skin_tone": 0.61
       },
       "analysis_warnings": [
         {
           "code": "SINGLE_VIEW_LIMITATION",
-          "affected_fields": [
-            "measurements.bust_cm",
-            "measurements.waist_cm",
-            "measurements.hip_cm"
-          ],
-          "message": "Circumference estimates were omitted because only a front view was captured."
+          "affected_fields": ["body_shape"],
+          "message": "Body handling stays template-based; exact body measurements are never estimated or shared."
         }
       ]
     },

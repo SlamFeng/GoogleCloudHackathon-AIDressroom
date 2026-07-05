@@ -1,8 +1,10 @@
 # `body_profile` 字段对接说明 · 试穿预览 ↔ 信息提取
 
-> 版本:**v1.2**｜日期:2026-06-26
+> 版本:**v1.2**（2026-07-04 更新:移除 `measurements`）｜权威 schema:[`schemas/body-profile.schema.json`](schemas/body-profile.schema.json)
 > 用途:本文档定义**用户身材信息 `body_profile`** 的字段契约,供「信息提取模块」按此格式产出数据。
-> 接收方:试穿预览模块(选模特底图)、穿搭推荐模块(尺码推荐)。
+> 接收方:试穿预览模块(选模特底图)、穿搭推荐模块(按体型模板推荐)。
+>
+> ⚠️ **隐私变更(2026-07-04)**:`measurements`(精确身体围度)已**整体从契约移除**。系统不估算、不存储、不共享任何身体围度数字;尺码/试穿一律走 `body_shape` / `body_size` / `proportions` 等类目字段与体型模板。本文档以下内容已按此更新;如与 JSON schema 冲突,**以 schema 为准**。
 
 ---
 
@@ -11,7 +13,7 @@
 - 身材信息**不要求用户手填全部**。**用户手动输入 4 项:身高、体重、性别、年龄**;其余字段由**信息提取模块从用户全身照中分析得出**。
 - **性别、年龄改为用户输入**:这两项识别错误会让用户产生负面情绪(尤其年龄),且用户自己最清楚、输入成本低,故不交给视觉识别。
 - 提取实现方式不限(姿态估计 / 轮廓分割 / 人体测量回归 / 3D 拟合等均可),本文档只约定**输出字段格式**。
-- 身高作为照片的比例尺、体重作为体型/围度先验,二者用于把视觉测量标定到真实 cm。
+- 身高、体重作为体型分类(`body_size`)与比例判断的先验,仅用于类目级判断,**不用于反推或输出精确身体围度**。
 
 ### 字段来源约定
 
@@ -46,17 +48,8 @@
       "leg_to_torso":     "balanced"
     },
 
-    // ===== C. 照片提取 · 围度标量(尺码推荐用,单位 cm)=====
-    "measurements": {
-      "bust_cm": null,                // 单张正面照通常不稳定
-      "waist_cm": null,
-      "hip_cm": null,
-      "shoulder_cm": 39,
-      "inseam_cm": 76,
-      "foot_length_cm": null          // 鞋码用;全身照难取,见 §5
-    },
-
-    // ===== D. 照片提取 · 外观 =====
+    // ===== C. 照片提取 · 外观 =====
+    // 注:measurements(精确围度)已移除,不再输出任何身体围度数字。
     "skin_tone": "light",             // 见 §3.5 枚举
 
     // ===== E. 系统元信息 =====
@@ -73,25 +66,13 @@
           "hip_width": 0.74,
           "leg_to_torso": 0.88
         },
-        "measurements": {
-          "bust_cm": 0,
-          "waist_cm": 0,
-          "hip_cm": 0,
-          "shoulder_cm": 0.69,
-          "inseam_cm": 0.73,
-          "foot_length_cm": 0
-        },
         "skin_tone": 0.61
       },
       "analysis_warnings": [
         {
           "code": "SINGLE_VIEW_LIMITATION",
-          "affected_fields": [
-            "measurements.bust_cm",
-            "measurements.waist_cm",
-            "measurements.hip_cm"
-          ],
-          "message": "Circumference estimates were omitted because only a front view was captured."
+          "affected_fields": ["body_shape"],
+          "message": "Body handling stays template-based; exact body measurements are never estimated or shared."
         }
       ]
     },
@@ -117,12 +98,7 @@
 | `body_shape` | enum\|null | 照片 | 键必填 | 试穿匹配 | §3.2 |
 | `body_size` | enum\|null | 照片 | 键必填 | 试穿匹配 | §3.3 |
 | `proportions.*` | enum\|null | 照片 | 键必填 | 试穿匹配 | §3.4 |
-| `measurements.bust_cm` | number\|null | 照片 | 键必填 | 尺码推荐 | 近似胸围 |
-| `measurements.waist_cm` | number\|null | 照片 | 键必填 | 尺码推荐 | 近似腰围 |
-| `measurements.hip_cm` | number\|null | 照片 | 键必填 | 尺码推荐 | 近似臀围 |
-| `measurements.shoulder_cm` | number\|null | 照片 | 键必填 | 尺码推荐 | 近似肩宽 |
-| `measurements.inseam_cm` | number\|null | 照片 | 键必填 | 尺码推荐 | 近似内长 |
-| `measurements.foot_length_cm` | number\|null | 单独采集 | 选填 | 鞋码 | 见 §5 |
+| ~~`measurements.*`~~ | — | — | **已移除** | — | 2026-07-04 起不再输出任何身体围度数字(隐私) |
 | `skin_tone` | enum\|null | 照片 | 键必填 | 图像生成 | §3.5 |
 | `extraction.*` | object | 系统 | ✅ | 溯源/降权 | §3.7 |
 | `notes` | string | 系统 | 选填 | 提示补充 | 自由文本 |
@@ -193,17 +169,18 @@
 ## 5. 已确认的 MVP 决策
 
 1. 使用单张正面照。
-2. 围度均为近似估算，允许返回 `null`。
+2. **不输出任何身体围度数字**：`measurements` 已从契约移除；尺码/试穿一律走体型模板与类目字段。
 3. 结果进入下游前允许用户确认和修正。
 4. 使用 `source_capture_id`，不在契约中传递永久公开图片 URL。
 5. 当前穿搭信息使用独立的 `OUTFIT_PROFILE_CONTRACT.md`。
 6. 模块间通过 HTTP API 交付结果。
-7. `foot_length_cm` 默认 `null`；鞋码后续由用户输入或单独采集。
+7. 鞋码后续由用户输入，不做视觉围度估算。
 
 ---
 
 ## 6. 变更记录
 
+- v1.2(2026-07-04 修订):**移除 `measurements`（精确身体围度）整段**——系统不估算/不存储/不共享任何围度数字；`field_confidence.measurements` 与相关 warning 字段引用一并删除。隐私边界与 `schemas/body-profile.schema.json` 一致。
 - v1.2(2026-06-26):确认单张正面照 MVP；照片字段允许 `null`；细化字段置信度；新增结构化警告；统一体型枚举；使用内部拍摄 ID。
 - v1.1(2026-06-21):`gender_presentation`、`age_range` 改为**用户手动输入**(避免视觉误识冒犯用户)。手输项由 2 项增至 4 项(身高/体重/性别/年龄)。
 - v1.0(2026-06-21):首版对接契约,从模块设计文档 §2 抽出独立成文。

@@ -1,7 +1,8 @@
 # `body_profile` v1.2 兼容修订提案
 
 > 日期：2026-06-26  
-> 状态：已采纳；正式版本见 `BODY_PROFILE_CONTRACT.md` v1.2 与 `schemas/body-profile.schema.json`  
+> 状态：**历史提案（已被超越）**。正式版本见 `BODY_PROFILE_CONTRACT.md` v1.2 与 `schemas/body-profile.schema.json`  
+> ⚠️ **2026-07-04 更新**：本提案保留 `measurements` 字段的方案**已作废**——`measurements`（精确身体围度）现已**整体移除**，系统不估算/不存储/不共享任何围度数字。以下含围度数字或“保留 measurements”的段落仅作历史记录，**以当前 schema 为准**。  
 > 目标：解决 v1.1 中“照片字段必填”与“无法提取时为 `null`”的冲突，并避免把视觉估算误用为精确人体测量。
 
 ## 1. 建议保持不变
@@ -190,8 +191,8 @@ unknown
       "bust_cm": null,
       "waist_cm": null,
       "hip_cm": null,
-      "shoulder_cm": 39,
-      "inseam_cm": 76,
+      "shoulder_cm": null,
+      "inseam_cm": null,
       "foot_length_cm": null
     },
 

@@ -38,14 +38,6 @@ export function buildMockAnalysis(
         hip_width: "average",
         leg_to_torso: "balanced"
       },
-      measurements: {
-        bust_cm: null,
-        waist_cm: null,
-        hip_cm: null,
-        shoulder_cm: Math.round(profile.height_cm * 0.235 * 10) / 10,
-        inseam_cm: Math.round(profile.height_cm * 0.45 * 10) / 10,
-        foot_length_cm: null
-      },
       skin_tone: null,
       extraction: {
         source_capture_id: captureId,
@@ -60,26 +52,14 @@ export function buildMockAnalysis(
             hip_width: 0.7,
             leg_to_torso: 0.82
           },
-          measurements: {
-            bust_cm: 0,
-            waist_cm: 0,
-            hip_cm: 0,
-            shoulder_cm: 0.65,
-            inseam_cm: 0.69,
-            foot_length_cm: 0
-          },
           skin_tone: 0
         },
         analysis_warnings: [
           {
             code: "SINGLE_VIEW_LIMITATION",
-            affected_fields: [
-              "measurements.bust_cm",
-              "measurements.waist_cm",
-              "measurements.hip_cm"
-            ],
+            affected_fields: ["body_shape"],
             message:
-              "Circumference estimates were omitted because only a front view was captured."
+              "Body handling stays template-based; exact body measurements are never estimated or shared."
           }
         ]
       },

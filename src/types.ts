@@ -1,6 +1,6 @@
 export type GenderPresentation = "female" | "male" | "neutral";
 export type AgeRange = "18-25" | "26-35" | "36-45" | "46+";
-export type AnalysisMode = "mock" | "ai";
+export type AnalysisMode = "auto" | "mock" | "ai";
 
 export interface ManualProfile {
   height_cm: number;
@@ -37,15 +37,7 @@ export interface BodyProfile extends ManualProfile {
     hip_width: "narrow" | "average" | "wide" | "unknown" | null;
     leg_to_torso: "short" | "balanced" | "long" | "unknown" | null;
   };
-  measurements: {
-    bust_cm: number | null;
-    waist_cm: number | null;
-    hip_cm: number | null;
-    shoulder_cm: number | null;
-    inseam_cm: number | null;
-    foot_length_cm: number | null;
-  };
-  skin_tone: "fair" | "light" | "medium" | "tan" | "deep" | "unknown" | null;
+  skin_tone?: "fair" | "light" | "medium" | "tan" | "deep" | "unknown" | null;
   extraction: {
     source_capture_id: string;
     captured_views: ["front"];
@@ -112,7 +104,7 @@ export interface OutfitProfile {
 export interface AnalysisHandoff {
   session_id: string;
   analysis_id: string;
-  analysis_mode: AnalysisMode;
+  analysis_mode: "mock" | "ai";
   status: "ready";
   captured_at: string;
   body_profile: BodyProfile;

@@ -1,7 +1,8 @@
 # 图像采集与人物分析模块设计
 
-> 状态：已确认并进入 MVP 开发  
+> 状态：已确认并进入 MVP 开发（设计文档，部分内容为历史记录）  
 > 日期：2026-06-26  
+> ⚠️ **2026-07-04 更新**：`measurements`（精确身体围度）已从 `body_profile` 契约**整体移除**。系统不估算/不输出任何围度数字；§6.3、§7 中“可近似估算围度”的描述已作废，以 `schemas/body-profile.schema.json` 为准。  
 > 负责人范围：门户页、拍摄授权、用户基础信息输入、摄像头引导、自动抓拍、图像质量检测、人物与当前穿搭分析、结构化结果交付  
 > 下游契约：`BODY_PROFILE_CONTRACT.md` + `OUTFIT_PROFILE_CONTRACT.md`；HTTP API 交付 `analysis-handoff`
 
@@ -201,19 +202,13 @@ idle
 | `proportions.waist_definition` | 受服装影响明显 | 中低 |
 | `proportions.hip_width` | 关键点与轮廓相对比例 | 中 |
 | `proportions.leg_to_torso` | 姿态关键点相对比例 | 中高 |
-| `measurements.bust_cm` | 单张正面照不保证；允许 `null` | 低 |
-| `measurements.waist_cm` | 单张正面照不保证；允许 `null` | 低 |
-| `measurements.hip_cm` | 单张正面照不保证；允许 `null` | 低 |
-| `measurements.shoulder_cm` | 可近似估算，必须带置信度 | 中低 |
-| `measurements.inseam_cm` | 可近似估算，必须带置信度 | 中 |
-| `measurements.foot_length_cm` | 默认 `null`，改由用户输入鞋码更合理 | 很低 |
+| ~~`measurements.*`~~ | **已移除**：不再输出任何身体围度数字（隐私） | — |
 | `skin_tone` | 可选；注意光照偏差 | 中低 |
 
-建议修改现有契约：
+已落地的契约决策（v1.2，2026-07-04）：
 
-- 允许所有照片提取字段为 `null`。
-- 将测量值定义为 estimate，而不是 measurement truth。
-- 为每一个测量字段提供独立置信度，不只提供聚合的 `measurements` 置信度。
+- 所有照片提取字段允许为 `null`。
+- **不输出任何身体围度数字**：`measurements` 已整体移除，尺码/试穿走体型模板与类目字段。
 - 增加 `analysis_warnings`，说明宽松服装、遮挡、光线或姿态造成的不确定性。
 - 明确 `neutral` 对应的 `body_shape` 规则。
 - 图片引用使用短期签名 URL 或内部对象 ID，不使用永久公开 URL。
