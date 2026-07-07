@@ -8,7 +8,11 @@
   /* Vertical fitting-room mirror: a portrait 9:16 frame, centered on any
      screen. Wide desktop windows show the same narrow proportion (kiosk),
      so the customer never has to page sideways. */
-  width: min(100vw, calc(100dvh * 9 / 16));
+  /* Portrait frame that adapts between 9:16 (tall mirror) and 3:4 (iPad /
+     shorter window): fill the viewport height, cap width at 3:4 so a wide
+     desktop shows a comfortable portrait rather than an ultra-narrow strip.
+     container-type lets type scale to the FRAME width (cqw), not the viewport. */
+  width: min(100vw, calc(100dvh * 3 / 4));
   height: 100vh;
   height: 100dvh;
   margin: 0 auto;
@@ -17,6 +21,7 @@
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  container-type: inline-size;
   font-family: var(--font-sans);
   color: var(--ink);
   box-sizing: border-box;
@@ -118,18 +123,18 @@
   margin: 0;
 }
 .mirror h2 {
-  font-size: clamp(28px, 5vw, 52px);
+  font-size: clamp(22px, 6.5cqw, 40px);
   font-weight: 700;
   margin: 12px 0 0;
 }
 
 /* — welcome — */
 .m-welcome h1.kinetic {
-  font-size: clamp(40px, 8vw, 88px);
+  font-size: clamp(30px, 8.5cqw, 54px);
   font-weight: var(--weight-black, 800);
   letter-spacing: var(--tracking-display);
-  line-height: 1.05;
-  margin: 24px 0;
+  line-height: 1.03;
+  margin: clamp(12px, 2cqw, 20px) 0;
 }
 .kinetic .line {
   display: block;
@@ -154,11 +159,11 @@
   }
 }
 .m-lede {
-  font-size: clamp(17px, 2.4vw, 26px);
-  line-height: 1.6;
+  font-size: clamp(15px, 3.4cqw, 21px);
+  line-height: 1.55;
   color: var(--muted);
   max-width: 820px;
-  margin: 0 0 clamp(28px, 4vw, 44px);
+  margin: 0 0 clamp(20px, 3cqw, 36px);
 }
 .m-trust {
   display: flex;
@@ -180,14 +185,14 @@
 .m-analyzing > h2,
 .m-review > h2,
 .m-complete > h2 {
-  font-size: clamp(28px, 5vw, 52px);
+  font-size: clamp(22px, 6.5cqw, 40px);
 }
 .m-intro {
-  font-size: clamp(16px, 2.2vw, 24px);
-  line-height: 1.6;
+  font-size: clamp(14px, 3.2cqw, 19px);
+  line-height: 1.55;
   color: var(--muted);
   max-width: 840px;
-  margin: 18px 0 clamp(28px, 4vw, 40px);
+  margin: 16px 0 clamp(20px, 3cqw, 32px);
 }
 .m-consent-cards {
   display: grid;
