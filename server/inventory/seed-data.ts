@@ -125,7 +125,11 @@ const specs: SeedSpec[] = [
   { id: "p_acc_001", sku: "BL-001", name: "Brown leather belt", category: "accessory", price: 3800, colors: ["brown"], styles: ["classic", "smart_casual"], seasonal: 5, area: "H", shelf: "H-01", stock: { FREE: 9 } },
   { id: "p_acc_002", sku: "SC-001", name: "Cream wool scarf", category: "accessory", price: 4200, colors: ["cream", "beige"], styles: ["classic", "romantic", "minimal"], seasonal: 3, area: "H", shelf: "H-02", stock: { FREE: 7 } },
   { id: "p_acc_003", sku: "SG-001", name: "Black round sunglasses", category: "accessory", price: 5600, colors: ["black"], styles: ["streetwear", "vintage", "minimal"], seasonal: 8, area: "H", shelf: "H-03", stock: { FREE: 6 } },
-  { id: "p_acc_004", sku: "WT-001", name: "Silver minimal watch", category: "accessory", price: 15800, colors: ["silver"], styles: ["minimal", "business", "classic"], seasonal: 6, area: "H", shelf: "H-04", stock: { FREE: 3 }, threshold: 1 }
+  { id: "p_acc_004", sku: "WT-001", name: "Silver minimal watch", category: "accessory", price: 15800, colors: ["silver"], styles: ["minimal", "business", "classic"], seasonal: 6, area: "H", shelf: "H-04", stock: { FREE: 3 }, threshold: 1 },
+
+  // --- demo edge cases (DEMO_SCRIPT §5): sold-out + over-budget to prove the
+  // agent re-plans instead of failing ---
+  { id: "p_edge_oos", sku: "LT-001", name: "Limited trench coat", category: "outerwear", price: 24800, colors: ["beige", "brown"], styles: ["classic", "formal"], seasonal: 6, area: "A", shelf: "A-07", stock: { M: 0, L: 0 }, threshold: 1 }
 ];
 
 export const inventorySeed: SeedEntry[] = specs.map(entry);
