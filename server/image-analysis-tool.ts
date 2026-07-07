@@ -78,7 +78,17 @@ export async function analyzeDressroomImage(
   const effectiveMode = input.analysis_mode === "auto" ? (hasGeminiApiKey() ? "ai" : "mock") : input.analysis_mode;
 
   if (effectiveMode === "ai") {
-    return analyzeWithGemini(input);
+    const result = await analyzeWithGemini(input);
+    // In auto mode, degrade to the deterministic mock if the AI path fails
+    // outright, so the capture flow never dead-ends on a Gemini/model error.
+    if (!result.ok && input.analysis_mode === "auto") {
+      console.warn(
+        `[image-analysis] auto: AI analysis failed (${result.message}); falling back to mock.`
+      );
+      const fallbackSession = input.session_id ?? `tool_ses_${randomUUID().slice(0, 12)}`;
+      return { ok: true, analysis: buildMockAnalysis(fallbackSession, input.manual_profile, "mock") };
+    }
+    return result;
   }
 
   const sessionId = input.session_id ?? `tool_ses_${randomUUID().slice(0, 12)}`;
@@ -177,8 +187,20 @@ async function analyzeWithGemini(input: ImageAnalysisToolInput): Promise<ImageAn
       }
     };
 
-    const enrichedAnalysis = await addProductImages(ai, image, analysis);
-    return { ok: true, analysis: enrichedAnalysis };
+    // Product-image generation is best-effort enrichment via a separate image
+    // model; if it fails, keep the real OOTD analysis (downstream recommendation
+    // uses inventory images, not these) rather than failing the whole capture.
+    try {
+      const enrichedAnalysis = await addProductImages(ai, image, analysis);
+      return { ok: true, analysis: enrichedAnalysis };
+    } catch (imageError) {
+      console.warn(
+        `[image-analysis] product-image generation failed; returning OOTD without product images: ${
+          imageError instanceof Error ? imageError.message : String(imageError)
+        }`
+      );
+      return { ok: true, analysis };
+    }
   } catch (error) {
     return {
       ok: false,
