@@ -1,3 +1,4 @@
+import "./design/screens/console.css";
 import { useMemo, useState } from "react";
 import {
   confirmAgentSelection,
@@ -7,14 +8,19 @@ import {
   sendAgentChat,
   sendAgentFeedback,
   type AgentRunResponse,
-  type AhaDemoState,
   type FeedbackDimension,
-  type LucyRealtimeTryonPayload,
-  type RecommendationSet,
-  type ToolCallRecord
+  type LucyRealtimeTryonPayload
 } from "./api";
 import type { AnalysisHandoff } from "./types";
 import { useLucyRealtimeTryon } from "./useLucyRealtimeTryon";
+import { Button } from "./design/components/core/Button";
+import { MicroLabel } from "./design/components/core/MicroLabel";
+import { PriceTag } from "./design/components/core/PriceTag";
+import { AhaTimeline, type AhaDemoStage } from "./design/components/agent/AhaTimeline";
+import { RecommendationCard } from "./design/components/agent/RecommendationCard";
+import { RecTypeLabel } from "./design/components/agent/RecTypeLabel";
+import { ToolCallTrace } from "./design/components/agent/ToolCallTrace";
+import { FeedbackTags, type FeedbackTag } from "./design/components/forms/FeedbackTags";
 
 const defaultCustomerNeed = "没什么想法，请根据我当前穿搭推荐三套适合我的衣服。";
 
@@ -78,6 +84,8 @@ export function AgentRuntimePanel({ analysis }: { analysis: AnalysisHandoff }) {
     [recommendationSets, selectedSetId]
   );
   const latestAdkEvent = adkEvents.at(-1);
+  const latestEvents = adkEvents.slice(-4);
+  const lucyStatus = run?.state.lucy_session_status ?? lucy.status;
 
   async function execute(label: string, action: () => Promise<void>) {
     setBusyAction(label);
@@ -115,130 +123,204 @@ export function AgentRuntimePanel({ analysis }: { analysis: AnalysisHandoff }) {
     setSelectedSetId((current) => outputSetId ?? current ?? knownSetId ?? null);
   }
 
+  // --- Handlers (logic preserved verbatim) ---
+  function handleStartAgent() {
+    void execute("start_agent", async () => {
+      const response = await createAgentSession(analysis);
+      applyRun(response);
+    });
+  }
+
+  function handleRecommend() {
+    void execute("ask_recommendation", async () => {
+      const sessionId = await ensureAgentSession();
+      const response = await sendAgentChat(sessionId, customerNeed.trim());
+      applyRun(response);
+    });
+  }
+
+  function handlePreview() {
+    void execute("lucy_preview", async () => {
+      if (!agentSessionId || !selectedSet) return;
+      const response = await requestRealtimePreview(agentSessionId, selectedSet.set_id);
+      applyRun(response);
+      if (response.output.type !== "realtime_tryon_payload") return;
+      setLastPreviewPayload(response.output.payload);
+      await lucy.start({
+        payload: response.output.payload,
+        onStatusChange: async (statusPayload) => {
+          const statusResponse = await recordPreviewStatus(agentSessionId, statusPayload);
+          applyRun(statusResponse);
+        }
+      });
+    });
+  }
+
+  function handleStop() {
+    void execute("stop_lucy_preview", async () => {
+      const reason = lucy.stop("manual_stop");
+      if (!agentSessionId) return;
+      const response = await recordPreviewStatus(agentSessionId, {
+        status: "stopped",
+        reason
+      });
+      applyRun(response);
+    });
+  }
+
+  function handleFeedback(action: (typeof feedbackActions)[number]) {
+    void execute(`feedback_${action.dimension}`, async () => {
+      if (!agentSessionId || !selectedSet) return;
+      const response = await sendAgentFeedback(agentSessionId, {
+        set_id: selectedSet.set_id,
+        feedback_type: action.dimension === "overall" ? "reject_all" : "partial_adjust",
+        dimension: action.dimension,
+        dimension_value: action.dimensionValue,
+        raw_voice_text: action.voice
+      });
+      applyRun(response);
+    });
+  }
+
+  function handleConfirm() {
+    void execute("confirm_selection", async () => {
+      if (!agentSessionId || !selectedSet) return;
+      const response = await confirmAgentSelection(agentSessionId, {
+        set_id: selectedSet.set_id,
+        camera_processing_consent: lastPreviewPayload?.configured ?? false,
+        face_profile_consent: false
+      });
+      applyRun(response);
+    });
+  }
+
+  const selectedTotal =
+    selectedSet?.products.reduce((sum, product) => sum + product.price_yen, 0) ?? 0;
+  const showMockPreview = !lastPreviewPayload?.configured || lucy.status === "idle";
+
   return (
-    <section className="agent-panel" aria-label="Agent runtime">
-      <div className="agent-panel-header">
-        <div>
-          <p className="step-label">ADK RUNTIME</p>
-          <h3>Sales Agent control plane</h3>
+    <section className="console" aria-label="Agent runtime">
+      <header className="console-top">
+        <div className="console-brand">
+          <strong>FASHINI</strong>
+          <MicroLabel>Sales Agent · ADK runtime</MicroLabel>
         </div>
-        <div className="agent-status-grid">
-          <RuntimeBadge label="agent" value={run?.state.status ?? "not started"} />
-          <RuntimeBadge label="route" value={run?.state.route ?? "unclear"} />
-          <RuntimeBadge label="lucy" value={run?.state.lucy_session_status ?? lucy.status} />
-          <RuntimeBadge label="round" value={String(run?.state.recommendation_round ?? 0)} />
+        <div className="console-status">
+          <StatusBadge label="agent" value={run?.state.status ?? "not started"} />
+          <StatusBadge
+            label="route"
+            value={run?.state.route ?? "unclear"}
+            active={Boolean(run?.state.route) && run?.state.route !== "unclear"}
+          />
+          <StatusBadge label="lucy" value={lucyStatus} active={lucyStatus === "previewing"} />
+          <StatusBadge label="round" value={String(run?.state.recommendation_round ?? 0)} />
         </div>
-      </div>
+      </header>
 
-      <AhaTimeline
-        aha={ahaDemo}
-        lucyStatus={run?.state.lucy_session_status ?? lucy.status}
-        outputType={outputType}
-      />
-
-      <div className="agent-command-row">
-        <button
-          className="secondary-button"
-          disabled={busyAction !== null || Boolean(agentSessionId)}
-          onClick={() =>
-            void execute("start_agent", async () => {
-              const response = await createAgentSession(analysis);
-              applyRun(response);
-            })
-          }
-        >
-          Start Agent
-        </button>
-        <input
-          value={customerNeed}
-          onChange={(event) => setCustomerNeed(event.target.value)}
-          aria-label="Customer need"
-        />
-        <button
-          className="primary-button"
-          disabled={busyAction !== null || customerNeed.trim().length === 0}
-          onClick={() =>
-            void execute("ask_recommendation", async () => {
-              const sessionId = await ensureAgentSession();
-              const response = await sendAgentChat(sessionId, customerNeed.trim());
-              applyRun(response);
-            })
-          }
-        >
-          Recommend
-        </button>
-      </div>
-
-      {error && <div className="agent-error">{error}</div>}
-
-      <div className="agent-runtime-grid">
-        <div className="recommendation-list">
-          {recommendationSets.length === 0 ? (
-            <div className="empty-recommendations">No recommendation sets yet.</div>
-          ) : (
-            recommendationSets.map((set) => (
-              <RecommendationCard
-                key={set.set_id}
-                set={set}
-                selected={set.set_id === selectedSet?.set_id}
-                onSelect={() => setSelectedSetId(set.set_id)}
+      <div className="console-grid">
+        {/* Left — need + recommendation sets + feedback loop */}
+        <section className="console-left">
+          <div className="console-need">
+            <div className="console-need-input">
+              <MicroLabel>Customer need</MicroLabel>
+              <textarea
+                value={customerNeed}
+                onChange={(event) => setCustomerNeed(event.target.value)}
+                rows={2}
+                aria-label="Customer need"
               />
-            ))
-          )}
-        </div>
-
-        <div className="tryon-console">
-          <div className="tryon-toolbar">
-            <div>
-              <span>Selected set</span>
-              <strong>{selectedSet?.set_id ?? "none"}</strong>
             </div>
-            <button
-              className="secondary-button"
-              disabled={!agentSessionId || !selectedSet || busyAction !== null}
-              onClick={() =>
-                void execute("lucy_preview", async () => {
-                  if (!agentSessionId || !selectedSet) return;
-                  const response = await requestRealtimePreview(agentSessionId, selectedSet.set_id);
-                  applyRun(response);
-                  if (response.output.type !== "realtime_tryon_payload") return;
-                  setLastPreviewPayload(response.output.payload);
-                  await lucy.start({
-                    payload: response.output.payload,
-                    onStatusChange: async (statusPayload) => {
-                      const statusResponse = await recordPreviewStatus(agentSessionId, statusPayload);
-                      applyRun(statusResponse);
-                    }
-                  });
-                })
-              }
-            >
-              Realtime preview
-            </button>
-            <button
-              className="secondary-button"
-              disabled={lucy.status === "idle" || lucy.status === "stopped"}
-              onClick={() =>
-                void execute("stop_lucy_preview", async () => {
-                  const reason = lucy.stop("manual_stop");
-                  if (!agentSessionId) return;
-                  const response = await recordPreviewStatus(agentSessionId, {
-                    status: "stopped",
-                    reason
-                  });
-                  applyRun(response);
-                })
-              }
-            >
-              Stop
-            </button>
+            <div className="console-need-actions">
+              <Button
+                variant="secondary"
+                size="lg"
+                disabled={busyAction !== null || Boolean(agentSessionId)}
+                onClick={handleStartAgent}
+              >
+                Start Agent
+              </Button>
+              <Button
+                variant="primary"
+                size="lg"
+                iconRight={<span aria-hidden="true">→</span>}
+                disabled={busyAction !== null || customerNeed.trim().length === 0}
+                onClick={handleRecommend}
+              >
+                Recommend
+              </Button>
+            </div>
           </div>
 
-          <div className="tryon-stage">
-            <div className="video-frame output">
-              <video ref={lucy.remoteVideoRef} autoPlay playsInline muted />
-              {(!lastPreviewPayload?.configured || lucy.status === "idle") && (
-                <div className="mock-preview-surface">
+          {error && (
+            <div className="console-note error" style={{ margin: "16px 20px 0" }}>
+              {error}
+            </div>
+          )}
+
+          <div className="console-rec-list">
+            {recommendationSets.length === 0 ? (
+              <div className="console-empty">
+                <MicroLabel>No recommendation sets yet</MicroLabel>
+                <p>
+                  Start the agent and ask for a recommendation to see three in-stock sets
+                  materialize here.
+                </p>
+              </div>
+            ) : (
+              recommendationSets.map((set, index) => (
+                <RecommendationCard
+                  key={set.set_id}
+                  set={set}
+                  index={index}
+                  selected={set.set_id === selectedSet?.set_id}
+                  onSelect={() => setSelectedSetId(set.set_id)}
+                  onPreview={() => {
+                    setSelectedSetId(set.set_id);
+                    handlePreview();
+                  }}
+                  onConfirm={() => {
+                    setSelectedSetId(set.set_id);
+                    handleConfirm();
+                  }}
+                />
+              ))
+            )}
+          </div>
+
+          {recommendationSets.length > 0 && (
+            <div className="console-feedback">
+              <MicroLabel>Feedback</MicroLabel>
+              <div className="console-feedback-actions">
+                <FeedbackTags
+                  disabled={!agentSessionId || !selectedSet || busyAction !== null}
+                  onSelect={(tag: FeedbackTag) => {
+                    const action = feedbackActions.find(
+                      (item) => item.dimension === tag.dimension
+                    );
+                    if (action) handleFeedback(action);
+                  }}
+                />
+                <Button
+                  variant="primary"
+                  iconRight={<span aria-hidden="true">→</span>}
+                  disabled={!agentSessionId || !selectedSet || busyAction !== null}
+                  onClick={handleConfirm}
+                >
+                  Confirm handoff
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Right — Lucy realtime preview + Aha timeline + tool-call trace */}
+        <aside className="console-right">
+          <div className="console-preview">
+            <div className="console-stage">
+              <span className="console-stage-badge">Lucy · realtime</span>
+              <video className="video-output" ref={lucy.remoteVideoRef} autoPlay playsInline muted />
+              {showMockPreview && (
+                <div className="console-mock">
                   <strong>{lastPreviewPayload ? "Mock realtime preview" : "Ready for preview"}</strong>
                   <span>
                     {lastPreviewPayload
@@ -247,304 +329,109 @@ export function AgentRuntimePanel({ analysis }: { analysis: AnalysisHandoff }) {
                   </span>
                 </div>
               )}
-              <span>Lucy output</span>
+              <div className="video-input">
+                <video ref={lucy.localVideoRef} autoPlay playsInline muted />
+                <span>Camera</span>
+              </div>
+              <span className="video-output-label">Lucy output</span>
             </div>
-            <div className="video-frame input">
-              <video ref={lucy.localVideoRef} autoPlay playsInline muted />
-              <span>Camera</span>
+
+            <div className="console-preview-toolbar">
+              <div className="console-selected">
+                <MicroLabel>Selected set</MicroLabel>
+                <span className="set-id">{selectedSet?.set_id ?? "none"}</span>
+              </div>
+              <div className="console-preview-actions">
+                <Button
+                  variant="secondary"
+                  disabled={!agentSessionId || !selectedSet || busyAction !== null}
+                  onClick={handlePreview}
+                >
+                  Realtime preview
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={lucy.status === "idle" || lucy.status === "stopped"}
+                  onClick={handleStop}
+                >
+                  Stop
+                </Button>
+              </div>
             </div>
+
+            {selectedSet && (
+              <div className="console-preview-meta">
+                <RecTypeLabel recType={selectedSet.rec_type} />
+                <PriceTag amount={selectedTotal} size="lg" countUp />
+              </div>
+            )}
+
+            <div className="console-meta-badges">
+              <StatusBadge label="connection" value={lucy.connectionState ?? "idle"} />
+              <StatusBadge label="model" value={lastPreviewPayload?.model ?? "lucy-vton-3"} />
+              <StatusBadge
+                label="token"
+                value={
+                  lastPreviewPayload ? (lastPreviewPayload.configured ? "live" : "mock") : "none"
+                }
+                active={lastPreviewPayload?.configured ?? false}
+              />
+            </div>
+
+            {lastPreviewPayload?.warnings.map((warning) => (
+              <div className="console-note warning" key={warning}>
+                {warning}
+              </div>
+            ))}
+            {lucy.error && <div className="console-note error">{lucy.error}</div>}
           </div>
 
-          <div className="tryon-meta">
-            <RuntimeBadge label="connection" value={lucy.connectionState ?? "idle"} />
-            <RuntimeBadge label="model" value={lastPreviewPayload?.model ?? "lucy-vton-3"} />
-            <RuntimeBadge
-              label="token"
-              value={lastPreviewPayload ? (lastPreviewPayload.configured ? "live" : "mock") : "none"}
-            />
-          </div>
-          {lastPreviewPayload?.warnings.map((warning) => (
-            <div className="agent-warning" key={warning}>
-              {warning}
+          <AhaTimeline
+            stage={(ahaDemo?.stage ?? "idle") as AhaDemoStage}
+            narrative={
+              ahaDemo?.narrative ??
+              "Agent runtime is waiting for the first customer action."
+            }
+          />
+
+          <ToolCallTrace toolCalls={toolCalls} />
+
+          <div className="console-adk">
+            <span>ADK events</span>
+            <div className="console-meta-badges" style={{ marginBottom: 4 }}>
+              <StatusBadge label="author" value={latestAdkEvent?.author ?? "none"} />
+              <StatusBadge label="output" value={outputType} />
+              <StatusBadge label="events" value={String(adkEvents.length)} />
             </div>
-          ))}
-          {lucy.error && <div className="agent-error">{lucy.error}</div>}
-        </div>
+            {latestEvents.length === 0 ? (
+              <code>none</code>
+            ) : (
+              latestEvents.map((event) => (
+                <code key={event.invocation_id ?? event.id}>
+                  {event.author} · {event.state_delta_keys.join(",") || "no_delta"}
+                </code>
+              ))
+            )}
+          </div>
+        </aside>
       </div>
-
-      <div className="agent-feedback-row">
-        <div className="feedback-buttons" aria-label="Feedback controls">
-          {feedbackActions.map((action) => (
-            <button
-              key={action.label}
-              className="secondary-button"
-              disabled={!agentSessionId || !selectedSet || busyAction !== null}
-              onClick={() =>
-                void execute(`feedback_${action.dimension}`, async () => {
-                  if (!agentSessionId || !selectedSet) return;
-                  const response = await sendAgentFeedback(agentSessionId, {
-                    set_id: selectedSet.set_id,
-                    feedback_type: action.dimension === "overall" ? "reject_all" : "partial_adjust",
-                    dimension: action.dimension,
-                    dimension_value: action.dimensionValue,
-                    raw_voice_text: action.voice
-                  });
-                  applyRun(response);
-                })
-              }
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-        <button
-          className="primary-button"
-          disabled={!agentSessionId || !selectedSet || busyAction !== null}
-          onClick={() =>
-            void execute("confirm_selection", async () => {
-              if (!agentSessionId || !selectedSet) return;
-              const response = await confirmAgentSelection(agentSessionId, {
-                set_id: selectedSet.set_id,
-                camera_processing_consent: lastPreviewPayload?.configured ?? false,
-                face_profile_consent: false
-              });
-              applyRun(response);
-            })
-          }
-        >
-          Confirm handoff
-        </button>
-      </div>
-
-      <RuntimeTrace
-        adkEvents={adkEvents}
-        latestAdkEventAuthor={latestAdkEvent?.author ?? "none"}
-        outputType={outputType}
-        toolCalls={toolCalls}
-      />
     </section>
   );
 }
 
-function AhaTimeline({
-  aha,
-  lucyStatus,
-  outputType
+function StatusBadge({
+  label,
+  value,
+  active = false
 }: {
-  aha: AhaDemoState | null;
-  lucyStatus: string;
-  outputType: string;
+  label: string;
+  value: string;
+  active?: boolean;
 }) {
-  const steps = [
-    {
-      key: "lucy_preview",
-      label: "Lucy realtime",
-      value: lucyStatus,
-      active: aha?.stage === "lucy_preview"
-    },
-    {
-      key: "google_fallback",
-      label: "Google fallback",
-      value: aha?.google_generation_status ?? "idle",
-      active:
-        aha?.stage === "google_generating" ||
-        aha?.stage === "google_ready" ||
-        aha?.google_generation_status === "queued" ||
-        aha?.google_generation_status === "generating" ||
-        aha?.google_generation_status === "ready"
-    },
-    {
-      key: "handoff",
-      label: "Try-on handoff",
-      value: outputType,
-      active: aha?.stage === "handoff_ready"
-    }
-  ];
-
   return (
-    <div className="aha-demo-rail">
-      <div className="aha-demo-copy">
-        <span>AHA DEMO</span>
-        <strong>{aha?.stage.replaceAll("_", " ") ?? "idle"}</strong>
-        <p>{aha?.narrative ?? "Agent runtime is waiting for the first customer action."}</p>
-      </div>
-      <div className="aha-demo-steps">
-        {steps.map((step) => (
-          <div key={step.key} className={step.active ? "aha-step active" : "aha-step"}>
-            <span>{step.label}</span>
-            <strong>{step.value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RuntimeTrace({
-  adkEvents,
-  latestAdkEventAuthor,
-  outputType,
-  toolCalls
-}: {
-  adkEvents: NonNullable<AgentRunResponse["adk_events"]>;
-  latestAdkEventAuthor: string;
-  outputType: string;
-  toolCalls: ToolCallRecord[];
-}) {
-  const [openTool, setOpenTool] = useState<number | null>(null);
-  const latestEvents = adkEvents.slice(-4);
-  const failedCount = toolCalls.filter((call) => deriveToolStatus(call.output).tone === "danger").length;
-  return (
-    <div className="agent-trace">
-      <div className="trace-head">
-        <RuntimeBadge label="ADK author" value={latestAdkEventAuthor} />
-        <RuntimeBadge label="output" value={outputType} />
-        <RuntimeBadge label="events" value={String(adkEvents.length)} />
-        <RuntimeBadge label="tools" value={String(toolCalls.length)} />
-      </div>
-
-      <div className="tool-timeline">
-        <div className="tool-timeline-head">
-          <span>Tool call trace</span>
-          <span className="tool-timeline-hint">
-            {toolCalls.length === 0
-              ? "click a call to inspect input / output"
-              : `${toolCalls.length} calls${failedCount > 0 ? ` · ${failedCount} failed` : ""} · click to inspect`}
-          </span>
-        </div>
-        {toolCalls.length === 0 ? (
-          <div className="tool-timeline-empty">
-            No tool calls yet. Start the agent and ask for a recommendation to see the Agent execute
-            <code>match_body_template</code>, <code>get_recommendations</code> and the inventory tools.
-          </div>
-        ) : (
-          <ol className="tool-call-list">
-            {toolCalls.map((call, index) => {
-              const status = deriveToolStatus(call.output);
-              const open = openTool === index;
-              return (
-                <li
-                  key={`${call.tool}_${call.called_at}_${index}`}
-                  className={open ? "tool-call open" : "tool-call"}
-                >
-                  <button
-                    type="button"
-                    className="tool-call-row"
-                    aria-expanded={open}
-                    onClick={() => setOpenTool(open ? null : index)}
-                  >
-                    <span className="tool-call-index">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="tool-call-name">{call.tool}</span>
-                    <span className={`tool-call-status ${status.tone}`}>{status.label}</span>
-                    <span className="tool-call-time">
-                      {new Date(call.called_at).toLocaleTimeString()}
-                    </span>
-                    <span className="tool-call-caret" aria-hidden="true">
-                      {open ? "−" : "+"}
-                    </span>
-                  </button>
-                  {open && (
-                    <div className="tool-call-body">
-                      <div className="tool-io">
-                        <span>Input</span>
-                        <pre>{formatTracePayload(call.input)}</pre>
-                      </div>
-                      <div className="tool-io">
-                        <span>Output</span>
-                        <pre>{formatTracePayload(call.output)}</pre>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </div>
-
-      <div className="trace-column adk-events-column">
-        <span>ADK EVENTS</span>
-        {latestEvents.length === 0 ? (
-          <code>none</code>
-        ) : (
-          latestEvents.map((event) => (
-            <code key={event.invocation_id ?? event.id}>
-              {event.author} · {event.state_delta_keys.join(",") || "no_delta"}
-            </code>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-function deriveToolStatus(output: ToolCallRecord["output"]): { label: string; tone: string } {
-  if (output && typeof output === "object") {
-    const record = output as Record<string, unknown>;
-    if (record.ok === false) return { label: "failed", tone: "danger" };
-    const status = record.status;
-    if (typeof status === "string") {
-      const tone =
-        status === "confirmed" || status === "held" || status === "success"
-          ? "ok"
-          : status === "not_found" || status === "failed"
-            ? "danger"
-            : "neutral";
-      return { label: status, tone };
-    }
-  }
-  return { label: "ok", tone: "ok" };
-}
-
-function formatTracePayload(value: unknown) {
-  try {
-    const json = JSON.stringify(value, null, 2);
-    if (!json) return String(value);
-    return json.length > 1400 ? `${json.slice(0, 1400)}\n… (truncated)` : json;
-  } catch {
-    return String(value);
-  }
-}
-
-function RuntimeBadge({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="runtime-badge">
+    <div className="console-badge" data-active={active}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
-  );
-}
-
-function RecommendationCard({
-  set,
-  selected,
-  onSelect
-}: {
-  set: RecommendationSet;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={selected ? "recommendation-card selected" : "recommendation-card"}
-      onClick={onSelect}
-    >
-      <div className="recommendation-card-head">
-        <span>{set.rec_type.replaceAll("_", " ")}</span>
-        <strong>Round {set.round}</strong>
-      </div>
-      <p>{set.reason}</p>
-      <div className="product-strip">
-        {set.products.map((product) => (
-          <div key={product.product_id}>
-            <strong>{product.name}</strong>
-            <span>
-              ¥{product.price_yen.toLocaleString()} · {product.colors.join("/")}
-            </span>
-          </div>
-        ))}
-      </div>
-    </button>
   );
 }
