@@ -479,20 +479,21 @@ function findSet(state: AgentState, setId: string): RecommendationSet | undefine
   return state.recommendation_sets.find((set) => set.set_id === setId);
 }
 
-function mergeParsedNeedIntoConstraints(state: AgentState, need: { colors: string[]; style_tags: string[]; budget_yen?: number }) {
+function mergeParsedNeedIntoConstraints(
+  state: AgentState,
+  need: { colors: string[]; style_tags: string[]; categories?: string[]; occasion?: string; budget_yen?: number }
+) {
   for (const color of need.colors) {
-    state.constraints.prefer.push({
-      dimension: "color",
-      value: color,
-      reason: "explicit_need"
-    });
+    state.constraints.prefer.push({ dimension: "color", value: color, reason: "explicit_need" });
   }
   for (const style of need.style_tags) {
-    state.constraints.prefer.push({
-      dimension: "style",
-      value: style,
-      reason: "explicit_need"
-    });
+    state.constraints.prefer.push({ dimension: "style", value: style, reason: "explicit_need" });
+  }
+  for (const category of need.categories ?? []) {
+    state.constraints.prefer.push({ dimension: "category", value: category, reason: "explicit_need" });
+  }
+  if (need.occasion) {
+    state.constraints.prefer.push({ dimension: "occasion", value: need.occasion, reason: "explicit_need" });
   }
   if (need.budget_yen) state.constraints.budget_yen = need.budget_yen;
 }

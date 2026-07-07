@@ -72,6 +72,7 @@ export class MockAgentTools {
     round: number;
   }): Promise<RecommendationResponse> {
     const candidates = await this.searchInventory(input.session_id, input.constraints);
+    const preferences = extractPreferences(input.constraints);
     const sets = input.requested_types.map((type, index) =>
       this.buildRecommendationSet({
         type,
@@ -79,7 +80,9 @@ export class MockAgentTools {
         index,
         candidates,
         currentStyle: input.current_style,
-        matchedBodyTemplateId: input.matched_body_template_id
+        matchedBodyTemplateId: input.matched_body_template_id,
+        preferences,
+        budgetYen: input.constraints.budget_yen
       })
     );
     const response: RecommendationResponse = {
@@ -283,10 +286,14 @@ export class MockAgentTools {
     candidates: Product[];
     currentStyle: string[];
     matchedBodyTemplateId: string;
+    preferences: RecPreferences;
+    budgetYen?: number;
   }): RecommendationSet {
     const anchorStyle = input.type === "similar" ? input.currentStyle[0] : styleForType(input.type);
-    const sorted = [...input.candidates].sort((a, b) => scoreProduct(b, anchorStyle) - scoreProduct(a, anchorStyle));
-    const products = chooseOutfitProducts(sorted, input.type, input.index);
+    const sorted = [...input.candidates].sort(
+      (a, b) => scoreProduct(b, anchorStyle, input.preferences) - scoreProduct(a, anchorStyle, input.preferences)
+    );
+    const products = chooseOutfitProducts(sorted, input.index);
     const setId = `set_r${input.round}_${input.type}_${input.index + 1}`;
     return {
       set_id: setId,
@@ -294,9 +301,82 @@ export class MockAgentTools {
       rec_type: input.type,
       products,
       outfit: buildOutfitPayload(products),
-      reason: reasonForType(input.type, input.matchedBodyTemplateId)
+      reason: reasonForSet(input.type, input.matchedBodyTemplateId, input.preferences, input.budgetYen)
     };
   }
+}
+
+interface RecPreferences {
+  colors: StandardColor[];
+  styles: StyleTag[];
+  occasion?: string;
+}
+
+/** Occasion words (from LLM/heuristic need extraction) → controlled style vocabulary. */
+const OCCASION_STYLES: Record<string, StyleTag[]> = {
+  beach: ["casual", "outdoor", "bohemian"],
+  vacation: ["casual", "outdoor", "bohemian"],
+  holiday: ["casual", "outdoor"],
+  work: ["business", "smart_casual", "minimal", "workwear"],
+  office: ["business", "smart_casual", "workwear"],
+  commute: ["smart_casual", "minimal", "business"],
+  date: ["romantic", "smart_casual", "classic"],
+  party: ["formal", "smart_casual"],
+  wedding: ["formal", "classic"],
+  gym: ["sporty", "athleisure"],
+  sport: ["sporty", "athleisure"],
+  casual: ["casual"],
+  daily: ["casual", "minimal"]
+};
+
+/** Free-form style words → controlled style vocabulary synonyms. */
+const STYLE_SYNONYMS: Record<string, StyleTag[]> = {
+  breezy: ["casual", "outdoor"],
+  refreshing: ["casual", "outdoor"],
+  light: ["casual"],
+  airy: ["casual", "outdoor"],
+  relaxed: ["casual"],
+  simple: ["minimal"],
+  minimalist: ["minimal"],
+  clean: ["minimal"],
+  elegant: ["classic", "smart_casual"],
+  chic: ["smart_casual", "classic"],
+  dressy: ["formal"],
+  street: ["streetwear"],
+  athletic: ["sporty", "athleisure"],
+  cute: ["romantic"],
+  sweet: ["romantic"],
+  retro: ["vintage"],
+  boho: ["bohemian"],
+  smart: ["smart_casual"]
+};
+
+function mapToStyleTags(raw: string): StyleTag[] {
+  const value = raw.toLowerCase().trim();
+  if (isStyleTag(value)) return [value];
+  return STYLE_SYNONYMS[value] ?? [];
+}
+
+function occasionToStyleTags(occasion: string): StyleTag[] {
+  return OCCASION_STYLES[occasion.toLowerCase().trim()] ?? [];
+}
+
+function extractPreferences(constraints: AgentConstraints): RecPreferences {
+  const prefer = constraints.prefer;
+  const colors = unique(
+    prefer.filter((c) => c.dimension === "color").map((c) => c.value).filter(isStandardColor)
+  );
+  const occasion = prefer.find((c) => c.dimension === "occasion")?.value;
+  const styles = new Set<StyleTag>();
+  for (const c of prefer.filter((c) => c.dimension === "style")) {
+    for (const tag of mapToStyleTags(c.value)) styles.add(tag);
+  }
+  if (occasion) for (const tag of occasionToStyleTags(occasion)) styles.add(tag);
+  return { colors, styles: Array.from(styles), occasion };
+}
+
+function unique<T>(values: T[]): T[] {
+  return Array.from(new Set(values));
 }
 
 /** Category → try-on slot. one_piece maps to the dress slot; headwear/bag fold into accessory. */
@@ -372,26 +452,29 @@ function styleForType(type: RecommendationType) {
   return "casual";
 }
 
-function scoreProduct(product: Product, style?: string) {
-  return (
-    (style && product.style_tags.includes(style) ? 10 : 0) +
-    product.seasonal_rank +
-    Object.values(product.stock).reduce((total, quantity) => total + quantity, 0) / 10
-  );
+function scoreProduct(product: Product, anchorStyle?: string, preferences?: RecPreferences) {
+  const stockSum = Object.values(product.stock).reduce((total, quantity) => total + quantity, 0);
+  let score = product.seasonal_rank + stockSum / 10;
+  // Per-rec-type anchor (keeps the three sets distinct).
+  if (anchorStyle && product.style_tags.includes(anchorStyle)) score += 6;
+  // Customer preferences dominate: matched style/colour outweigh the anchor.
+  for (const style of preferences?.styles ?? []) {
+    if (product.style_tags.includes(style)) score += 8;
+  }
+  for (const color of preferences?.colors ?? []) {
+    if (product.colors.includes(color)) score += 8;
+  }
+  return score;
 }
 
-function chooseOutfitProducts(products: Product[], type: RecommendationType, index: number) {
-  const outerwear = products.filter((product) => product.category === "outerwear");
-  const tops = products.filter((product) => product.category === "top");
-  const bottoms = products.filter((product) => product.category === "bottom");
-  const shoes = products.filter((product) => product.category === "shoes");
-  const offset = type === "seasonal" ? 1 : index;
-  return [
-    outerwear[offset % Math.max(outerwear.length, 1)],
-    tops[(offset + 1) % Math.max(tops.length, 1)],
-    bottoms[(offset + 2) % Math.max(bottoms.length, 1)],
-    shoes[(offset + 3) % Math.max(shoes.length, 1)]
-  ].filter(Boolean);
+function chooseOutfitProducts(products: Product[], index: number) {
+  // Products arrive already sorted best-match-first, so set 1 (index 0) takes
+  // the top item per category; sets 2/3 take the next-best for variety.
+  const pick = (category: OutfitSlotName) => {
+    const items = products.filter((product) => product.category === category);
+    return items[index % Math.max(items.length, 1)];
+  };
+  return [pick("outerwear"), pick("top"), pick("bottom"), pick("shoes")].filter(Boolean);
 }
 
 function buildOutfitPayload(products: Product[]): OutfitPayload {
@@ -411,4 +494,21 @@ function reasonForType(type: RecommendationType, templateId: string) {
   if (type === "style") return `Uses the store's main styling direction for ${templateId}.`;
   if (type === "seasonal") return `Prioritizes seasonal and high-stock items for ${templateId}.`;
   return `Matches the explicit customer request and current stock for ${templateId}.`;
+}
+
+/** Reason text that reflects the actual customer signals used to rank this set. */
+function reasonForSet(
+  type: RecommendationType,
+  templateId: string,
+  preferences: RecPreferences,
+  budgetYen?: number
+) {
+  const bits: string[] = [];
+  if (preferences.occasion) bits.push(`for ${preferences.occasion}`);
+  if (preferences.styles.length) bits.push(`leaning ${preferences.styles.slice(0, 2).join(" / ")}`);
+  if (preferences.colors.length) bits.push(`in ${preferences.colors.slice(0, 2).join(" / ")}`);
+  if (bits.length === 0) return reasonForType(type, templateId);
+  const lead = type === "seasonal" ? "A seasonal take" : type === "style" ? "A styled option" : "Styled";
+  const budget = budgetYen ? `, within ¥${budgetYen.toLocaleString("en-US")}` : "";
+  return `${lead} ${bits.join(", ")}${budget} — in your size and in stock.`;
 }
