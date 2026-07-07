@@ -9,6 +9,7 @@
     "dev:web": "vite --host 0.0.0.0",
     "setup:assets": "node scripts/setup-mediapipe-assets.mjs",
     "smoke:agent": "node scripts/smoke-agent-runtime.mjs",
+    "smoke:quality": "node scripts/agent-quality.mjs",
     "seed:inventory": "tsx scripts/seed-inventory.ts",
     "test": "tsx --test \"server/**/*.test.ts\"",
     "build": "tsc -b && vite build && tsc -p server/tsconfig.json",
