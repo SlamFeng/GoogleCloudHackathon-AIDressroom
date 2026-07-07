@@ -1,0 +1,57 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Forms — inputs & feedback tags" subtitle="Segmented · NumberField · Checkbox · Language · FeedbackTags" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px 24px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 16px; }
+  .cap { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; display: block; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { SegmentedControl, NumberField, Checkbox, LanguageSwitch, FeedbackTags } = window.FashiniDesignSystem_c28a45;
+    function Demo() {
+      const [gender, setGender] = React.useState("neutral");
+      const [h, setH] = React.useState(168);
+      const [c, setC] = React.useState(true);
+      const [lang, setLang] = React.useState("ja");
+      return (
+        <div>
+          <div className="row">
+            <div>
+              <span className="cap">Gender presentation</span>
+              <SegmentedControl value={gender} onChange={setGender}
+                options={[{value:"female",label:"Feminine"},{value:"male",label:"Masculine"},{value:"neutral",label:"Neutral"}]} />
+            </div>
+            <div>
+              <span className="cap">Height</span>
+              <NumberField value={h} onChange={setH} unit="cm" />
+            </div>
+          </div>
+          <div className="row">
+            <div>
+              <span className="cap">Consent</span>
+              <Checkbox checked={c} onChange={setC}>I agree to capture one front-facing full-body photo.</Checkbox>
+            </div>
+            <div>
+              <span className="cap">Language</span>
+              <LanguageSwitch value={lang} onChange={setLang} />
+            </div>
+          </div>
+          <span className="cap">Feedback quick-tags</span>
+          <FeedbackTags onSelect={()=>{}} />
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

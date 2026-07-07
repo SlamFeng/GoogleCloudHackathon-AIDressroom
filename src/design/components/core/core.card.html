@@ -1,0 +1,51 @@
+<!-- @dsCard group="Components" viewport="700x230" name="Core — buttons, price, label" subtitle="Button variants · PriceTag · MicroLabel" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px 24px; }
+  .grp { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .grp + .grp { margin-top: 18px; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--faint); width: 74px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { Button, PriceTag, MicroLabel } = window.FashiniDesignSystem_c28a45;
+    function Demo() {
+      return (
+        <div>
+          <div className="grp">
+            <span className="cap">variants</span>
+            <Button variant="primary" iconRight={<span>→</span>}>Confirm</Button>
+            <Button variant="secondary">Preview</Button>
+            <Button variant="ghost">Retake</Button>
+            <Button variant="text">← Back</Button>
+            <Button variant="primary" disabled>Disabled</Button>
+          </div>
+          <div className="grp">
+            <span className="cap">sizes</span>
+            <Button size="sm">Small</Button>
+            <Button size="md">Medium</Button>
+            <Button size="lg">Large touch</Button>
+          </div>
+          <div className="grp">
+            <span className="cap">price</span>
+            <PriceTag amount={7900} size="md" />
+            <PriceTag amount={24800} size="lg" />
+            <MicroLabel tone="accent">EXPLICIT NEED</MicroLabel>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

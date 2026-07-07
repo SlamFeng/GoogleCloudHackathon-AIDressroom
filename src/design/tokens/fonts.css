@@ -1,0 +1,18 @@
+/* ============================================================
+   Fashini — Fonts
+   ------------------------------------------------------------
+   Production requires self-hosted, offline font binaries
+   (Cloud Run CSP forbids CDN webfonts). These @import lines
+   are for design-system PREVIEW rendering only.
+
+   SUBSTITUTION (flagged to user):
+   - Brief asks for Helvetica Neue / a geometric grotesk. That
+     face is proprietary, so this system standardises on
+     ARCHIVO — an open neo-grotesque with the same engineered,
+     tight-tracking character. Swap the @font-face src to the
+     licensed face for production.
+   - Data / prices / timestamps: IBM PLEX MONO (tabular-nums).
+   - Chinese: NOTO SANS SC.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap");

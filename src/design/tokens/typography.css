@@ -1,0 +1,65 @@
+/* ============================================================
+   Fashini — Typography
+   Neo-grotesque, engineered. Tight tracking on headings
+   (-0.02 to -0.03em). Uppercase micro-labels 0.12–0.18em.
+   Data/prices/timestamps use mono with tabular-nums.
+   ============================================================ */
+
+:root {
+  /* — Families — */
+  --font-sans: "Archivo", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* — Weights — */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+
+  /* — Type scale (px) — glanceable at distance to dense on iPad — */
+  --text-hero: 96px;      /* entrance-screen headline */
+  --text-display: 64px;   /* mirror hero */
+  --text-title-xl: 44px;
+  --text-title-l: 34px;
+  --text-title: 26px;
+  --text-subtitle: 20px;
+  --text-body-l: 18px;
+  --text-body: 15px;
+  --text-body-s: 13px;
+  --text-caption: 12px;
+  --text-micro: 11px;     /* uppercase micro-labels */
+
+  /* — Line heights — */
+  --leading-tight: 1.04;   /* display / headlines */
+  --leading-snug: 1.2;
+  --leading-body: 1.6;
+  --leading-relaxed: 1.75;
+
+  /* — Tracking — */
+  --tracking-display: -0.03em;
+  --tracking-heading: -0.02em;
+  --tracking-normal: 0;
+  --tracking-label: 0.14em;   /* uppercase micro-labels */
+  --tracking-label-wide: 0.18em;
+
+  /* — Numeric — */
+  --nums-tabular: "tnum" 1, "lnum" 1; /* @kind other */
+}
+
+/* Utility: uppercase micro-label */
+.fashini-micro {
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Utility: monospace data / price / timestamp */
+.fashini-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--nums-tabular);
+  font-variant-numeric: tabular-nums;
+}

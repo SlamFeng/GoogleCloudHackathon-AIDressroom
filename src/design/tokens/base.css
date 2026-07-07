@@ -1,0 +1,103 @@
+/* ============================================================
+   Fashini — Base reset + signature motion keyframes
+   Pure white canvas. No dark backgrounds, gradients, textures.
+   All spectacle lives in choreographed motion.
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+:where(:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- Signature choreographed keyframes ---- */
+
+/* 1. Tool-call trace: rows stream in, staggered */
+@keyframes fashini-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 2. Try-on reveal: accent scan-line sweeps top→bottom */
+@keyframes fashini-scan-sweep {
+  0%   { transform: translateY(-2%); opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { transform: translateY(102%); opacity: 0; }
+}
+@keyframes fashini-fabric-shimmer {
+  0%   { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+@keyframes fashini-label-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 3. Recommendation sets: blur→sharp + translateY */
+@keyframes fashini-materialize {
+  from { opacity: 0; filter: blur(10px); transform: translateY(16px); }
+  to   { opacity: 1; filter: blur(0);    transform: translateY(0); }
+}
+
+/* 5. Kinetic headline: masked line-by-line reveal */
+@keyframes fashini-line-rise {
+  from { transform: translateY(105%); }
+  to   { transform: translateY(0); }
+}
+
+/* Row expand/collapse helper */
+@keyframes fashini-expand {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Honor reduced motion — show final state */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,8 @@
+/* Fashini design-system tokens, wired into the app.
+   Variable + font definitions only — the body/base reset (tokens/base.css)
+   is applied per-screen as each touchpoint is migrated, so existing screens
+   keep working until they are rewritten. */
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
