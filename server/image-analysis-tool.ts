@@ -246,63 +246,56 @@ async function addProductImages(
   };
 }
 
+// Generate/edit an image from mixed text + reference-image parts, using the
+// correct @google/genai API: generateContent with responseModalities IMAGE,
+// reading the result from candidates[].content.parts[].inlineData.
+async function generateImageFromParts(
+  ai: GoogleGenAI,
+  parts: Array<Record<string, unknown>>
+): Promise<ProductImageReference | null> {
+  const response = await ai.models.generateContent({
+    model: getGeminiImageModel(),
+    contents: [{ role: "user", parts }],
+    config: { responseModalities: ["IMAGE"] as never }
+  });
+  const outParts = response.candidates?.[0]?.content?.parts ?? [];
+  const image = outParts.find((part) => (part as { inlineData?: unknown }).inlineData) as
+    | { inlineData?: { mimeType?: string; data?: string } }
+    | undefined;
+  const data = image?.inlineData?.data;
+  if (!data) return null;
+  const mimeType = image?.inlineData?.mimeType ?? "image/jpeg";
+  return { mimeType, base64Data: data, dataUrl: `data:${mimeType};base64,${data}` };
+}
+
 async function generateSegmentedItemReference(
   ai: GoogleGenAI,
   sourceImage: ReturnType<typeof parseImageDataUrl>,
   cropReference: ProductImageReference | null,
   item: ImageAnalysis["outfit_profile"]["items"][number]
 ): Promise<ProductImageReference> {
-  const response = await ai.interactions.create({
-    model: getGeminiImageModel(),
-    input: [
-      {
-        type: "text",
-        text: buildSegmentedItemPrompt(item)
-      },
-      ...(cropReference
-        ? [
-            {
-              type: "image" as const,
-              data: cropReference.base64Data,
-              mime_type: cropReference.mimeType
-            },
-            {
-              type: "text" as const,
-              text:
-                "Reference image 1 is a localized crop around the detected item. Extract the garment or accessory from this area."
-            }
-          ]
-        : []),
-      {
-        type: "image",
-        data: sourceImage.base64Data,
-        mime_type: sourceImage.mimeType
-      },
-      {
-        type: "text",
-        text:
-          "Reference image 2 is the full outfit photo. Use it to verify which physical item is being extracted and to reconstruct hidden parts conservatively."
-      }
-    ],
-    response_format: {
-      type: "image",
-      mime_type: "image/jpeg",
-      aspect_ratio: "1:1",
-      image_size: "1K"
+  const parts: Array<Record<string, unknown>> = [
+    { text: buildSegmentedItemPrompt(item) },
+    ...(cropReference
+      ? [
+          { inlineData: { mimeType: cropReference.mimeType, data: cropReference.base64Data } },
+          {
+            text:
+              "Reference image 1 is a localized crop around the detected item. Extract the garment or accessory from this area."
+          }
+        ]
+      : []),
+    { inlineData: { mimeType: sourceImage.mimeType, data: sourceImage.base64Data } },
+    {
+      text:
+        "Reference image 2 is the full outfit photo. Use it to verify which physical item is being extracted and to reconstruct hidden parts conservatively."
     }
-  });
-
-  const inlineImage = response.output_image;
-  if (!inlineImage?.data) {
+  ];
+  const result = await generateImageFromParts(ai, parts);
+  if (!result) {
     throw new Error(`No segmented clothing reference for visible item ${item.item_id}.`);
   }
-
-  const mimeType = inlineImage.mime_type ?? "image/jpeg";
-  return {
-    mimeType,
-    base64Data: inlineImage.data,
-    dataUrl: `data:${mimeType};base64,${inlineImage.data}`
-  };
+  return result;
 }
 
 async function generateProductImageDataUrl(
@@ -315,52 +308,24 @@ async function generateProductImageDataUrl(
     throw new Error(`Missing segmented clothing reference for visible item ${item.item_id}.`);
   }
 
-  const response = await ai.interactions.create({
-    model: getGeminiImageModel(),
-    input: [
-      {
-        type: "text",
-        text: buildProductImagePrompt(item)
-      },
-      ...(itemReference
-        ? [
-            {
-              type: "image" as const,
-              data: itemReference.base64Data,
-              mime_type: itemReference.mimeType
-            },
-            {
-              type: "text" as const,
-              text:
-                "Reference image 1 is the segmented item reference. Use it as the primary visual source for shape, color, material, and details."
-            }
-          ]
-        : []),
-      {
-        type: "image",
-        data: sourceImage.base64Data,
-        mime_type: sourceImage.mimeType
-      },
-      {
-        type: "text",
-        text:
-          "Reference image 2 is the full outfit photo. Use it only for context and to reconstruct occluded parts; do not include the person or original background."
-      }
-    ],
-    response_format: {
-      type: "image",
-      mime_type: "image/jpeg",
-      aspect_ratio: "1:1",
-      image_size: "1K"
+  const parts: Array<Record<string, unknown>> = [
+    { text: buildProductImagePrompt(item) },
+    { inlineData: { mimeType: itemReference.mimeType, data: itemReference.base64Data } },
+    {
+      text:
+        "Reference image 1 is the segmented item reference. Use it as the primary visual source for shape, color, material, and details."
+    },
+    { inlineData: { mimeType: sourceImage.mimeType, data: sourceImage.base64Data } },
+    {
+      text:
+        "Reference image 2 is the full outfit photo. Use it only for context and to reconstruct occluded parts; do not include the person or original background."
     }
-  });
-
-  const inlineImage = response.output_image;
-  if (!inlineImage?.data) {
+  ];
+  const result = await generateImageFromParts(ai, parts);
+  if (!result) {
     throw new Error(`No generated standalone product image for visible item ${item.item_id}.`);
   }
-
-  return `data:${inlineImage.mime_type ?? "image/jpeg"};base64,${inlineImage.data}`;
+  return result.dataUrl;
 }
 
 async function cropItemReference(
