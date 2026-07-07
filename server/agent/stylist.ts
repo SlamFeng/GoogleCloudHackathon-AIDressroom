@@ -1,0 +1,171 @@
+// LLM stylist. Given the REAL in-stock candidate list (from search_inventory),
+// Gemini composes coordinated outfits — reasoning over body fit, colour
+// harmony, style coherence, occasion and budget — choosing only product_ids
+// that exist in the candidate list (inventory-grounded). Falls back to the
+// deterministic scorer when there is no key, the call fails, or the result is
+// invalid, so tests / CI / offline demos stay reproducible.
+
+import { GoogleGenAI } from "@google/genai";
+import { logAgentTurn } from "./logger.js";
+
+export interface StylistCandidate {
+  product_id: string;
+  name: string;
+  category: string;
+  colors: string[];
+  style_tags: string[];
+  price_yen: number;
+  body_template_tags: string[];
+  seasonal_rank: number;
+}
+
+export interface StylistContext {
+  requestedTypes: string[];
+  matchedBodyTemplateId: string;
+  currentStyle: string[];
+  currentColors: string[];
+  preferredStyles: string[];
+  preferredColors: string[];
+  occasion?: string;
+  budgetYen?: number;
+}
+
+export interface StylistSet {
+  rec_type: string;
+  product_ids: string[];
+  reason: string;
+}
+
+function apiKey() {
+  return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
+}
+
+const TYPE_MEANING: Record<string, string> = {
+  similar: "echo the customer's current outfit style",
+  style: "the store's editorial styling direction, a step up from their usual",
+  seasonal: "seasonal / on-trend, prioritising high seasonal_rank items",
+  explicit_need: "the customer's explicitly stated need"
+};
+
+function buildPrompt(candidates: StylistCandidate[], ctx: StylistContext) {
+  const n = ctx.requestedTypes.length;
+  const types = ctx.requestedTypes
+    .map((t) => `- ${t}: ${TYPE_MEANING[t] ?? t}`)
+    .join("\n");
+  return [
+    "You are a senior fashion stylist at a single clothing store.",
+    `Compose exactly ${n} complete, coordinated outfits for one customer — one per requested type below — choosing ONLY from the in-stock products listed (by product_id).`,
+    "",
+    "Customer:",
+    `- Body template: ${ctx.matchedBodyTemplateId}. Prefer items whose body_template_tags include it (better fit).`,
+    `- Current outfit style: ${ctx.currentStyle.join(", ") || "unknown"}; current colours: ${ctx.currentColors.join(", ") || "unknown"}.`,
+    `- Occasion: ${ctx.occasion ?? "unspecified"}. Prefers styles: ${ctx.preferredStyles.join(", ") || "none"}; colours: ${ctx.preferredColors.join(", ") || "none"}.`,
+    ctx.budgetYen ? `- Budget: keep each outfit's total at or under ¥${ctx.budgetYen}.` : "- Budget: no hard limit.",
+    "",
+    "Each outfit is ONE coherent look: a top and a bottom (or a single dress/one_piece instead of top+bottom), shoes, and outerwear only if it suits. Coordinate colour harmony and style consistency ACROSS the pieces, fit the body template, and suit the occasion.",
+    "",
+    "Requested types (produce one outfit each, in this order):",
+    types,
+    "",
+    "Rules: use only product_id values from the list; never repeat a product_id within one outfit; 2–4 items per outfit; give a one-sentence reason that names the coordination logic (why these pieces work together). Return only JSON.",
+    "",
+    "In-stock products:",
+    JSON.stringify(
+      candidates.map((c) => ({
+        product_id: c.product_id,
+        name: c.name,
+        category: c.category,
+        colors: c.colors,
+        style_tags: c.style_tags,
+        price_yen: c.price_yen,
+        body_template_tags: c.body_template_tags,
+        seasonal_rank: c.seasonal_rank
+      }))
+    )
+  ].join("\n");
+}
+
+function schema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["sets"],
+    properties: {
+      sets: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["rec_type", "product_ids", "reason"],
+          properties: {
+            rec_type: { type: "string" },
+            product_ids: { type: "array", items: { type: "string" } },
+            reason: { type: "string" }
+          }
+        }
+      }
+    }
+  };
+}
+
+function validate(rawSets: unknown, validIds: Set<string>): StylistSet[] {
+  if (!Array.isArray(rawSets)) return [];
+  const out: StylistSet[] = [];
+  for (const raw of rawSets) {
+    const s = raw as { rec_type?: unknown; product_ids?: unknown; reason?: unknown };
+    const ids = Array.isArray(s.product_ids)
+      ? Array.from(
+          new Set(
+            s.product_ids.filter((id): id is string => typeof id === "string" && validIds.has(id))
+          )
+        )
+      : [];
+    if (ids.length < 2) continue;
+    out.push({
+      rec_type: typeof s.rec_type === "string" ? s.rec_type : "style",
+      product_ids: ids,
+      reason: typeof s.reason === "string" ? s.reason : ""
+    });
+  }
+  return out;
+}
+
+/**
+ * Ask Gemini to compose outfits from the real candidate list. Returns one
+ * validated StylistSet per requested type, or null to signal fallback.
+ */
+export async function composeOutfitSets(
+  candidates: StylistCandidate[],
+  ctx: StylistContext
+): Promise<StylistSet[] | null> {
+  if (!apiKey() || candidates.length === 0) return null;
+  try {
+    const ai = new GoogleGenAI({ apiKey: apiKey() });
+    const response = await ai.models.generateContent({
+      model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
+      contents: buildPrompt(candidates, ctx),
+      config: {
+        temperature: 0.4,
+        responseMimeType: "application/json",
+        responseJsonSchema: schema()
+      }
+    });
+    const text = response.text;
+    if (!text) return null;
+    const parsed = JSON.parse(text) as { sets?: unknown };
+    const validIds = new Set(candidates.map((c) => c.product_id));
+    const sets = validate(parsed.sets, validIds);
+    // Require one coherent set per requested type for consistent presentation.
+    if (sets.length < ctx.requestedTypes.length) return null;
+    return sets.slice(0, ctx.requestedTypes.length);
+  } catch (error) {
+    logAgentTurn(
+      {
+        event: "stylist_fallback",
+        errors: [error instanceof Error ? error.message : "unknown"]
+      },
+      "WARNING"
+    );
+    return null;
+  }
+}

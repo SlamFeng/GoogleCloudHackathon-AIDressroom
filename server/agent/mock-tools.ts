@@ -26,6 +26,7 @@ import {
   type StandardColor,
   type StyleTag
 } from "../inventory/types.js";
+import { composeOutfitSets, type StylistCandidate } from "./stylist.js";
 
 export class ToolCallLog {
   readonly calls: ToolCallRecord[] = [];
@@ -68,23 +69,63 @@ export class MockAgentTools {
     requested_types: RecommendationType[];
     matched_body_template_id: string;
     current_style: string[];
+    current_colors?: string[];
     constraints: AgentConstraints;
     round: number;
   }): Promise<RecommendationResponse> {
     const candidates = await this.searchInventory(input.session_id, input.constraints);
     const preferences = extractPreferences(input.constraints);
-    const sets = input.requested_types.map((type, index) =>
-      this.buildRecommendationSet({
-        type,
-        round: input.round,
-        index,
-        candidates,
-        currentStyle: input.current_style,
-        matchedBodyTemplateId: input.matched_body_template_id,
-        preferences,
-        budgetYen: input.constraints.budget_yen
-      })
-    );
+
+    // Prefer LLM styling grounded in the real in-stock candidate list; fall back
+    // to the deterministic scorer when there's no key / the call fails / the
+    // result is invalid (keeps tests, CI and offline demos reproducible).
+    const composed = await composeOutfitSets(candidates.map(toStylistCandidate), {
+      requestedTypes: input.requested_types,
+      matchedBodyTemplateId: input.matched_body_template_id,
+      currentStyle: input.current_style,
+      currentColors: input.current_colors ?? [],
+      preferredStyles: preferences.styles,
+      preferredColors: preferences.colors,
+      occasion: preferences.occasion,
+      budgetYen: input.constraints.budget_yen
+    });
+
+    let styledBy: "llm" | "heuristic" = "heuristic";
+    let sets: RecommendationSet[];
+    if (composed) {
+      const byId = new Map(candidates.map((product) => [product.product_id, product]));
+      sets = input.requested_types.map((type, index) => {
+        const picked = composed[index];
+        const products = picked.product_ids
+          .map((id) => byId.get(id))
+          .filter((product): product is Product => Boolean(product));
+        return {
+          set_id: `set_r${input.round}_${type}_${index + 1}`,
+          round: input.round,
+          rec_type: type,
+          products,
+          outfit: buildOutfitPayload(products),
+          reason:
+            picked.reason ||
+            reasonForSet(type, input.matched_body_template_id, preferences, input.constraints.budget_yen)
+        };
+      });
+      styledBy = "llm";
+    } else {
+      sets = input.requested_types.map((type, index) =>
+        this.buildRecommendationSet({
+          type,
+          round: input.round,
+          index,
+          candidates,
+          currentStyle: input.current_style,
+          matchedBodyTemplateId: input.matched_body_template_id,
+          preferences,
+          budgetYen: input.constraints.budget_yen
+        })
+      );
+    }
+
     const response: RecommendationResponse = {
       session_id: input.session_id,
       round: input.round,
@@ -94,6 +135,7 @@ export class MockAgentTools {
     };
     this.log.append("get_recommendations", input as unknown as Record<string, unknown>, {
       round: response.round,
+      styled_by: styledBy,
       set_ids: sets.map((set) => set.set_id)
     });
     return response;
@@ -106,6 +148,7 @@ export class MockAgentTools {
     delta: ConstraintDelta;
     matched_body_template_id: string;
     current_style: string[];
+    current_colors?: string[];
     constraints: AgentConstraints;
     round: number;
   }): Promise<RecommendationResponse> {
@@ -121,6 +164,7 @@ export class MockAgentTools {
       requested_types: requestedTypes,
       matched_body_template_id: input.matched_body_template_id,
       current_style: input.current_style,
+      current_colors: input.current_colors,
       constraints: input.constraints,
       round: input.round
     });
@@ -409,6 +453,20 @@ function toRecProduct(pa: ProductAvailability): Product {
     image_url: pa.product.image_url,
     vton_reference_image_url: pa.product.vton_reference_image_url,
     vton_prompt: pa.product.vton_prompt
+  };
+}
+
+/** Project a catalog Product down to the lightweight shape the LLM stylist sees. */
+function toStylistCandidate(product: Product): StylistCandidate {
+  return {
+    product_id: product.product_id,
+    name: product.name,
+    category: product.category,
+    colors: product.colors,
+    style_tags: product.style_tags,
+    price_yen: product.price_yen,
+    body_template_tags: product.body_template_tags,
+    seasonal_rank: product.seasonal_rank
   };
 }
 

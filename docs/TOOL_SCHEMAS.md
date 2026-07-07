@@ -90,6 +90,21 @@ Response:
 }
 ```
 
+How sets are composed (implementation):
+
+1. `search_inventory` returns the **real in-stock candidate list** (filtered by
+   `in_stock_only`, budget, and `avoid` color/style).
+2. When a Gemini key is present, the candidates + customer signals
+   (`matched_body_template_id`, `current_style`, OOTD `current_colors`, occasion,
+   preferred styles/colors, budget) are handed to an **LLM stylist**
+   (`server/agent/stylist.ts`). It composes one coordinated look per requested
+   type, choosing **only `product_id`s that exist in the candidate list**
+   (inventory-grounded) and reasoning over color harmony, style coherence, body
+   fit and budget. Returned IDs are validated against the candidate set.
+3. If there is no key, the call fails (e.g. upstream 503), or the result is
+   invalid, it falls back to the deterministic scorer so tests / CI / offline
+   demos stay reproducible. The chosen path is logged as `styled_by: "llm" | "heuristic"`.
+
 Failure behavior:
 
 - If inventory is unavailable, return `status = failed` with warning.
