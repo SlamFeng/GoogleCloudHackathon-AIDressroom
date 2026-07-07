@@ -1,0 +1,50 @@
+/* ============================================================
+   Fashini — Color
+   Pure-white minimal. Accent (cobalt) touches ONLY:
+   rec-type label, primary button, active/selected state,
+   focus ring, links, and the "held" status. Everything else
+   is black / white / grey. Semantics are SEPARATE from accent.
+   ============================================================ */
+
+:root {
+  /* — Base surfaces — */
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --inset: #f5f5f5;
+  --hairline: #e6e6e6;
+
+  /* — Ink (text) — */
+  --ink: #111111;
+  --muted: #767676;
+  --faint: #b6b6b6;
+
+  /* — Accent (cobalt) — restricted use — */
+  --accent: #1b2bd8;
+  --accent-soft: #e9ebfb;
+  --accent-ink: #ffffff; /* text on accent */
+
+  /* — Semantic (independent of accent) — */
+  --ok: #767676;        /* neutral grey — success/complete is quiet */
+  --ok-soft: #f0f0f0;
+  --failed: #c0182b;
+  --failed-soft: #fbecee;
+  --held: var(--accent);      /* held / active reuses accent */
+  --held-soft: var(--accent-soft);
+
+  /* — Semantic aliases (author against these) — */
+  --text-primary: var(--ink);
+  --text-secondary: var(--muted);
+  --text-tertiary: var(--faint);
+  --text-on-accent: var(--accent-ink);
+  --text-link: var(--accent);
+
+  --surface-page: var(--bg);
+  --surface-card: var(--surface);
+  --surface-inset: var(--inset);
+
+  --border-hairline: var(--hairline);
+  --border-strong: var(--ink);
+  --border-accent: var(--accent);
+
+  --focus-ring: var(--accent);
+}

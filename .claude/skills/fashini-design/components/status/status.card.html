@@ -1,0 +1,45 @@
+<!-- @dsCard group="Components" viewport="700x180" name="Status — badges & chips" subtitle="StatusBadge · ToolStatusChip · PrivacyChip" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px 24px; }
+  .grp { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .grp + .grp { margin-top: 16px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { StatusBadge, ToolStatusChip, PrivacyChip } = window.FashiniDesignSystem_c28a45;
+    function Demo() {
+      return (
+        <div>
+          <div className="grp">
+            <StatusBadge label="agent" value="recommending" />
+            <StatusBadge label="route" value="recommendation" active />
+            <StatusBadge label="round" value={2} />
+            <StatusBadge label="lucy" value="previewing" />
+          </div>
+          <div className="grp">
+            <ToolStatusChip status="ok" />
+            <ToolStatusChip status="held" label="held" />
+            <ToolStatusChip status="failed" />
+            <ToolStatusChip status="neutral" label="pending" />
+          </div>
+          <div className="grp">
+            <PrivacyChip>Photos deleted after this session</PrivacyChip>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

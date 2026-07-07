@@ -1,0 +1,51 @@
+<!-- @dsCard group="Components" viewport="700x460" name="Try-on — scan-line reveal" subtitle="TryOnStage · RecTypeLabel · ProductRow — click to replay" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px 24px; }
+  .wrap { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+  .fig { position: relative; width: 100%; height: 100%; }
+  .fig .head { width: 34%; aspect-ratio: .84; border-radius: 50% 50% 46% 46%; background: var(--inset); border: 1px solid var(--hairline); margin: 8% auto 0; }
+  .fig .body { width: 62%; height: 52%; margin: 3% auto 0; background: #fff; border: 1px solid var(--hairline); border-radius: 30% 30% 10px 10px / 16% 16% 8px 8px; }
+  .side .cap { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; display: block; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { TryOnStage, RecTypeLabel, ProductRow, Button } = window.FashiniDesignSystem_c28a45;
+    const products = [
+      { product_id: "p1", name: "Wool-blend tailored blazer", category: "outerwear", price_yen: 18900, colors: ["Navy"], fit: "tailored" },
+      { product_id: "p2", name: "Fine merino crew knit", category: "top", price_yen: 7900, colors: ["Off-white"], fit: "regular" }
+    ];
+    function Demo() {
+      const [phase, setPhase] = React.useState("idle");
+      const [n, setN] = React.useState(0);
+      const replay = () => { setPhase("idle"); setN(x=>x+1); requestAnimationFrame(()=>requestAnimationFrame(()=>setPhase("reveal"))); };
+      React.useEffect(()=>{ const t=setTimeout(()=>setPhase("reveal"),400); return ()=>clearTimeout(t); },[]);
+      return (
+        <div className="wrap">
+          <TryOnStage key={n} phase={phase} badge="Lucy · realtime">
+            <div className="fig"><div className="head"></div><div className="body"></div></div>
+          </TryOnStage>
+          <div className="side">
+            <RecTypeLabel recType="style" />
+            <div style={{marginTop:12, marginBottom:16}}>
+              {products.map(p => <ProductRow key={p.product_id} product={p} />)}
+            </div>
+            <Button variant="secondary" onClick={replay}>Replay reveal</Button>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!-- @dsCard group="Type" viewport="700x230" name="Heading scale" subtitle="Title xl → subtitle" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 24px; }
+  .h { font-weight: 700; letter-spacing: var(--tracking-heading); color: var(--ink); line-height: 1.15; display: flex; align-items: baseline; gap: 14px; }
+  .h + .h { margin-top: 10px; }
+  .h em { font-family: var(--font-mono); font-size: 11px; font-style: normal; color: var(--faint); font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="h" style="font-size:44px">Recommendations <em>44 · title-xl</em></div>
+  <div class="h" style="font-size:34px">Tool-call trace <em>34 · title-l</em></div>
+  <div class="h" style="font-size:26px">Body profile <em>26 · title</em></div>
+  <div class="h" style="font-size:20px;font-weight:600">Clothing breakdown <em>20 · subtitle</em></div>
+</body>
+</html>

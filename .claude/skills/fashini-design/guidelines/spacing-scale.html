@@ -1,0 +1,27 @@
+<!-- @dsCard group="Spacing" viewport="700x160" name="Spacing scale" subtitle="4px base grid" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 22px 24px; }
+  .row { display: flex; align-items: flex-end; gap: 14px; }
+  .u { text-align: center; }
+  .bar { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 3px; }
+  .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="u"><div class="bar" style="width:4px;height:16px"></div><div class="lbl">1<br>4</div></div>
+    <div class="u"><div class="bar" style="width:8px;height:24px"></div><div class="lbl">2<br>8</div></div>
+    <div class="u"><div class="bar" style="width:12px;height:32px"></div><div class="lbl">3<br>12</div></div>
+    <div class="u"><div class="bar" style="width:16px;height:44px"></div><div class="lbl">4<br>16</div></div>
+    <div class="u"><div class="bar" style="width:24px;height:56px"></div><div class="lbl">6<br>24</div></div>
+    <div class="u"><div class="bar" style="width:32px;height:68px"></div><div class="lbl">8<br>32</div></div>
+    <div class="u"><div class="bar" style="width:48px;height:80px"></div><div class="lbl">12<br>48</div></div>
+    <div class="u"><div class="bar" style="width:64px;height:92px"></div><div class="lbl">16<br>64</div></div>
+  </div>
+</body>
+</html>

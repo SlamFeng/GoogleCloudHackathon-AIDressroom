@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Semantic status" subtitle="Separate from accent — ok / held / failed" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; }
+  .chip { height: 56px; border-radius: var(--radius-control); display: flex; align-items: center; padding: 0 14px; gap: 9px; border: 1px solid var(--hairline); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .lbl { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+  .name { font-size: 12px; font-weight: 600; margin-top: 10px; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip"><span class="dot" style="background:var(--ok)"></span><span class="lbl" style="color:var(--ok)">ok</span></div><div class="name">ok — neutral grey</div><div class="hex">#767676</div></div>
+    <div class="sw"><div class="chip" style="background:var(--held-soft);border-color:var(--accent)"><span class="dot" style="background:var(--held)"></span><span class="lbl" style="color:var(--held)">held</span></div><div class="name">held / active — accent</div><div class="hex">#1B2BD8</div></div>
+    <div class="sw"><div class="chip" style="background:var(--failed-soft)"><span class="dot" style="background:var(--failed)"></span><span class="lbl" style="color:var(--failed)">failed</span></div><div class="name">failed</div><div class="hex">#C0182B</div></div>
+  </div>
+</body>
+</html>

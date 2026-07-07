@@ -1,0 +1,77 @@
+<!-- @dsCard group="Staff iPad" viewport="1194x834" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fashini — Staff iPad console</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: var(--inset); height: 100%; }
+  #stage { width: 100vw; height: 100vh; display: grid; place-items: center; overflow: hidden; }
+  .ipad {
+    width: 1194px; height: 834px; background: var(--bg);
+    display: flex; flex-direction: column; overflow: hidden;
+    font-family: var(--font-sans); color: var(--ink);
+  }
+  .ipad-top { display: flex; align-items: center; gap: 20px; padding: 14px 24px; border-bottom: 1px solid var(--hairline); }
+  .ipad-brand { display: flex; flex-direction: column; gap: 3px; }
+  .ipad-brand strong { font-size: 18px; font-weight: 800; letter-spacing: 0.03em; }
+  .ipad-status { display: flex; gap: 8px; margin-left: 8px; }
+  .ipad-top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+  .ipad-grid { flex: 1; display: grid; grid-template-columns: 1.15fr 0.85fr; min-height: 0; }
+  .ipad-left { border-right: 1px solid var(--hairline); display: flex; flex-direction: column; min-height: 0; }
+  .ipad-right { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; overflow-y: auto; }
+
+  .need-row { display: flex; gap: 14px; align-items: flex-end; padding: 18px 20px; border-bottom: 1px solid var(--hairline); }
+  .need-input { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .need-input textarea {
+    border: 1px solid var(--hairline); border-radius: var(--radius-control); padding: 12px 14px;
+    font-family: var(--font-sans); font-size: 15px; color: var(--ink); resize: none; outline: none;
+  }
+  .need-input textarea:focus { border-color: var(--accent); }
+
+  .rec-list { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .empty { border: 1px dashed var(--hairline); border-radius: var(--radius-card); padding: 40px 28px; text-align: center; color: var(--muted); }
+  .empty p { max-width: 380px; margin: 12px auto 0; font-size: 14px; line-height: 1.6; }
+
+  .feedback-bar { padding: 16px 20px; border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 10px; background: var(--surface); }
+
+  .preview-block { display: flex; flex-direction: column; gap: 12px; }
+  .preview-block .fsh-tryon { aspect-ratio: 16 / 12; }
+  .preview-meta { display: flex; align-items: center; justify-content: space-between; }
+  .preview-meta > div { display: flex; flex-direction: column; gap: 4px; }
+  .mono-sm { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  .fig { position: relative; width: 100%; height: 100%; }
+  .fig-head { width: 16%; aspect-ratio: .84; border-radius: 50%; background: var(--inset); border: 1px solid var(--hairline); margin: 6% auto 0; }
+  .fig-body { width: 30%; height: 42%; margin: 2% auto 0; background: #fff; border: 1px solid var(--hairline); border-radius: 24% 24% 8px 8px / 12% 12% 8px 8px; }
+  .fig-legs { width: 22%; height: 26%; margin: 0 auto; background: var(--inset); border: 1px solid var(--hairline); border-top: 0; }
+
+  .pickup { border: 1px solid var(--hairline); border-radius: var(--radius-card); padding: 18px; display: flex; flex-direction: column; gap: 12px; animation: fashini-materialize var(--dur-slow) var(--ease-out) both; }
+  .route { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .route li { display: flex; gap: 10px; font-size: 13px; color: var(--ink); }
+  .route li span { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+  .privacy-foot { margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="root"></div></div>
+  <script type="text/babel" src="Console.jsx"></script>
+  <script type="text/babel">
+    const StaffConsole = window.StaffConsole;
+    ReactDOM.createRoot(document.getElementById("root")).render(<StaffConsole />);
+    function fit() {
+      const el = document.querySelector(".ipad"); if (!el) { requestAnimationFrame(fit); return; }
+      const s = Math.min(window.innerWidth / 1194, window.innerHeight / 834);
+      el.style.transform = `scale(${s})`; el.style.transformOrigin = "center";
+    }
+    window.addEventListener("resize", fit); requestAnimationFrame(fit);
+  </script>
+</body>
+</html>

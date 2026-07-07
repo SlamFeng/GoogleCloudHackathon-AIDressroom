@@ -1,0 +1,41 @@
+<!-- @dsCard group="Brand" viewport="700x240" name="Principles — do / don't" subtitle="Pure-white restraint; motion is the wow" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .col h4 { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: var(--tracking-label); text-transform: uppercase; }
+  .do h4 { color: var(--accent); }
+  .dont h4 { color: var(--failed); }
+  ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  li { font-size: 12.5px; line-height: 1.4; color: var(--ink); padding-left: 18px; position: relative; }
+  .do li::before { content: "＋"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+  .dont li::before { content: "×"; position: absolute; left: 0; color: var(--failed); font-weight: 700; }
+  .dont li { color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="col do">
+    <h4>Do</h4>
+    <ul>
+      <li>Flat white canvas, hairline structure</li>
+      <li>Ration cobalt to one accent per view</li>
+      <li>Prices big, bold, monospace</li>
+      <li>Choreograph motion; final-state on reduced-motion</li>
+      <li>Two radii only: 12 / 8</li>
+    </ul>
+  </div>
+  <div class="col dont">
+    <h4>Don't</h4>
+    <ul>
+      <li>Dark backgrounds, gradients, textures</li>
+      <li>Serif, Inter, or emoji markers</li>
+      <li>Green "success" — ok is neutral grey</li>
+      <li>Heavy drop-shadows or bounce</li>
+      <li>Center everything</li>
+    </ul>
+  </div>
+</body>
+</html>

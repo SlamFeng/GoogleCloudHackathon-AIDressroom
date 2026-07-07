@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Accent — cobalt" subtitle="Rationed: label, primary, active, focus, links, held" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; }
+  .row { display: flex; gap: 12px; align-items: flex-start; }
+  .sw { flex: 1; }
+  .chip { height: 64px; border-radius: var(--radius-control); border: 1px solid var(--hairline); }
+  .name { font-size: 12px; font-weight: 600; margin-top: 10px; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .note { font-size: 11px; color: var(--muted); margin-top: 16px; line-height: 1.5; }
+  .note b { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--accent)"></div><div class="name">accent — cobalt</div><div class="hex">#1B2BD8</div></div>
+    <div class="sw"><div class="chip" style="background:var(--accent-soft)"></div><div class="name">accent-soft</div><div class="hex">#E9EBFB</div></div>
+  </div>
+  <p class="note">Accent touches <b>only</b>: rec-type label · primary button · active / selected · focus ring · links · the "held" status. Everything else stays black / white / grey.</p>
+</body>
+</html>

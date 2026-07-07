@@ -1,0 +1,23 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Neutrals & surfaces" subtitle="White canvas, one inset, hairline" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; }
+  .chip { height: 64px; border-radius: var(--radius-control); border: 1px solid var(--hairline); }
+  .name { font-size: 12px; font-weight: 600; margin-top: 10px; letter-spacing: -0.01em; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:#FFFFFF"></div><div class="name">bg / surface</div><div class="hex">#FFFFFF</div></div>
+    <div class="sw"><div class="chip" style="background:var(--inset)"></div><div class="name">inset</div><div class="hex">#F5F5F5</div></div>
+    <div class="sw"><div class="chip" style="background:#FFFFFF;border:1px solid var(--hairline)"></div><div class="name">hairline (border)</div><div class="hex">#E6E6E6</div></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!-- @dsCard group="Entrance screen" viewport="1920x1080" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fashini — Entrance screen</title>
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: #000; height: 100%; }
+  #stage { width: 100vw; height: 100vh; display: grid; place-items: center; overflow: hidden; }
+  .entrance {
+    width: 1920px; height: 1080px; background: var(--bg);
+    display: flex; flex-direction: column; overflow: hidden;
+    font-family: var(--font-sans); color: var(--ink); padding: 56px 72px;
+  }
+  .e-top { display: flex; align-items: center; justify-content: space-between; }
+  .e-brand strong { display: block; font-size: 34px; font-weight: 800; letter-spacing: 0.03em; }
+
+  .e-grid { flex: 1; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 64px; align-items: center; min-height: 0; padding: 40px 0; }
+  .e-copy { align-self: center; }
+  .e-kinetic { font-size: 112px; font-weight: 800; letter-spacing: var(--tracking-display); line-height: 0.98; margin: 28px 0 32px; }
+  .e-kinetic .line { display: block; overflow: hidden; }
+  .e-kinetic .line > span { display: block; animation: fashini-line-rise var(--dur-choreo) var(--ease-out) both; }
+  .e-kinetic .line:nth-child(2) > span { animation-delay: .12s; }
+  .e-kinetic .line:nth-child(3) > span { animation-delay: .24s; }
+  .e-lede { font-size: 28px; line-height: 1.55; color: var(--muted); max-width: 760px; margin: 0 0 40px; }
+  .e-tokens { display: flex; gap: 12px; }
+  .e-tokens span { font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.06em; color: var(--muted); border: 1px solid var(--hairline); border-radius: var(--radius-pill); padding: 10px 18px; }
+
+  .e-stage { height: 100%; display: grid; place-items: center; }
+  .e-stage .fsh-tryon { height: 100%; aspect-ratio: 3/4; }
+  .efig { position: relative; width: 100%; height: 100%; }
+  .efig-head { width: 16%; aspect-ratio: .84; border-radius: 50%; background: var(--inset); border: 1px solid var(--hairline); margin: 8% auto 0; }
+  .efig-body { width: 32%; height: 40%; margin: 2% auto 0; background: #fff; border: 1px solid var(--hairline); border-radius: 26% 26% 10px 10px / 12% 12% 8px 8px; }
+  .efig-legs { width: 24%; height: 24%; margin: 0 auto; background: var(--inset); border: 1px solid var(--hairline); border-top: 0; }
+
+  .e-foot { display: flex; align-items: flex-end; justify-content: space-between; border-top: 1px solid var(--hairline); padding-top: 32px; }
+  .e-items { display: flex; gap: 48px; margin-top: 16px; }
+  .e-item { display: flex; flex-direction: column; gap: 8px; }
+  .e-item span { font-size: 20px; color: var(--ink); }
+  .e-total { text-align: right; }
+  .e-total .fsh-micro { display: block; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="root"></div></div>
+  <script type="text/babel" src="Attract.jsx"></script>
+  <script type="text/babel">
+    const EntranceAttract = window.EntranceAttract;
+    ReactDOM.createRoot(document.getElementById("root")).render(<EntranceAttract />);
+    function fit() {
+      const el = document.querySelector(".entrance"); if (!el) { requestAnimationFrame(fit); return; }
+      const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      el.style.transform = `scale(${s})`; el.style.transformOrigin = "center";
+    }
+    window.addEventListener("resize", fit); requestAnimationFrame(fit);
+  </script>
+</body>
+</html>

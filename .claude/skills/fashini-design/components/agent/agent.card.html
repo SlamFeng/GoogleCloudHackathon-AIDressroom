@@ -1,0 +1,52 @@
+<!-- @dsCard group="Components" viewport="700x560" name="Agent — set card, trace, timeline" subtitle="RecommendationCard · ToolCallTrace · AhaTimeline · ConstraintDelta" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px 24px; }
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { RecommendationCard, ToolCallTrace, AhaTimeline, ConstraintDelta } = window.FashiniDesignSystem_c28a45;
+    const set = {
+      set_id: "set_a1", round: 2, rec_type: "explicit_need",
+      reason: "A crisp smart-casual set that keeps your navy palette but sharpens the silhouette you flagged as too loose.",
+      products: [
+        { product_id: "p1", name: "Wool-blend tailored blazer", category: "outerwear", price_yen: 18900, colors: ["Navy"], fit: "tailored" },
+        { product_id: "p2", name: "Fine merino crew knit", category: "top", price_yen: 7900, colors: ["Off-white"], fit: "regular" },
+        { product_id: "p3", name: "Slim tapered trouser", category: "bottom", price_yen: 9900, colors: ["Charcoal"], fit: "slim" }
+      ]
+    };
+    const toolCalls = [
+      { tool: "match_body_template", input: {height_cm:168}, output: {status:"success", template_id:"tpl_07"}, called_at: new Date().toISOString() },
+      { tool: "get_recommendations", input: {route:"recommendation"}, output: {status:"success", sets:3}, called_at: new Date().toISOString() },
+      { tool: "check_inventory", input: {sku:"OT-2213"}, output: {status:"held", store:"store_001"}, called_at: new Date().toISOString() },
+      { tool: "reserve_items", input: {set_id:"set_a1"}, output: {ok:true}, called_at: new Date().toISOString() }
+    ];
+    function Demo() {
+      const [sel, setSel] = React.useState("set_a1");
+      return (
+        <div className="stack">
+          <AhaTimeline stage="google_generating" narrative="Lucy preview held; generating the confirmed look via Google fallback." />
+          <RecommendationCard set={set} selected={sel==="set_a1"} onSelect={()=>setSel("set_a1")} />
+          <ToolCallTrace toolCalls={toolCalls} />
+          <ConstraintDelta
+            prefer={[{dimension:"fit", value:"tailored", reason:"was too loose"}]}
+            avoid={[{dimension:"color", value:"red", reason:"disliked"}]}
+            budgetYen={40000} />
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

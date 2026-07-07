@@ -1,0 +1,23 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Ink ramp" subtitle="Three-step grey text ramp" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  body { margin: 0; padding: 20px; }
+  .row { display: flex; gap: 12px; }
+  .sw { flex: 1; }
+  .chip { height: 64px; border-radius: var(--radius-control); }
+  .name { font-size: 12px; font-weight: 600; margin-top: 10px; }
+  .hex { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:var(--ink)"></div><div class="name">ink — primary</div><div class="hex">#111111</div></div>
+    <div class="sw"><div class="chip" style="background:var(--muted)"></div><div class="name">muted — secondary</div><div class="hex">#767676</div></div>
+    <div class="sw"><div class="chip" style="background:var(--faint)"></div><div class="name">faint — tertiary</div><div class="hex">#B6B6B6</div></div>
+  </div>
+</body>
+</html>
