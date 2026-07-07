@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./design/screens/mirror.css";
 import { analyzeCapture, confirmAnalysis, createSession } from "./api";
 import { AgentRuntimePanel } from "./AgentRuntimePanel";
@@ -855,6 +855,7 @@ function CameraStage({
 }) {
   const { videoRef, modelState, cameraError, assessment, progress, countdown, capture } =
     useCameraCapture({ messages: copy.pose, onCaptured });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleUpload(file: File | undefined) {
     if (!file) return;
@@ -920,20 +921,27 @@ function CameraStage({
         <Button variant="ghost" size="lg" block onClick={capture}>
           {copy.capture.manualCapture}
         </Button>
-        <label className="upload-box">
+        <div className="upload-box">
           <div>
             <strong>{copy.capture.uploadTitle}</strong>
             <p>{copy.capture.uploadText}</p>
           </div>
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/*"
+            style={{ display: "none" }}
             onChange={(event) => handleUpload(event.target.files?.[0])}
           />
-          <Button variant="secondary" size="md" block>
+          <Button
+            variant="secondary"
+            size="md"
+            block
+            onClick={() => fileInputRef.current?.click()}
+          >
             {copy.capture.uploadButton}
           </Button>
-        </label>
+        </div>
       </div>
 
       <div className="m-actions">

@@ -5,13 +5,18 @@
    Uses the design-system tokens (fashini.css). */
 
 .mirror {
-  min-height: 100vh;
-  width: 100%;
-  max-width: 960px;
+  /* Vertical fitting-room mirror: a portrait 9:16 frame, centered on any
+     screen. Wide desktop windows show the same narrow proportion (kiosk),
+     so the customer never has to page sideways. */
+  width: min(100vw, calc(100dvh * 9 / 16));
+  height: 100vh;
+  height: 100dvh;
   margin: 0 auto;
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
   font-family: var(--font-sans);
   color: var(--ink);
   box-sizing: border-box;
@@ -77,8 +82,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: clamp(24px, 5vw, 56px);
+  justify-content: safe center;
+  padding: clamp(20px, 4vw, 40px);
   min-height: 0;
 }
 
@@ -483,6 +488,8 @@
 .m-analyzing .fsh-tryon,
 .m-review .fsh-tryon {
   aspect-ratio: 3 / 4;
+  max-height: 40vh;
+  margin: 0 auto;
 }
 .scan-fig {
   position: relative;
@@ -527,8 +534,8 @@
 /* — analyzing progress — */
 .m-analyzing {
   display: grid;
-  grid-template-columns: minmax(200px, 0.9fr) 1.1fr;
-  gap: clamp(20px, 4vw, 40px);
+  grid-template-columns: 1fr;
+  gap: clamp(16px, 3vw, 28px);
   align-items: center;
 }
 .analysis-copy {
@@ -610,7 +617,7 @@
 /* — review — */
 .review-grid {
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
+  grid-template-columns: 1fr;
   gap: clamp(20px, 3vw, 32px);
   margin: clamp(20px, 3vw, 32px) 0;
 }
