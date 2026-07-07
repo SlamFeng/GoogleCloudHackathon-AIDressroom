@@ -11,6 +11,7 @@ import type {
 import { MockAgentTools } from "./mock-tools.js";
 import { parseFeedback } from "./parsers.js";
 import { classifyIntent, extractNeed } from "./reasoning.js";
+import { requestTryonGeneration } from "./tryon-adapter.js";
 import { createInitialAgentState, type AgentState } from "./state.js";
 import type {
   ConfirmPayloadInput,
@@ -359,13 +360,17 @@ export class AgentWorkflow {
       }
     };
     const accepted = this.tools.handoffTryonGeneration(handoff);
+    // If the image_tryon service is configured, kick off real generation;
+    // otherwise this is null and the mock handoff stands (offline/demo path).
+    const generation = await requestTryonGeneration(handoff);
     syncToolCalls(state, this.tools);
     return {
       state,
       output: {
         type: "tryon_handoff",
         handoff: accepted,
-        reservation: state.reservation
+        reservation: state.reservation,
+        generation
       }
     };
   }
