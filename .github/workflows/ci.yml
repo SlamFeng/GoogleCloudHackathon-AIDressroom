@@ -16,10 +16,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      # npm install (not ci): the committed lockfile only records the host
-      # platform's optional rollup binary, so `npm ci` fails on Linux runners
-      # (npm/cli#4828). install resolves the correct native binary per platform.
-      - run: npm install --no-audit --no-fund
+      # The committed lockfile only records the host platform's optional native
+      # binaries (rollup, sharp), so npm ci/install fails on Linux runners
+      # (npm/cli#4828). Remove the lockfile so npm resolves per-platform.
+      - run: rm -f package-lock.json && npm install --no-audit --no-fund
       - name: Typecheck
         run: npm run check
       - name: Test
@@ -37,10 +37,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      # npm install (not ci): the committed lockfile only records the host
-      # platform's optional rollup binary, so `npm ci` fails on Linux runners
-      # (npm/cli#4828). install resolves the correct native binary per platform.
-      - run: npm install --no-audit --no-fund
+      # The committed lockfile only records the host platform's optional native
+      # binaries (rollup, sharp), so npm ci/install fails on Linux runners
+      # (npm/cli#4828). Remove the lockfile so npm resolves per-platform.
+      - run: rm -f package-lock.json && npm install --no-audit --no-fund
       - name: Start API (mock analyzer, in-memory inventory)
         run: |
           INVENTORY_BACKEND=memory npx tsx server/index.ts &
