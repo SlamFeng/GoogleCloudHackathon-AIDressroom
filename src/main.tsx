@@ -9,11 +9,21 @@ import "./styles.css";
 import "./design/fashini.css";
 import App from "./App";
 import { EntranceScreen } from "./EntranceScreen";
+import { StaffConsole } from "./StaffConsole";
 
 // Touchpoint routing. Default is the fitting-room mirror capture flow;
-// `?scene=entrance` mounts the entrance big-screen attract loop.
+// `?scene=entrance` mounts the entrance big-screen attract loop;
+// `?scene=staff` mounts the engineering console on the staff iPad.
 const scene = new URLSearchParams(window.location.search).get("scene");
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>{scene === "entrance" ? <EntranceScreen /> : <App />}</StrictMode>
+  <StrictMode>
+    {scene === "staff" ? (
+      <StaffConsole />
+    ) : scene === "entrance" ? (
+      <EntranceScreen />
+    ) : (
+      <App />
+    )}
+  </StrictMode>
 );

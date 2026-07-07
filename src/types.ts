@@ -118,4 +118,5 @@ export type AppStep =
   | "capture"
   | "analyzing"
   | "review"
+  | "styling"
   | "complete";

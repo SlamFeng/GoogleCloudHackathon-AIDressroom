@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./design/screens/mirror.css";
 import { analyzeCapture, confirmAnalysis, createSession } from "./api";
-import { AgentRuntimePanel } from "./AgentRuntimePanel";
+import { StylingScreen } from "./StylingScreen";
 import type {
   AnalysisHandoff,
   AppStep,
@@ -517,6 +517,7 @@ const stepOrder: AppStep[] = [
   "capture",
   "analyzing",
   "review",
+  "styling",
   "complete"
 ];
 
@@ -577,7 +578,7 @@ function App() {
     try {
       const confirmed = await confirmAnalysis(analysis.analysis_id, analysis.body_profile);
       setAnalysis(confirmed);
-      setStep("complete");
+      setStep("styling");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : copy.errors.confirm);
     }
@@ -667,6 +668,14 @@ function App() {
             captureDataUrl={captureDataUrl}
             onRetake={() => setStep("capture")}
             onConfirm={() => void confirm()}
+          />
+        )}
+        {step === "styling" && analysis && (
+          <StylingScreen
+            analysis={analysis}
+            copy={copy}
+            onBack={() => setStep("review")}
+            onComplete={() => setStep("complete")}
           />
         )}
         {step === "complete" && analysis && (
@@ -1208,8 +1217,6 @@ function Review({
         <span>i</span>
         {copy.review.note}
       </div>
-
-      <AgentRuntimePanel analysis={analysis} />
 
       <div className="m-actions">
         <Button variant="ghost" size="lg" onClick={onRetake}>

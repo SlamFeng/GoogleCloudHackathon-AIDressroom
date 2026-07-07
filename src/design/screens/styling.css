@@ -1,0 +1,303 @@
+/* Styling screen — the customer-facing conversational recommendation flow that
+   lives on the mirror (portrait) after review. A vertical stream of designed
+   cards; NO engineering internals (no status badges, JSON trace, ADK events,
+   Lucy connection/model/token debug). Emulates the 627 coach card paradigm.
+
+   Reuses the Fashini tokens: pure white surfaces, cobalt accent rationed to the
+   rec-type label + primary buttons, two radii, mono tabular prices, and the
+   signature cubic-bezier(.16,1,.3,1) motion (honors prefers-reduced-motion). */
+
+.styling {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 3cqw, 22px);
+}
+
+.styling-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.styling-intro p.m-intro {
+  margin: 0;
+}
+
+/* — need input: a text field so the customer can type / refine a need — */
+.styling-need {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+
+.styling-need textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--inset);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.styling-need textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* — ToolStep pills: the agent "working" (spinner → check). Designed, not a
+     trace dump. Several stack and flip running → done. — */
+.styling-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.styling-tool {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 13px;
+  border-radius: var(--radius-pill);
+  background: var(--inset);
+  border: 1px solid var(--hairline);
+  font-size: var(--text-body-s);
+  font-weight: 500;
+  color: var(--ink);
+  animation: fashini-tool-in var(--dur-base) var(--ease-out) both;
+}
+
+.styling-tool[data-done="true"] {
+  color: var(--muted);
+}
+
+.styling-tool-spin {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 2px solid var(--hairline);
+  border-top-color: var(--accent);
+  animation: styling-spin 0.8s linear infinite;
+}
+
+.styling-tool-check {
+  flex: none;
+  display: inline-flex;
+  color: var(--accent);
+}
+
+@keyframes styling-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fashini-tool-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* — recommendation set cards stream — */
+.styling-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* — feedback pills (ChoiceCard paradigm) — */
+.styling-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* — preview stage — */
+.styling-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.styling-stage {
+  position: relative;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  aspect-ratio: 3 / 4;
+}
+
+.styling-stage video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--inset);
+}
+
+.styling-stage-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: rgba(17, 17, 17, 0.72);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.styling-stage-cam {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  width: 26%;
+  max-width: 96px;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow-lift);
+}
+
+.styling-stage-cam video {
+  border-radius: 8px;
+}
+
+.styling-mock {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+}
+
+.styling-mock strong {
+  font-size: var(--text-body-l);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.styling-mock span {
+  font-size: var(--text-body-s);
+}
+
+.styling-preview-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* — confirm summary card — */
+.styling-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: 0 0 0 1px var(--accent);
+  animation: fashini-tool-in var(--dur-base) var(--ease-out) both;
+}
+
+.styling-confirm-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.styling-confirm-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--text-body);
+}
+
+.styling-confirm-line span {
+  color: var(--ink);
+}
+
+.styling-confirm-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.styling-confirm-total > span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.styling-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: var(--text-body-s);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.styling-error {
+  border-radius: var(--radius-card);
+  border: 1px solid #d8b4b4;
+  background: #fbf1f1;
+  color: #8a2b2b;
+  padding: 12px 14px;
+  font-size: var(--text-body-s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .styling-tool,
+  .styling-confirm {
+    animation: none;
+  }
+  .styling-tool-spin {
+    animation: none;
+  }
+}
+
+/* ── Staff console shell — full-screen, landscape-friendly, NOT the portrait
+      mirror frame. White page wrapper for the engineering console. ── */
+.staff-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  padding: clamp(16px, 3vw, 32px);
+}
+
+.staff-shell-inner {
+  max-width: 1360px;
+  margin: 0 auto;
+}
