@@ -334,10 +334,9 @@ export class MockAgentTools {
     budgetYen?: number;
   }): RecommendationSet {
     const anchorStyle = input.type === "similar" ? input.currentStyle[0] : styleForType(input.type);
-    const sorted = [...input.candidates].sort(
-      (a, b) => scoreProduct(b, anchorStyle, input.preferences) - scoreProduct(a, anchorStyle, input.preferences)
-    );
-    const products = chooseOutfitProducts(sorted, input.index);
+    const baseScore = (product: Product) => scoreProduct(product, anchorStyle, input.preferences);
+    const sorted = [...input.candidates].sort((a, b) => baseScore(b) - baseScore(a));
+    const products = composeCoherentOutfit(sorted, input.index, baseScore);
     const setId = `set_r${input.round}_${input.type}_${input.index + 1}`;
     return {
       set_id: setId,
@@ -525,14 +524,113 @@ function scoreProduct(product: Product, anchorStyle?: string, preferences?: RecP
   return score;
 }
 
-function chooseOutfitProducts(products: Product[], index: number) {
-  // Products arrive already sorted best-match-first, so set 1 (index 0) takes
-  // the top item per category; sets 2/3 take the next-best for variety.
-  const pick = (category: OutfitSlotName) => {
-    const items = products.filter((product) => product.category === category);
-    return items[index % Math.max(items.length, 1)];
+// Colours that read as neutral and coordinate with almost anything.
+const NEUTRAL_COLORS = new Set<string>([
+  "white", "black", "gray", "grey", "beige", "cream", "ivory", "navy", "tan", "khaki", "brown", "charcoal"
+]);
+
+// Broad style families used to judge whether two garments cohere or clash.
+const STYLE_FAMILY: Record<string, string> = {
+  sporty: "athletic", athleisure: "athletic", outdoor: "athletic",
+  formal: "polished", classic: "polished", business: "polished", smart_casual: "polished", workwear: "polished", preppy: "polished",
+  casual: "relaxed", minimal: "relaxed", streetwear: "relaxed",
+  romantic: "feminine", bohemian: "feminine", vintage: "feminine"
+};
+
+// Family pairs that look wrong together (e.g. sporty trail shoes with a silk cami).
+const CLASHING_FAMILIES = new Set<string>([
+  "athletic|polished", "polished|athletic",
+  "athletic|feminine", "feminine|athletic",
+  "athletic|formal", "formal|athletic"
+]);
+
+function styleFamilies(product: Product): Set<string> {
+  const families = new Set<string>();
+  for (const tag of product.style_tags) {
+    const family = STYLE_FAMILY[tag];
+    if (family) families.add(family);
+  }
+  return families;
+}
+
+function stylesClash(a: Product, b: Product): boolean {
+  const fa = styleFamilies(a);
+  const fb = styleFamilies(b);
+  for (const x of fa) for (const y of fb) if (CLASHING_FAMILIES.has(`${x}|${y}`)) return true;
+  return false;
+}
+
+function sharesColor(a: Product, b: Product) {
+  return a.colors.some((color) => b.colors.includes(color));
+}
+
+function sharesStyle(a: Product, b: Product) {
+  return a.style_tags.some((tag) => b.style_tags.includes(tag));
+}
+
+function allNeutral(product: Product) {
+  return product.colors.length > 0 && product.colors.every((color) => NEUTRAL_COLORS.has(color));
+}
+
+/** How well `candidate` coordinates with the outfit's anchor piece. */
+function coordinationScore(candidate: Product, anchor: Product): number {
+  let bonus = 0;
+  if (sharesColor(candidate, anchor)) bonus += 10;
+  else if (allNeutral(candidate) || allNeutral(anchor)) bonus += 6;
+  else bonus -= 5;
+  if (sharesStyle(candidate, anchor)) bonus += 10;
+  if (stylesClash(candidate, anchor)) bonus -= 25;
+  return bonus;
+}
+
+/**
+ * Build ONE coordinated look from the scored candidates. Picks a centrepiece
+ * (dress > bottom > top, offset by set index for variety), then fills the other
+ * slots by how well each item coordinates with that anchor — colour harmony and
+ * style coherence — rather than taking the top-scored item per slot in
+ * isolation. Outerwear is only added when it actually harmonises.
+ */
+function composeCoherentOutfit(
+  sorted: Product[],
+  index: number,
+  baseScore: (product: Product) => number
+): Product[] {
+  const inSlot = (slot: OutfitSlotName) => sorted.filter((product) => product.category === slot);
+
+  const heroPool = [...inSlot("dress"), ...inSlot("bottom"), ...inSlot("top")];
+  if (heroPool.length === 0) {
+    const pick = (slot: OutfitSlotName) => inSlot(slot)[0];
+    return [pick("outerwear"), pick("top"), pick("bottom"), pick("shoes")].filter(Boolean) as Product[];
+  }
+  const anchor = heroPool[index % heroPool.length];
+
+  const pickCoordinated = (slot: OutfitSlotName): Product | undefined => {
+    const pool = inSlot(slot).filter((product) => product.product_id !== anchor.product_id);
+    if (pool.length === 0) return undefined;
+    return pool
+      .map((product) => ({ product, score: coordinationScore(product, anchor) + baseScore(product) * 0.1 }))
+      .sort((a, b) => b.score - a.score)[0].product;
   };
-  return [pick("outerwear"), pick("top"), pick("bottom"), pick("shoes")].filter(Boolean);
+
+  const out: Product[] = [];
+
+  // Outerwear is optional: only include it when it genuinely coordinates.
+  const outer = pickCoordinated("outerwear");
+  if (outer && coordinationScore(outer, anchor) >= 6) out.push(outer);
+
+  if (anchor.category === "dress") {
+    out.push(anchor);
+  } else {
+    const top = anchor.category === "top" ? anchor : pickCoordinated("top");
+    const bottom = anchor.category === "bottom" ? anchor : pickCoordinated("bottom");
+    if (top) out.push(top);
+    if (bottom) out.push(bottom);
+  }
+
+  const shoes = pickCoordinated("shoes");
+  if (shoes) out.push(shoes);
+
+  return out.filter(Boolean);
 }
 
 function buildOutfitPayload(products: Product[]): OutfitPayload {

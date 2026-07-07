@@ -40,6 +40,28 @@ function apiKey() {
   return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
 }
 
+const TRANSIENT = /(\b503\b|\b429\b|UNAVAILABLE|high demand|overloaded|RESOURCE_EXHAUSTED)/i;
+
+/** Retry generateContent through transient upstream spikes (503/429) before giving up. */
+async function generateWithRetry(
+  ai: GoogleGenAI,
+  request: Parameters<GoogleGenAI["models"]["generateContent"]>[0],
+  attempts = 3
+) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await ai.models.generateContent(request);
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!TRANSIENT.test(message) || attempt === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
 const TYPE_MEANING: Record<string, string> = {
   similar: "echo the customer's current outfit style",
   style: "the store's editorial styling direction, a step up from their usual",
@@ -141,7 +163,7 @@ export async function composeOutfitSets(
   if (!apiKey() || candidates.length === 0) return null;
   try {
     const ai = new GoogleGenAI({ apiKey: apiKey() });
-    const response = await ai.models.generateContent({
+    const response = await generateWithRetry(ai, {
       model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
       contents: buildPrompt(candidates, ctx),
       config: {
