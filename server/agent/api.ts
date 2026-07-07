@@ -10,6 +10,7 @@ import {
 } from "./contracts.js";
 import { AgentAdkRuntime, redactSensitive, serializeAdkRun } from "./adk-runtime.js";
 import { AgentSessionStore } from "./session-store.js";
+import { logAgentTurn } from "./logger.js";
 import type { AgentState } from "./state.js";
 
 const router = Router();
@@ -39,11 +40,23 @@ router.post("/sessions", async (request, response) => {
     return;
   }
 
+  const startedAt = Date.now();
   try {
     const run = await runtime.start(parsed.data);
     rememberRun(run.result.state.session_id, run.adk_session.session_id, run.result.state, run.result.output);
+    logAgentTurn({
+      event: "agent_session_started",
+      session_id: run.result.state.session_id,
+      status: run.result.state.status,
+      output_type: (run.result.output as { type?: string })?.type,
+      latency_ms: Date.now() - startedAt
+    });
     response.status(201).json(serializeAdkRun(run));
   } catch (error) {
+    logAgentTurn(
+      { event: "agent_session_start_failed", errors: [error instanceof Error ? error.message : "unknown"], latency_ms: Date.now() - startedAt },
+      "ERROR"
+    );
     response.status(500).json({
       error: error instanceof Error ? error.message : "failed to start ADK agent session"
     });
@@ -151,11 +164,29 @@ async function runAdkCommand(
     return;
   }
 
+  const startedAt = Date.now();
   try {
     const run = await runtime.run(adkSessionId, { action, payload, requestContext: { origin } });
     rememberRun(run.result.state.session_id, adkSessionId, run.result.state, run.result.output);
+    const state = run.result.state;
+    logAgentTurn({
+      event: "agent_turn",
+      session_id: state.session_id,
+      action,
+      route: state.route,
+      status: state.status,
+      output_type: (run.result.output as { type?: string })?.type,
+      recommendation_round: state.recommendation_round,
+      tool_calls: state.tool_calls.length,
+      latency_ms: Date.now() - startedAt,
+      errors: state.errors.length ? state.errors : undefined
+    });
     response.json(serializeAdkRun(run));
   } catch (error) {
+    logAgentTurn(
+      { event: "agent_turn_failed", action, errors: [error instanceof Error ? error.message : "unknown"], latency_ms: Date.now() - startedAt },
+      "ERROR"
+    );
     response.status(500).json({
       error: error instanceof Error ? error.message : `failed to run ADK agent action ${action}`
     });
