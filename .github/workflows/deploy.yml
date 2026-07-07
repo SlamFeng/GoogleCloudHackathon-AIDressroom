@@ -1,0 +1,51 @@
+name: Deploy to Cloud Run
+
+# Manual or on push to main. No-ops safely if GCP secrets are not configured.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+env:
+  SERVICE: fashini
+  REGION: asia-northeast1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for GCP credentials
+        id: gate
+        run: |
+          if [ -n "${{ secrets.GCP_PROJECT_ID }}" ] && [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GCP secrets not set — skipping deploy. Add GCP_PROJECT_ID and GCP_SA_KEY to enable."
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.gate.outputs.ready == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        if: steps.gate.outputs.ready == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and deploy
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          gcloud builds submit --tag "gcr.io/${{ secrets.GCP_PROJECT_ID }}/$SERVICE"
+          gcloud run deploy "$SERVICE" \
+            --image "gcr.io/${{ secrets.GCP_PROJECT_ID }}/$SERVICE" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars "INVENTORY_BACKEND=memory,VITE_ANALYSIS_MODE=auto"

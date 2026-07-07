@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import {
@@ -105,6 +106,18 @@ app.delete("/api/sessions/:sessionId", (request, response) => {
     if (analysis.session_id === request.params.sessionId) analyses.delete(analysisId);
   }
   response.status(204).end();
+});
+
+// Serve the built frontend (single Cloud Run service). In dev the SPA is served
+// by Vite instead; this is a no-op until `dist/` exists.
+const clientDir = fileURLToPath(new URL("../dist", import.meta.url));
+const clientIndex = fileURLToPath(new URL("../dist/index.html", import.meta.url));
+app.use(express.static(clientDir));
+app.use((request, response, next) => {
+  if (request.method !== "GET" || request.path.startsWith("/api")) return next();
+  response.sendFile(clientIndex, (error) => {
+    if (error) next();
+  });
 });
 
 app.listen(port, "0.0.0.0", () => {
