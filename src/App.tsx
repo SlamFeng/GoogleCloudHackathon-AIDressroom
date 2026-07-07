@@ -1,4 +1,5 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import "./design/screens/mirror.css";
 import { analyzeCapture, confirmAnalysis, createSession } from "./api";
 import { AgentRuntimePanel } from "./AgentRuntimePanel";
 import type {
@@ -8,20 +9,22 @@ import type {
   ManualProfile
 } from "./types";
 import { useCameraCapture } from "./useCameraCapture";
+import { Button } from "./design/components/core/Button";
+import { MicroLabel } from "./design/components/core/MicroLabel";
+import { PrivacyChip } from "./design/components/status/PrivacyChip";
+import { SegmentedControl } from "./design/components/forms/SegmentedControl";
+import { NumberField } from "./design/components/forms/NumberField";
+import { Checkbox } from "./design/components/forms/Checkbox";
+import { LanguageSwitch } from "./design/components/forms/LanguageSwitch";
+import { TryOnStage } from "./design/components/tryon/TryOnStage";
 
 type Language = "en" | "zh" | "ja";
 
-const languageLabels: Record<Language, string> = {
-  en: "EN",
-  zh: "中文",
-  ja: "日本語"
-};
-
 const translations = {
   en: {
-    appName: "StyleAI",
+    appName: "FASHINI",
     appSubtitle: "AI STYLE ADVISOR",
-    brandHome: "StyleAI home",
+    brandHome: "Fashini home",
     progress: "Flow progress",
     privacyChip: "Photos deleted after this session",
     errors: {
@@ -35,7 +38,7 @@ const translations = {
       titleLine2: "find the next look",
       highlight: "that fits",
       lede:
-        "Step in front of the camera. StyleAI reads your outfit signals and body proportions, then helps the store stylist match better options from real inventory.",
+        "Step in front of the camera. Fashini reads your outfit signals and body proportions, then helps the store stylist match better options from real inventory.",
       start: "Start experience",
       trust: ["About 30 sec", "No signup", "Editable result"],
       visual: {
@@ -185,9 +188,9 @@ const translations = {
     }
   },
   zh: {
-    appName: "StyleAI",
+    appName: "FASHINI",
     appSubtitle: "AI STYLE ADVISOR",
-    brandHome: "StyleAI 首页",
+    brandHome: "Fashini 首页",
     progress: "流程进度",
     privacyChip: "本次会话后删除照片",
     errors: {
@@ -201,7 +204,7 @@ const translations = {
       titleLine2: "找到下一套",
       highlight: "更适合",
       lede:
-        "站到镜头前，StyleAI 会读取你当前的穿搭线索与身体比例，帮助店内造型顾问从真实库存中找到更合适的选择。",
+        "站到镜头前，Fashini 会读取你当前的穿搭线索与身体比例，帮助店内造型顾问从真实库存中找到更合适的选择。",
       start: "开始体验",
       trust: ["约 30 秒", "无需注册", "结果可修改"],
       visual: {
@@ -341,9 +344,9 @@ const translations = {
     }
   },
   ja: {
-    appName: "StyleAI",
+    appName: "FASHINI",
     appSubtitle: "AI STYLE ADVISOR",
-    brandHome: "StyleAI ホーム",
+    brandHome: "Fashini ホーム",
     progress: "進行状況",
     privacyChip: "写真はこのセッション後に削除",
     errors: {
@@ -357,7 +360,7 @@ const translations = {
       titleLine2: "次の一着を",
       highlight: "もっと似合う形で",
       lede:
-        "カメラの前に立つと、StyleAI が現在のコーディネートと身体バランスを読み取り、店舗在庫からより合う選択肢を探します。",
+        "カメラの前に立つと、Fashini が現在のコーディネートと身体バランスを読み取り、店舗在庫からより合う選択肢を探します。",
       start: "体験を始める",
       trust: ["約30秒", "登録不要", "結果を修正可能"],
       visual: {
@@ -590,186 +593,117 @@ function App() {
     setError(null);
   }
 
+  const showProgress = step !== "welcome" && step !== "complete";
+
   return (
-    <main className="app-shell" lang={language}>
-      <Header
-        copy={copy}
-        language={language}
-        onLanguageChange={setLanguage}
-        progress={progress}
-        step={step}
-      />
+    <main className="mirror" lang={language}>
+      <header className="m-top">
+        <button
+          className="m-brand-home"
+          type="button"
+          aria-label={copy.brandHome}
+          onClick={reset}
+        >
+          <strong>{copy.appName}</strong>
+          <MicroLabel>{copy.appSubtitle}</MicroLabel>
+        </button>
+        <LanguageSwitch value={language} onChange={(code) => setLanguage(code as Language)} />
+      </header>
+
+      {showProgress && (
+        <div
+          className="m-progress"
+          aria-label={`${copy.progress} ${Math.round(progress)}%`}
+        >
+          <span style={{ width: `${progress}%` }} />
+        </div>
+      )}
+
       {error && (
-        <div className="error-banner" role="alert">
+        <div className="m-error" role="alert">
           <span>!</span>
           {error}
         </div>
       )}
 
-      {step === "welcome" && <Welcome copy={copy} onStart={() => void begin()} />}
-      {step === "consent" && (
-        <Consent
-          copy={copy}
-          onBack={() => setStep("welcome")}
-          onContinue={() => setStep("profile")}
-        />
-      )}
-      {step === "profile" && (
-        <ProfileForm
-          copy={copy}
-          value={manualProfile}
-          onChange={setManualProfile}
-          onBack={() => setStep("consent")}
-          onContinue={() => setStep("capture")}
-        />
-      )}
-      {step === "capture" && (
-        <CameraStage
-          copy={copy}
-          onBack={() => setStep("profile")}
-          onCaptured={(dataUrl) => void submitCapture(dataUrl)}
-        />
-      )}
-      {step === "analyzing" && (
-        <Analyzing
-          copy={copy}
-          captureDataUrl={captureDataUrl}
-          isAnalyzing={isAnalyzing}
-          onBack={() => setStep("capture")}
-          onStart={() => void runAnalysis()}
-        />
-      )}
-      {step === "review" && analysis && (
-        <Review
-          copy={copy}
-          analysis={analysis}
-          captureDataUrl={captureDataUrl}
-          onRetake={() => setStep("capture")}
-          onConfirm={() => void confirm()}
-        />
-      )}
-      {step === "complete" && analysis && (
-        <Complete copy={copy} analysis={analysis} onRestart={reset} />
-      )}
-    </main>
-  );
-}
-
-function Header({
-  copy,
-  language,
-  onLanguageChange,
-  progress,
-  step
-}: {
-  copy: Copy;
-  language: Language;
-  onLanguageChange: (language: Language) => void;
-  progress: number;
-  step: AppStep;
-}) {
-  const showProgress = step !== "welcome" && step !== "complete";
-  return (
-    <header className="topbar">
-      <button className="brand" type="button" aria-label={copy.brandHome}>
-        <span>
-          <strong>{copy.appName}</strong>
-          <small>{copy.appSubtitle}</small>
-        </span>
-      </button>
-      {showProgress && (
-        <div className="progress-wrap" aria-label={`${copy.progress} ${Math.round(progress)}%`}>
-          <span style={{ width: `${progress}%` }} />
-        </div>
-      )}
-      <div className="topbar-actions">
-        <div className="language-switch" aria-label="Language selector">
-          {(Object.keys(languageLabels) as Language[]).map((key) => (
-            <button
-              className={language === key ? "active" : ""}
-              key={key}
-              type="button"
-              onClick={() => onLanguageChange(key)}
-            >
-              {languageLabels[key]}
-            </button>
-          ))}
-        </div>
-        <div className="privacy-chip">
-          <span className="privacy-dot" />
-          {copy.privacyChip}
-        </div>
+      <div className="m-body">
+        {step === "welcome" && <Welcome copy={copy} onStart={() => void begin()} />}
+        {step === "consent" && (
+          <Consent
+            copy={copy}
+            onBack={() => setStep("welcome")}
+            onContinue={() => setStep("profile")}
+          />
+        )}
+        {step === "profile" && (
+          <ProfileForm
+            copy={copy}
+            value={manualProfile}
+            onChange={setManualProfile}
+            onBack={() => setStep("consent")}
+            onContinue={() => setStep("capture")}
+          />
+        )}
+        {step === "capture" && (
+          <CameraStage
+            copy={copy}
+            onBack={() => setStep("profile")}
+            onCaptured={(dataUrl) => void submitCapture(dataUrl)}
+          />
+        )}
+        {step === "analyzing" && (
+          <Analyzing
+            copy={copy}
+            captureDataUrl={captureDataUrl}
+            isAnalyzing={isAnalyzing}
+            onBack={() => setStep("capture")}
+            onStart={() => void runAnalysis()}
+          />
+        )}
+        {step === "review" && analysis && (
+          <Review
+            copy={copy}
+            analysis={analysis}
+            captureDataUrl={captureDataUrl}
+            onRetake={() => setStep("capture")}
+            onConfirm={() => void confirm()}
+          />
+        )}
+        {step === "complete" && analysis && (
+          <Complete copy={copy} analysis={analysis} onRestart={reset} />
+        )}
       </div>
-    </header>
+    </main>
   );
 }
 
 function Welcome({ copy, onStart }: { copy: Copy; onStart: () => void }) {
   return (
-    <section className="welcome page-grid">
-      <div className="welcome-copy">
-        <p className="eyebrow">{copy.welcome.eyebrow}</p>
-        <h1>
-          {copy.welcome.titleLine1}
-          <br />
-          {copy.welcome.titleLine2} <span>{copy.welcome.highlight}</span>.
-        </h1>
-        <p className="lede">{copy.welcome.lede}</p>
-        <button className="primary-button hero-button" onClick={onStart}>
+    <section className="m-welcome">
+      <MicroLabel>{copy.welcome.eyebrow}</MicroLabel>
+      <h1 className="kinetic">
+        <span className="line">
+          <span>{copy.welcome.titleLine1}</span>
+        </span>
+        <span className="line">
+          <span>{copy.welcome.titleLine2}</span>
+        </span>
+        <span className="line">
+          <span>{copy.welcome.highlight}.</span>
+        </span>
+      </h1>
+      <p className="m-lede">{copy.welcome.lede}</p>
+      <div>
+        <Button variant="primary" size="lg" iconRight={<span aria-hidden="true">→</span>} onClick={onStart}>
           {copy.welcome.start}
-          <span aria-hidden="true">→</span>
-        </button>
-        <div className="trust-row">
-          {copy.welcome.trust.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
+        </Button>
       </div>
-      <HeroVisual copy={copy} />
+      <div className="m-trust">
+        {copy.welcome.trust.map((item) => (
+          <span key={item}>{item}</span>
+        ))}
+      </div>
     </section>
-  );
-}
-
-function HeroVisual({ copy }: { copy: Copy }) {
-  return (
-    <div className="welcome-visual" aria-hidden="true">
-      <div className="visual-glow glow-one" />
-      <div className="visual-glow glow-two" />
-      <div className="visual-scanline" />
-      <div className="visual-depth-card depth-card-one" />
-      <div className="visual-depth-card depth-card-two" />
-      <div className="visual-orbit orbit-one" />
-      <div className="visual-orbit orbit-two" />
-      <div className="silhouette">
-        <div className="silhouette-head" />
-        <div className="silhouette-body" />
-        <div className="silhouette-legs" />
-      </div>
-      <div className="measurement-ruler">
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="floating-tag tag-one">
-        <small>STYLE</small>
-        {copy.welcome.visual.style}
-      </div>
-      <div className="floating-tag tag-two">
-        <small>PALETTE</small>
-        {copy.welcome.visual.palette}
-      </div>
-      <div className="floating-tag tag-three">
-        <small>FIT SIGNAL</small>
-        {copy.welcome.visual.fit}
-      </div>
-      <div className="style-tokens">
-        <span>BODY PROFILE</span>
-        <span>OUTFIT VECTOR</span>
-        <span>INVENTORY MATCH</span>
-      </div>
-    </div>
   );
 }
 
@@ -785,43 +719,40 @@ function Consent({
   const [cameraConsent, setCameraConsent] = useState(false);
   const [processingConsent, setProcessingConsent] = useState(false);
   return (
-    <section className="centered-page">
-      <div className="panel consent-panel">
-        <p className="step-label">{copy.consent.step}</p>
-        <h2>{copy.consent.title}</h2>
-        <p className="panel-intro">{copy.consent.intro}</p>
-        <div className="privacy-cards">
-          {copy.consent.cards.map(([title, text], index) => (
-            <article key={title}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={cameraConsent}
-            onChange={(event) => setCameraConsent(event.target.checked)}
-          />
-          <span>{copy.consent.cameraConsent}</span>
-        </label>
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={processingConsent}
-            onChange={(event) => setProcessingConsent(event.target.checked)}
-          />
-          <span>{copy.consent.processingConsent}</span>
-        </label>
-        <PageActions
-          copy={copy}
-          onBack={onBack}
-          onContinue={onContinue}
-          continueLabel={copy.consent.continue}
+    <section className="m-panel">
+      <MicroLabel>{copy.consent.step}</MicroLabel>
+      <h2>{copy.consent.title}</h2>
+      <p className="m-intro">{copy.consent.intro}</p>
+      <div className="m-consent-cards">
+        {copy.consent.cards.map(([title, text], index) => (
+          <article key={title}>
+            <span>{String(index + 1).padStart(2, "0")}</span>
+            <h3>{title}</h3>
+            <p>{text}</p>
+          </article>
+        ))}
+      </div>
+      <div className="m-checks">
+        <Checkbox checked={cameraConsent} onChange={setCameraConsent}>
+          {copy.consent.cameraConsent}
+        </Checkbox>
+        <Checkbox checked={processingConsent} onChange={setProcessingConsent}>
+          {copy.consent.processingConsent}
+        </Checkbox>
+      </div>
+      <div className="m-actions">
+        <Button variant="text" onClick={onBack}>
+          {copy.common.back}
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
           disabled={!cameraConsent || !processingConsent}
-        />
+          iconRight={<span aria-hidden="true">→</span>}
+          onClick={onContinue}
+        >
+          {copy.consent.continue}
+        </Button>
       </div>
     </section>
   );
@@ -847,85 +778,67 @@ function ProfileForm({
     value.weight_kg <= 250;
 
   return (
-    <section className="centered-page">
-      <div className="panel profile-panel">
-        <p className="step-label">{copy.profile.step}</p>
-        <h2>{copy.profile.title}</h2>
-        <p className="panel-intro">{copy.profile.intro}</p>
-        <div className="form-grid">
-          <label className="field">
-            <span>{copy.profile.height}</span>
-            <div className="number-input">
-              <input
-                type="number"
-                min="100"
-                max="230"
-                value={value.height_cm}
-                onChange={(event) =>
-                  onChange({ ...value, height_cm: Number(event.target.value) })
-                }
-              />
-              <small>cm</small>
-            </div>
-          </label>
-          <label className="field">
-            <span>{copy.profile.weight}</span>
-            <div className="number-input">
-              <input
-                type="number"
-                min="25"
-                max="250"
-                value={value.weight_kg}
-                onChange={(event) =>
-                  onChange({ ...value, weight_kg: Number(event.target.value) })
-                }
-              />
-              <small>kg</small>
-            </div>
-          </label>
-          <fieldset className="field field-full">
-            <legend>{copy.profile.gender}</legend>
-            <div className="segmented">
-              {(["female", "male", "neutral"] as const).map((key) => (
-                <button
-                  type="button"
-                  className={value.gender_presentation === key ? "active" : ""}
-                  onClick={() =>
-                    onChange({
-                      ...value,
-                      gender_presentation: key
-                    })
-                  }
-                  key={key}
-                >
-                  {copy.profile.genderOptions[key]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset className="field field-full">
-            <legend>{copy.profile.age}</legend>
-            <div className="segmented age-segments">
-              {(["18-25", "26-35", "36-45", "46+"] as const).map((age) => (
-                <button
-                  type="button"
-                  className={value.age_range === age ? "active" : ""}
-                  onClick={() => onChange({ ...value, age_range: age })}
-                  key={age}
-                >
-                  {age}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-        </div>
-        <PageActions
-          copy={copy}
-          onBack={onBack}
-          onContinue={onContinue}
-          continueLabel={copy.profile.continue}
+    <section className="m-panel">
+      <MicroLabel>{copy.profile.step}</MicroLabel>
+      <h2>{copy.profile.title}</h2>
+      <p className="m-intro">{copy.profile.intro}</p>
+      <div className="m-form">
+        <label>
+          <span className="fl">{copy.profile.height}</span>
+          <NumberField
+            value={value.height_cm}
+            onChange={(height_cm) => onChange({ ...value, height_cm })}
+            unit="cm"
+            min={100}
+            max={230}
+          />
+        </label>
+        <label>
+          <span className="fl">{copy.profile.weight}</span>
+          <NumberField
+            value={value.weight_kg}
+            onChange={(weight_kg) => onChange({ ...value, weight_kg })}
+            unit="kg"
+            min={25}
+            max={250}
+          />
+        </label>
+      </div>
+      <div className="fl2">{copy.profile.gender}</div>
+      <SegmentedControl
+        size="lg"
+        value={value.gender_presentation}
+        onChange={(gender) =>
+          onChange({ ...value, gender_presentation: gender as ManualProfile["gender_presentation"] })
+        }
+        options={[
+          { value: "female", label: copy.profile.genderOptions.female },
+          { value: "male", label: copy.profile.genderOptions.male },
+          { value: "neutral", label: copy.profile.genderOptions.neutral }
+        ]}
+      />
+      <div className="fl2">{copy.profile.age}</div>
+      <SegmentedControl
+        size="lg"
+        value={value.age_range}
+        onChange={(age_range) =>
+          onChange({ ...value, age_range: age_range as ManualProfile["age_range"] })
+        }
+        options={["18-25", "26-35", "36-45", "46+"]}
+      />
+      <div className="m-actions">
+        <Button variant="text" onClick={onBack}>
+          {copy.common.back}
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
           disabled={!valid}
-        />
+          iconRight={<span aria-hidden="true">→</span>}
+          onClick={onContinue}
+        >
+          {copy.profile.continue}
+        </Button>
       </div>
     </section>
   );
@@ -940,7 +853,6 @@ function CameraStage({
   onBack: () => void;
   onCaptured: (dataUrl: string) => void;
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { videoRef, modelState, cameraError, assessment, progress, countdown, capture } =
     useCameraCapture({ messages: copy.pose, onCaptured });
 
@@ -959,44 +871,39 @@ function CameraStage({
   }
 
   return (
-    <section className="capture-page">
-      <div className="capture-heading">
-        <div>
-          <p className="step-label">{copy.capture.step}</p>
-          <h2>{copy.capture.title}</h2>
+    <section className="m-capture">
+      <MicroLabel>{copy.capture.step}</MicroLabel>
+      <h2>{copy.capture.title}</h2>
+      <div className="cam">
+        <video ref={videoRef} playsInline muted />
+        <div className={`guide ${assessment.ready ? "ready" : ""}`}>
+          <span className="c tl" />
+          <span className="c tr" />
+          <span className="c bl" />
+          <span className="c br" />
+          <div className="head-guide" />
+          <div className="body-guide" />
         </div>
-        <button className="text-button" onClick={onBack}>
-          {copy.capture.back}
-        </button>
+        {countdown !== null && countdown > 0 && (
+          <div className="countdown" aria-live="assertive">
+            {countdown}
+          </div>
+        )}
+        {cameraError && <div className="cam-error">{cameraError}</div>}
+        <div className="cam-status">
+          <span className={assessment.ready ? "sl ready" : "sl"} />
+          {modelState === "loading" ? copy.capture.loading : assessment.message}
+        </div>
+        <div className="stability-meter">
+          <span style={{ width: `${progress * 100}%` }} />
+        </div>
       </div>
-      <div className="capture-layout">
-        <div className="camera-card">
-          <video ref={videoRef} playsInline muted />
-          <div className={`guide-frame ${assessment.ready ? "ready" : ""}`}>
-            <span className="corner corner-tl" />
-            <span className="corner corner-tr" />
-            <span className="corner corner-bl" />
-            <span className="corner corner-br" />
-            <div className="head-guide" />
-            <div className="body-guide" />
-          </div>
-          <div className="camera-status">
-            <span className={assessment.ready ? "status-light ready" : "status-light"} />
-            {modelState === "loading" ? copy.capture.loading : assessment.message}
-          </div>
-          {countdown !== null && countdown > 0 && (
-            <div className="countdown" aria-live="assertive">
-              {countdown}
-            </div>
-          )}
-          {cameraError && <div className="camera-error">{cameraError}</div>}
-          <div className="stability-meter">
-            <span style={{ width: `${progress * 100}%` }} />
-          </div>
-        </div>
-        <aside className="capture-tips">
-          <div className="tip-index">01</div>
-          <h3>{copy.capture.tipsTitle}</h3>
+
+      <div className="m-capture-body">
+        <div className="capture-tips">
+          <p className="capture-tips-title" style={{ gridColumn: "1 / -1" }}>
+            {copy.capture.tipsTitle}
+          </p>
           <ul>
             {copy.capture.tips.map(([title, text]) => (
               <li key={title}>
@@ -1005,35 +912,34 @@ function CameraStage({
               </li>
             ))}
           </ul>
-          <div className="auto-note">
-            <strong>
-              {modelState === "ready" ? copy.capture.autoReady : copy.capture.manualReady}
-            </strong>
-            {copy.capture.autoNote}
+        </div>
+        <div className="auto-note">
+          <strong>{modelState === "ready" ? copy.capture.autoReady : copy.capture.manualReady}</strong>
+          {copy.capture.autoNote}
+        </div>
+        <Button variant="ghost" size="lg" block onClick={capture}>
+          {copy.capture.manualCapture}
+        </Button>
+        <label className="upload-box">
+          <div>
+            <strong>{copy.capture.uploadTitle}</strong>
+            <p>{copy.capture.uploadText}</p>
           </div>
-          <button className="secondary-button full-button" onClick={capture}>
-            {copy.capture.manualCapture}
-          </button>
-          <div className="upload-box">
-            <div>
-              <strong>{copy.capture.uploadTitle}</strong>
-              <p>{copy.capture.uploadText}</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={(event) => handleUpload(event.target.files?.[0])}
-            />
-            <button
-              className="secondary-button full-button"
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {copy.capture.uploadButton}
-            </button>
-          </div>
-        </aside>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => handleUpload(event.target.files?.[0])}
+          />
+          <Button variant="secondary" size="md" block>
+            {copy.capture.uploadButton}
+          </Button>
+        </label>
+      </div>
+
+      <div className="m-actions">
+        <Button variant="text" onClick={onBack}>
+          {copy.capture.back}
+        </Button>
       </div>
     </section>
   );
@@ -1070,16 +976,29 @@ function Analyzing({
   }, [isAnalyzing]);
 
   return (
-    <section className="analyzing-page">
-      <div className="scan-preview">
-        {captureDataUrl && <img src={captureDataUrl} alt={copy.analyzing.alt} />}
-        <div className="scan-line" />
-        <div className="scan-grid" />
-      </div>
+    <section className="m-analyzing">
+      <TryOnStage
+        phase={isAnalyzing ? "reveal" : "idle"}
+        badge={copy.analyzing.progressLabel}
+        labelJa="解析中"
+        labelEn={copy.analyzing.step}
+      >
+        {captureDataUrl ? (
+          <div className="scan-fig">
+            <img src={captureDataUrl} alt={copy.analyzing.alt} />
+          </div>
+        ) : (
+          <div className="afig">
+            <div className="afig-head" />
+            <div className="afig-body" />
+          </div>
+        )}
+      </TryOnStage>
+
       <div className="analysis-copy">
-        <p className="step-label">{copy.analyzing.step}</p>
+        <MicroLabel>{copy.analyzing.step}</MicroLabel>
         <h2>{copy.analyzing.title}</h2>
-        <div className={`analysis-progress ${isAnalyzing ? "active" : ""}`}>
+        <div className="analysis-progress">
           <div>
             <span>{copy.analyzing.progressLabel}</span>
             <strong>{isAnalyzing ? `${progress}%` : "0%"}</strong>
@@ -1090,27 +1009,29 @@ function Analyzing({
           <p>{copy.analyzing.waitNote}</p>
         </div>
         <div className="analysis-steps">
-          {copy.analyzing.steps.map((step, index) => (
+          {copy.analyzing.steps.map((stepLabel, index) => (
             <span
               className={isAnalyzing ? (index === 0 ? "done" : index === 1 ? "active" : "") : ""}
-              key={step}
+              key={stepLabel}
             >
-              {step}
+              {stepLabel}
             </span>
           ))}
         </div>
-        <p>{copy.analyzing.note}</p>
-        <div className="analysis-actions">
-          <button className="text-button" disabled={isAnalyzing} onClick={onBack}>
+        <p className="m-note">{copy.analyzing.note}</p>
+        <div className="m-actions">
+          <Button variant="text" disabled={isAnalyzing} onClick={onBack}>
             {copy.common.back}
-          </button>
-          <button
-            className="primary-button"
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
             disabled={!captureDataUrl || isAnalyzing}
+            iconRight={<span aria-hidden="true">→</span>}
             onClick={onStart}
           >
-            {isAnalyzing ? copy.analyzing.step : copy.analyzing.start} <span>→</span>
-          </button>
+            {isAnalyzing ? copy.analyzing.step : copy.analyzing.start}
+          </Button>
         </div>
       </div>
     </section>
@@ -1132,42 +1053,42 @@ function Review({
 }) {
   const body = analysis.body_profile;
   const outfit = analysis.outfit_profile;
-  const boardEntries = getUniqueOutfitItems(outfit.items).map((item, position) => ({
-    item,
-    position,
-    callout: getCalloutPlacement(item.region, position)
-  }));
+  const boardEntries = getUniqueOutfitItems(outfit.items);
 
   return (
-    <section className="review-page">
-      <div className="review-heading">
-        <div>
-          <p className="step-label">{copy.review.step}</p>
-          <h2>{copy.review.title}</h2>
-        </div>
-      </div>
-      <div className="review-content">
-        <article className="result-card ootd-card">
-          <div className="card-title">
-            <span>01</span>
-            <div>
-              <h3>{copy.review.outfitTitle}</h3>
-              <p>{copy.review.outfitIntro}</p>
+    <section className="m-review">
+      <MicroLabel>{copy.review.step}</MicroLabel>
+      <h2>{copy.review.title}</h2>
+
+      <div className="review-grid">
+        <TryOnStage phase="reveal" badge={copy.review.centerLook}>
+          {captureDataUrl ? (
+            <div className="scan-fig">
+              <img src={captureDataUrl} alt={copy.review.photoAlt} />
             </div>
-          </div>
-          <div className="ootd-summary">
+          ) : (
+            <div className="afig">
+              <div className="afig-head" />
+              <div className="afig-body" />
+            </div>
+          )}
+        </TryOnStage>
+
+        <div className="ootd-side">
+          <div className="ootd-facts">
             <div>
-              <span>{copy.review.visiblePieces}</span>
+              <MicroLabel>{copy.review.visiblePieces}</MicroLabel>
               <strong>{boardEntries.length}</strong>
             </div>
             <div>
-              <span>{copy.review.styleSignals}</span>
+              <MicroLabel>{copy.review.styleSignals}</MicroLabel>
               <strong>{formatTokenList(outfit.overall_style)}</strong>
             </div>
           </div>
+
           {outfit.dominant_colors.length > 0 && (
             <div className="ootd-colors" aria-label={copy.review.dominantColors}>
-              <span>{copy.review.dominantColors}</span>
+              <MicroLabel>{copy.review.dominantColors}</MicroLabel>
               <div>
                 {outfit.dominant_colors.map((color) => (
                   <i
@@ -1180,165 +1101,120 @@ function Review({
               </div>
             </div>
           )}
-          <div className="fashion-board">
-            <div className="board-center">
-              <p>{copy.review.centerLook}</p>
-              <div className="review-photo-card board-photo">
-                {captureDataUrl && <img src={captureDataUrl} alt={copy.review.photoAlt} />}
-                <svg className="ootd-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <defs>
-                    <marker
-                      id="ootd-arrow"
-                      markerHeight="5"
-                      markerWidth="5"
-                      orient="auto"
-                      refX="4"
-                      refY="2.5"
-                    >
-                      <path d="M0,0 L5,2.5 L0,5 Z" />
-                    </marker>
-                  </defs>
-                  {boardEntries.map(({ item, position, callout }) => (
-                    <line
-                      key={`${item.item_id}-${position}-line`}
-                      markerEnd="url(#ootd-arrow)"
-                      x1={toPercent(callout.labelX)}
-                      x2={toPercent(callout.pinX)}
-                      y1={toPercent(callout.labelY)}
-                      y2={toPercent(callout.pinY)}
-                    />
-                  ))}
-                </svg>
-                <div className="ootd-callouts" aria-hidden="true">
-                  {boardEntries.map(({ item, position, callout }) => (
-                    <span
-                      className={`ootd-callout ${callout.side}`}
-                      key={`${item.item_id}-${position}-callout`}
-                      style={getCalloutStyle(callout)}
-                    >
-                      <b>{String(position + 1).padStart(2, "0")}</b>
-                      <em>{formatToken(item.subcategory)}</em>
-                    </span>
-                  ))}
-                </div>
-                <button onClick={onRetake}>{copy.review.retake}</button>
-              </div>
-            </div>
 
-            <section className="board-panel board-panel-items">
-              <div className="board-panel-heading">
-                <h4>{copy.review.clothingBreakdown}</h4>
-                <p>{formatToken(outfit.styling_observations.silhouette)}</p>
-              </div>
-              <div className="board-item-list">
-                {boardEntries.length > 0 ? (
-                  boardEntries.map(({ item, position }) => (
-                    <BoardItem copy={copy} item={item} key={`${item.item_id}-${position}`} position={position} />
-                  ))
-                ) : (
-                  <p className="empty-board-note">{copy.review.noVisibleItems}</p>
-                )}
-              </div>
-            </section>
-          </div>
-        </article>
-
-        <article className="result-card body-profile-card">
-            <div className="card-title">
-              <span>02</span>
-              <div>
-                <h3>{copy.review.bodyProfileTitle}</h3>
-                <p>{copy.review.bodyProfileIntro}</p>
-              </div>
-            </div>
-            <div className="body-profile-grid">
-              <section>
-                <h4>{copy.review.manualTitle}</h4>
-                <div className="profile-facts">
-                  <ProfileFact label={copy.review.height} value={`${body.height_cm} cm`} />
-                  <ProfileFact label={copy.review.weight} value={`${body.weight_kg} kg`} />
-                  <ProfileFact label={copy.review.gender} value={formatToken(body.gender_presentation)} />
-                  <ProfileFact label={copy.review.age} value={body.age_range} />
-                </div>
-              </section>
-              <section>
-                <h4>{copy.review.bodyProfileTitle}</h4>
-                <div className="profile-facts">
-                  <ProfileFact label={copy.review.bodyShape} value={formatToken(body.body_shape)} />
-                  <ProfileFact label={copy.review.bodySize} value={formatToken(body.body_size)} />
-                  <ProfileFact label={copy.review.skinTone} value={formatToken(body.skin_tone)} />
-                </div>
-              </section>
-              <section>
-                <h4>{copy.review.proportionsTitle}</h4>
-                <div className="profile-facts">
-                  <ProfileFact
-                    label={copy.review.shoulderWidth}
-                    value={formatToken(body.proportions.shoulder_width)}
-                  />
-                  <ProfileFact
-                    label={copy.review.waistDefinition}
-                    value={formatToken(body.proportions.waist_definition)}
-                  />
-                  <ProfileFact label={copy.review.hipWidth} value={formatToken(body.proportions.hip_width)} />
-                  <ProfileFact label={copy.review.legToTorso} value={formatToken(body.proportions.leg_to_torso)} />
-                </div>
-              </section>
-              <section>
-                <h4>{copy.review.measurementsTitle}</h4>
-                <div className="profile-facts">
-                  <ProfileFact
-                    label={copy.review.shoulder}
-                    value={formatMeasurement(undefined, copy.review.unavailable)}
-                  />
-                  <ProfileFact
-                    label={copy.review.inseam}
-                    value={formatMeasurement(undefined, copy.review.unavailable)}
-                  />
-                  <ProfileFact
-                    label={copy.review.bust}
-                    value={formatMeasurement(undefined, copy.review.unavailable)}
-                  />
-                  <ProfileFact
-                    label={copy.review.waist}
-                    value={formatMeasurement(undefined, copy.review.unavailable)}
-                  />
-                  <ProfileFact
-                    label={copy.review.hip}
-                    value={formatMeasurement(undefined, copy.review.unavailable)}
-                  />
-                  <ProfileFact
-                    label={copy.review.footLength}
-                    value={formatMeasurement(undefined, copy.review.unavailable)}
-                  />
-                </div>
-              </section>
-            </div>
-            {body.extraction.analysis_warnings.length > 0 && (
-              <div className="profile-warnings">
-                <h4>{copy.review.warningsTitle}</h4>
-                {body.extraction.analysis_warnings.map((warning) => (
-                  <p key={`${warning.code}-${warning.message}`}>
-                    <strong>{formatToken(warning.code)}</strong>
-                    {warning.message}
-                  </p>
-                ))}
-              </div>
+          <div className="ootd-items">
+            {boardEntries.length > 0 ? (
+              boardEntries.map((item, position) => (
+                <BoardItem copy={copy} item={item} key={`${item.item_id}-${position}`} position={position} />
+              ))
+            ) : (
+              <p className="empty-board-note">{copy.review.noVisibleItems}</p>
             )}
-        </article>
+          </div>
+        </div>
+      </div>
 
-        <div className="review-note">
-          <span>i</span>
-          {copy.review.note}
+      <div className="review-section-head">
+        <h3>{copy.review.bodyProfileTitle}</h3>
+        <p>{copy.review.bodyProfileIntro}</p>
+      </div>
+      <div className="body-facts-grid">
+        <section>
+          <h4>{copy.review.manualTitle}</h4>
+          <div className="profile-facts">
+            <ProfileFact label={copy.review.height} value={`${body.height_cm} cm`} />
+            <ProfileFact label={copy.review.weight} value={`${body.weight_kg} kg`} />
+            <ProfileFact label={copy.review.gender} value={formatToken(body.gender_presentation)} />
+            <ProfileFact label={copy.review.age} value={body.age_range} />
+          </div>
+        </section>
+        <section>
+          <h4>{copy.review.bodyProfileTitle}</h4>
+          <div className="profile-facts">
+            <ProfileFact label={copy.review.bodyShape} value={formatToken(body.body_shape)} />
+            <ProfileFact label={copy.review.bodySize} value={formatToken(body.body_size)} />
+            <ProfileFact label={copy.review.skinTone} value={formatToken(body.skin_tone)} />
+          </div>
+        </section>
+        <section>
+          <h4>{copy.review.proportionsTitle}</h4>
+          <div className="profile-facts">
+            <ProfileFact
+              label={copy.review.shoulderWidth}
+              value={formatToken(body.proportions.shoulder_width)}
+            />
+            <ProfileFact
+              label={copy.review.waistDefinition}
+              value={formatToken(body.proportions.waist_definition)}
+            />
+            <ProfileFact label={copy.review.hipWidth} value={formatToken(body.proportions.hip_width)} />
+            <ProfileFact label={copy.review.legToTorso} value={formatToken(body.proportions.leg_to_torso)} />
+          </div>
+        </section>
+      </div>
+
+      <div className="privacy-panel">
+        <MicroLabel>{copy.review.measurementsTitle}</MicroLabel>
+        <div className="measure-facts">
+          <ProfileFact
+            label={copy.review.shoulder}
+            value={formatMeasurement(undefined, copy.review.unavailable)}
+          />
+          <ProfileFact
+            label={copy.review.inseam}
+            value={formatMeasurement(undefined, copy.review.unavailable)}
+          />
+          <ProfileFact
+            label={copy.review.bust}
+            value={formatMeasurement(undefined, copy.review.unavailable)}
+          />
+          <ProfileFact
+            label={copy.review.waist}
+            value={formatMeasurement(undefined, copy.review.unavailable)}
+          />
+          <ProfileFact
+            label={copy.review.hip}
+            value={formatMeasurement(undefined, copy.review.unavailable)}
+          />
+          <ProfileFact
+            label={copy.review.footLength}
+            value={formatMeasurement(undefined, copy.review.unavailable)}
+          />
         </div>
-        <div className="review-actions">
-          <button className="secondary-button" onClick={onRetake}>
-            {copy.review.retake}
-          </button>
-          <button className="primary-button" onClick={onConfirm}>
-            {copy.review.confirm} <span>→</span>
-          </button>
+        <PrivacyChip>{copy.privacyChip}</PrivacyChip>
+      </div>
+
+      {body.extraction.analysis_warnings.length > 0 && (
+        <div className="profile-warnings">
+          <h4>{copy.review.warningsTitle}</h4>
+          {body.extraction.analysis_warnings.map((warning) => (
+            <p key={`${warning.code}-${warning.message}`}>
+              <strong>{formatToken(warning.code)}</strong>
+              {warning.message}
+            </p>
+          ))}
         </div>
+      )}
+
+      <div className="review-note">
+        <span>i</span>
+        {copy.review.note}
+      </div>
+
+      <AgentRuntimePanel analysis={analysis} />
+
+      <div className="m-actions">
+        <Button variant="ghost" size="lg" onClick={onRetake}>
+          {copy.review.retake}
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
+          iconRight={<span aria-hidden="true">→</span>}
+          onClick={onConfirm}
+        >
+          {copy.review.confirm}
+        </Button>
       </div>
     </section>
   );
@@ -1354,14 +1230,14 @@ function BoardItem({
   position: number;
 }) {
   return (
-    <div className="board-item">
+    <div className="ootd-item">
       <span className="board-item-number">{String(position + 1).padStart(2, "0")}</span>
-      <div className="board-item-image">
+      <div className="ootd-item-image">
         <ProductItemImage item={item} />
       </div>
-      <div className="board-item-content">
+      <div className="ootd-item-body">
         <strong>{formatToken(item.subcategory)}</strong>
-        <dl className="board-item-meta">
+        <dl>
           <div>
             <dt>{copy.review.itemColor}</dt>
             <dd>{formatTokenList(item.colors.map((color) => color.name))}</dd>
@@ -1419,14 +1295,6 @@ function ProfileFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-type CalloutPlacement = {
-  labelX: number;
-  labelY: number;
-  pinX: number;
-  pinY: number;
-  side: "left" | "right";
-};
-
 function getUniqueOutfitItems(items: OutfitItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => item.visible && item.product_image_data_url).filter((item) => {
@@ -1451,41 +1319,6 @@ function getOutfitItemKey(item: OutfitItem) {
   ].join("|");
 }
 
-function getCalloutPlacement(region: OutfitItem["region"], position: number): CalloutPlacement {
-  const pinX = clamp01(region.x + region.width / 2);
-  const pinY = clamp01(region.y + region.height / 2);
-  const side: CalloutPlacement["side"] = pinX < 0.5 ? "left" : "right";
-  const labelOffset = side === "left" ? -0.22 : 0.22;
-  const stagger = ((position % 3) - 1) * 0.045;
-
-  return {
-    pinX,
-    pinY,
-    labelX: clamp(pinX + labelOffset, side === "left" ? 0.22 : 0.58, side === "left" ? 0.42 : 0.78),
-    labelY: clamp(pinY + stagger, 0.1, 0.88),
-    side
-  };
-}
-
-function getCalloutStyle(callout: CalloutPlacement): CSSProperties {
-  return {
-    left: toPercent(callout.labelX),
-    top: toPercent(callout.labelY)
-  };
-}
-
-function toPercent(value: number) {
-  return `${value * 100}%`;
-}
-
-function clamp01(value: number) {
-  return clamp(value, 0, 1);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
 function Complete({
   copy,
   analysis,
@@ -1497,63 +1330,37 @@ function Complete({
 }) {
   const [showJson, setShowJson] = useState(false);
   return (
-    <section className="complete-page">
-      <div className="success-mark">✓</div>
-      <p className="eyebrow">{copy.complete.eyebrow}</p>
+    <section className="m-complete">
+      <div className="mark">✓</div>
+      <MicroLabel>{copy.complete.eyebrow}</MicroLabel>
       <h2>{copy.complete.title}</h2>
-      <p>
+      <p className="m-intro">
         {copy.complete.body} <code>{analysis.analysis_id}</code>
       </p>
-      <div className="handoff-summary">
+      <div className="m-summary">
         <div>
-          <span>{copy.complete.bodyContract}</span>
-          <strong>v{analysis.body_profile.schema_version}</strong>
+          <MicroLabel>{copy.complete.bodyContract}</MicroLabel>
+          <span className="mono">v{analysis.body_profile.schema_version}</span>
         </div>
         <div>
-          <span>{copy.complete.outfitContract}</span>
-          <strong>v{analysis.outfit_profile.schema_version}</strong>
+          <MicroLabel>{copy.complete.outfitContract}</MicroLabel>
+          <span className="mono">v{analysis.outfit_profile.schema_version}</span>
         </div>
         <div>
-          <span>{copy.complete.detectedItems}</span>
-          <strong>{analysis.outfit_profile.items.length}</strong>
+          <MicroLabel>{copy.complete.detectedItems}</MicroLabel>
+          <span className="mono">{analysis.outfit_profile.items.length}</span>
         </div>
       </div>
-      <div className="complete-actions">
-        <button className="secondary-button" onClick={() => setShowJson((value) => !value)}>
+      <div className="m-actions">
+        <Button variant="ghost" size="lg" onClick={() => setShowJson((value) => !value)}>
           {showJson ? copy.complete.hideJson : copy.complete.showJson}
-        </button>
-        <button className="primary-button" onClick={onRestart}>
+        </Button>
+        <Button variant="primary" size="lg" onClick={onRestart}>
           {copy.complete.restart}
-        </button>
+        </Button>
       </div>
       {showJson && <pre className="json-preview">{JSON.stringify(analysis, null, 2)}</pre>}
-      <AgentRuntimePanel analysis={analysis} />
     </section>
-  );
-}
-
-function PageActions({
-  copy,
-  onBack,
-  onContinue,
-  continueLabel,
-  disabled = false
-}: {
-  copy: Copy;
-  onBack: () => void;
-  onContinue: () => void;
-  continueLabel: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="page-actions">
-      <button className="text-button" onClick={onBack}>
-        {copy.common.back}
-      </button>
-      <button className="primary-button" onClick={onContinue} disabled={disabled}>
-        {continueLabel} <span>→</span>
-      </button>
-    </div>
   );
 }
 
