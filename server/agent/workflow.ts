@@ -9,7 +9,8 @@ import type {
   TryonHandoffPayload
 } from "./contracts.js";
 import { MockAgentTools } from "./mock-tools.js";
-import { parseFeedback, parseNeed, routeIntent } from "./parsers.js";
+import { parseFeedback } from "./parsers.js";
+import { classifyIntent, extractNeed } from "./reasoning.js";
 import { createInitialAgentState, type AgentState } from "./state.js";
 import type {
   ConfirmPayloadInput,
@@ -53,7 +54,7 @@ export class AgentWorkflow {
 
   async handleCustomerInput(state: AgentState, text: string): Promise<WorkflowResult> {
     this.ensureBodyTemplate(state);
-    const route = routeIntent(text);
+    const route = await classifyIntent(text);
     state.route = route;
 
     if (route === "unclear") {
@@ -70,7 +71,7 @@ export class AgentWorkflow {
 
     state.status = "recommending";
     state.loop_status = "active";
-    state.user_need = parseNeed(text);
+    state.user_need = await extractNeed(text);
     mergeParsedNeedIntoConstraints(state, state.user_need);
 
     const requestedTypes: RecommendationType[] =
