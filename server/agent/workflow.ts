@@ -405,6 +405,7 @@ export class AgentWorkflow {
       matched_body_template_id: state.matched_body_template_id ?? "body_template_unknown_unknown",
       current_style: state.analysis?.outfit_profile.overall_style ?? ["unknown"],
       current_colors: state.analysis?.outfit_profile.dominant_colors.map((color) => color.name) ?? [],
+      gender: state.analysis?.body_profile.gender_presentation,
       constraints: state.constraints,
       round: state.recommendation_round
     });
@@ -427,6 +428,7 @@ export class AgentWorkflow {
       matched_body_template_id: state.matched_body_template_id ?? "body_template_unknown_unknown",
       current_style: state.analysis?.outfit_profile.overall_style ?? ["unknown"],
       current_colors: state.analysis?.outfit_profile.dominant_colors.map((color) => color.name) ?? [],
+      gender: state.analysis?.body_profile.gender_presentation,
       constraints: state.constraints,
       round: state.recommendation_round
     });

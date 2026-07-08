@@ -70,10 +70,13 @@ export class MockAgentTools {
     matched_body_template_id: string;
     current_style: string[];
     current_colors?: string[];
+    gender?: string;
     constraints: AgentConstraints;
     round: number;
   }): Promise<RecommendationResponse> {
-    const candidates = await this.searchInventory(input.session_id, input.constraints);
+    const candidates = (await this.searchInventory(input.session_id, input.constraints)).filter(
+      (product) => isGenderAppropriate(product, input.gender)
+    );
     const preferences = extractPreferences(input.constraints);
 
     // Two-stage selection: first a fast deterministic shortlist (top few per
@@ -151,6 +154,7 @@ export class MockAgentTools {
     matched_body_template_id: string;
     current_style: string[];
     current_colors?: string[];
+    gender?: string;
     constraints: AgentConstraints;
     round: number;
   }): Promise<RecommendationResponse> {
@@ -167,6 +171,7 @@ export class MockAgentTools {
       matched_body_template_id: input.matched_body_template_id,
       current_style: input.current_style,
       current_colors: input.current_colors,
+      gender: input.gender,
       constraints: input.constraints,
       round: input.round
     });
@@ -526,6 +531,18 @@ function scoreProduct(product: Product, anchorStyle?: string, preferences?: RecP
     if (product.colors.includes(color)) score += 8;
   }
   return score;
+}
+
+// Products have no gender field, so keep clearly women's-only items out of a
+// male customer's pool (the "dress on a man" bug). Women / neutral aren't
+// filtered — the catalog has no men-only pieces. Matches the "dress" slot
+// (dress + one_piece) plus name hints for skirts, heels, blouses, etc.
+const WOMENS_NAME_HINTS = /(dress|skirt|blouse|camisole|\bcami\b|heels|gown|romper|jumpsuit|tunic|maxi)/i;
+
+function isGenderAppropriate(product: Product, gender?: string): boolean {
+  if (gender !== "male") return true;
+  if (product.category === "dress") return false;
+  return !WOMENS_NAME_HINTS.test(product.name);
 }
 
 /** Slots the stylist composes from (accessory/bag/headwear stay out of the shortlist). */
