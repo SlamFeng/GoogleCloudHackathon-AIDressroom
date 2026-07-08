@@ -16,11 +16,15 @@ function reasoningModel() {
   return process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
 }
 
+// Cap each reasoning call so a slow Gemini can't stall the turn — on timeout we
+// throw and the caller falls back to the instant heuristic parser.
+const REASONING_TIMEOUT_MS = Number(process.env.REASONING_TIMEOUT_MS ?? 3500);
+
 async function generateJson(prompt: string, schema: Record<string, unknown>) {
   const key = apiKey();
   if (!key) return null;
   const ai = new GoogleGenAI({ apiKey: key });
-  const response = await ai.models.generateContent({
+  const call = ai.models.generateContent({
     model: reasoningModel(),
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
@@ -29,6 +33,10 @@ async function generateJson(prompt: string, schema: Record<string, unknown>) {
       responseJsonSchema: schema
     }
   });
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("reasoning_timeout")), REASONING_TIMEOUT_MS)
+  );
+  const response = await Promise.race([call, timeout]);
   const text = response.text;
   if (!text) throw new Error("empty reasoning response");
   return JSON.parse(text) as Record<string, unknown>;

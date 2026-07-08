@@ -55,7 +55,9 @@ export class AgentWorkflow {
 
   async handleCustomerInput(state: AgentState, text: string): Promise<WorkflowResult> {
     this.ensureBodyTemplate(state);
-    const route = await classifyIntent(text);
+    // Intent and need both parse the same text — run them concurrently so their
+    // two model calls overlap instead of stacking.
+    const [route, need] = await Promise.all([classifyIntent(text), extractNeed(text)]);
     state.route = route;
 
     if (route === "unclear") {
@@ -72,7 +74,7 @@ export class AgentWorkflow {
 
     state.status = "recommending";
     state.loop_status = "active";
-    state.user_need = await extractNeed(text);
+    state.user_need = need;
     mergeParsedNeedIntoConstraints(state, state.user_need);
 
     const requestedTypes: RecommendationType[] =

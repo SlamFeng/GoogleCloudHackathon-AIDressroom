@@ -154,7 +154,7 @@ function validate(rawSets: unknown, validIds: Set<string>): StylistSet[] {
 
 // Hard cap on how long we wait for the LLM stylist before falling back to the
 // deterministic (coordinated) scorer, so "styling three looks" is never slow.
-const STYLIST_TIMEOUT_MS = Number(process.env.STYLIST_TIMEOUT_MS ?? 9000);
+const STYLIST_TIMEOUT_MS = Number(process.env.STYLIST_TIMEOUT_MS ?? 6000);
 // Cap how many candidates go into the prompt — a 200-item list makes the call
 // slow; the top slice keeps it fast without losing much choice.
 const STYLIST_MAX_CANDIDATES = Number(process.env.STYLIST_MAX_CANDIDATES ?? 60);

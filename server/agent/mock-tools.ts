@@ -76,10 +76,12 @@ export class MockAgentTools {
     const candidates = await this.searchInventory(input.session_id, input.constraints);
     const preferences = extractPreferences(input.constraints);
 
-    // Prefer LLM styling grounded in the real in-stock candidate list; fall back
-    // to the deterministic scorer when there's no key / the call fails / the
-    // result is invalid (keeps tests, CI and offline demos reproducible).
-    const composed = await composeOutfitSets(candidates.map(toStylistCandidate), {
+    // Two-stage selection: first a fast deterministic shortlist (top few per
+    // slot), then the LLM only composes coherent looks from that small set —
+    // small prompt, low latency. Falls back to the deterministic scorer when
+    // there's no key / it times out / the result is invalid.
+    const shortlist = buildStylistShortlist(candidates, preferences, input.current_style);
+    const composed = await composeOutfitSets(shortlist.map(toStylistCandidate), {
       requestedTypes: input.requested_types,
       matchedBodyTemplateId: input.matched_body_template_id,
       currentStyle: input.current_style,
@@ -524,6 +526,32 @@ function scoreProduct(product: Product, anchorStyle?: string, preferences?: RecP
     if (product.colors.includes(color)) score += 8;
   }
   return score;
+}
+
+/** Slots the stylist composes from (accessory/bag/headwear stay out of the shortlist). */
+const STYLIST_SLOTS: OutfitSlotName[] = ["outerwear", "top", "bottom", "dress", "shoes"];
+const STYLIST_PER_SLOT = 4;
+
+/**
+ * Fast, deterministic pre-selection: group the in-stock candidates by slot and
+ * keep only the top few per slot by preference score. Turns a 200-item list
+ * into a ~20-item curated shortlist so the LLM's prompt is small and quick.
+ */
+function buildStylistShortlist(
+  candidates: Product[],
+  preferences: RecPreferences,
+  currentStyle: string[]
+): Product[] {
+  const anchor = currentStyle[0];
+  const shortlist: Product[] = [];
+  for (const slot of STYLIST_SLOTS) {
+    const top = candidates
+      .filter((product) => product.category === slot)
+      .sort((a, b) => scoreProduct(b, anchor, preferences) - scoreProduct(a, anchor, preferences))
+      .slice(0, STYLIST_PER_SLOT);
+    shortlist.push(...top);
+  }
+  return shortlist;
 }
 
 // Colours that read as neutral and coordinate with almost anything.
