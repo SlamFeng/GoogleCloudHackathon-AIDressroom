@@ -381,6 +381,12 @@ export function StylingScreen({
         style={{ objectFit: feedFit }}
       />
       <div className="mirror-scrim" aria-hidden="true" />
+      {mirror.state === "live" && (
+        <div className="mirror-live" role="status">
+          <span className="mirror-live-dot" aria-hidden="true" />
+          Camera on · nothing is saved
+        </div>
+      )}
       {(mirror.state === "denied" || mirror.state === "error") && (
         <div className="mirror-cam-note">
           {mirror.state === "denied"

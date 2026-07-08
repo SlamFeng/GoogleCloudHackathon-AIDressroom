@@ -663,3 +663,39 @@
   -webkit-backdrop-filter: blur(8px);
   pointer-events: none;
 }
+
+/* ---- always-on camera: honest "live" indicator ---- */
+.mirror-live {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 10px;
+  border-radius: var(--radius-pill, 100px);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: var(--text-body-s, 12px);
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+.mirror-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.6);
+  animation: mirror-live-pulse 1.8s ease-out infinite;
+}
+@keyframes mirror-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(255, 77, 79, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mirror-live-dot { animation: none; }
+}
