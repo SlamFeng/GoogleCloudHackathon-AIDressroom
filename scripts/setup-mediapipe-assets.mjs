@@ -6,12 +6,21 @@ import path from "node:path";
 const root = process.cwd();
 const wasmSource = path.join(root, "node_modules", "@mediapipe", "tasks-vision", "wasm");
 const wasmTarget = path.join(root, "public", "mediapipe", "wasm");
-const modelTarget = path.join(root, "public", "models", "pose_landmarker_lite.task");
-const modelUrl =
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task";
+const models = [
+  {
+    label: "Pose Landmarker Lite",
+    target: path.join(root, "public", "models", "pose_landmarker_lite.task"),
+    url: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+  },
+  {
+    label: "Gesture Recognizer",
+    target: path.join(root, "public", "models", "gesture_recognizer.task"),
+    url: "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task"
+  }
+];
 
 await mkdir(wasmTarget, { recursive: true });
-await mkdir(path.dirname(modelTarget), { recursive: true });
+await mkdir(path.join(root, "public", "models"), { recursive: true });
 
 const wasmFiles = await readdir(wasmSource);
 await Promise.all(
@@ -19,19 +28,19 @@ await Promise.all(
 );
 console.log(`Copied ${wasmFiles.length} MediaPipe wasm files.`);
 
-let hasModel = false;
-try {
-  const modelStats = await stat(modelTarget);
-  hasModel = modelStats.size > 0;
-} catch {
-  hasModel = false;
-}
-
-if (hasModel) {
-  console.log("Pose model already exists.");
-} else {
-  await download(modelUrl, modelTarget);
-  console.log("Downloaded Pose Landmarker Lite model.");
+for (const model of models) {
+  let hasModel = false;
+  try {
+    hasModel = (await stat(model.target)).size > 0;
+  } catch {
+    hasModel = false;
+  }
+  if (hasModel) {
+    console.log(`${model.label} model already exists.`);
+  } else {
+    await download(model.url, model.target);
+    console.log(`Downloaded ${model.label} model.`);
+  }
 }
 
 function download(url, target) {

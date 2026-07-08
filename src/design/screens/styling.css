@@ -587,3 +587,70 @@
 .mirror-tryon-remote {
   background: #0a0a0c;
 }
+
+/* ---- P3 · gesture cursor + dwell ring ---- */
+.mirror-mute.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(27, 43, 216, 0.08);
+}
+.gesture-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px; /* center on the tracked point */
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  will-change: transform;
+}
+.gesture-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.gesture-ring {
+  position: absolute;
+  inset: 0;
+  width: 46px;
+  height: 46px;
+  transform: rotate(-90deg); /* progress starts at 12 o'clock */
+}
+.gesture-ring-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 3;
+}
+.gesture-ring-progress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 125.66; /* 2·π·20 */
+  stroke-dashoffset: 125.66; /* empty until the loop fills it */
+}
+.gesture-hint {
+  position: absolute;
+  bottom: calc(50% + 0px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 9px 16px;
+  border-radius: var(--radius-pill, 100px);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: var(--text-body-s, 13px);
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+}

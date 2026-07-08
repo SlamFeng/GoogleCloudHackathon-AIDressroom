@@ -17,6 +17,7 @@ import { useLucyRealtimeTryon } from "./useLucyRealtimeTryon";
 import { useMirrorCamera } from "./useMirrorCamera";
 import { useSpeech } from "./useSpeech";
 import { useSpeechRecognition } from "./useSpeechRecognition";
+import { useGestureControl } from "./useGestureControl";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -130,6 +131,10 @@ export function StylingScreen({
   // "cover" fills the frame (immersive, crops the sides); "contain" shows the
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
+  const [gestureOn, setGestureOn] = useState(false);
+  const shellRef = useRef<HTMLElement>(null);
+  const gestureCursorRef = useRef<HTMLDivElement>(null);
+  const gestureRingRef = useRef<SVGCircleElement>(null);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
 
@@ -336,8 +341,42 @@ export function StylingScreen({
     }
   });
 
+  // Hands-free gesture control: dwell a look to try it on, 👍 to choose, ✋ back.
+  const gesture = useGestureControl({
+    videoRef: mirror.videoRef,
+    containerRef: shellRef,
+    cursorRef: gestureCursorRef,
+    ringRef: gestureRingRef,
+    enabled: gestureOn && mirror.state === "live",
+    onDwell: (target) => {
+      const index = Number(target.getAttribute("data-gesture-index"));
+      const set = recommendationSets[index];
+      if (set && busyAction === null) {
+        setSelectedSetId(set.set_id);
+        handlePreview(set);
+      }
+    },
+    onGesture: (action) => {
+      if (action === "confirm") {
+        // Advance the current step: try-on → choose it; confirm card → reserve.
+        if (tryonActive) {
+          setShowConfirm(true);
+          handleStop();
+        } else if (showConfirm && agentSessionId && busyAction === null) {
+          handleConfirm();
+        } else if (selectedSet && busyAction === null) {
+          handlePreview(selectedSet);
+        }
+      } else {
+        // "back": leave the try-on, or close the confirm card.
+        if (tryonActive) handleStop();
+        else if (showConfirm) setShowConfirm(false);
+      }
+    }
+  });
+
   return (
-    <section className="mirror-shell" aria-label="Styling recommendations">
+    <section className="mirror-shell" aria-label="Styling recommendations" ref={shellRef}>
       {/* Always-on reflection — the customer sees themselves the whole time. */}
       <video
         className="mirror-feed"
@@ -354,6 +393,24 @@ export function StylingScreen({
             ? "Enable the camera to see yourself in the mirror."
             : "Camera unavailable on this device."}
         </div>
+      )}
+
+      {/* Hands-free gesture cursor + dwell ring (opt-in; touch always works). */}
+      {gestureOn && (
+        <>
+          <div className="gesture-cursor" ref={gestureCursorRef} aria-hidden="true">
+            <svg className="gesture-ring" viewBox="0 0 46 46">
+              <circle className="gesture-ring-track" cx="23" cy="23" r="20" />
+              <circle className="gesture-ring-progress" cx="23" cy="23" r="20" ref={gestureRingRef} />
+            </svg>
+            <span className="gesture-dot" />
+          </div>
+          <div className="gesture-hint">
+            {gesture.handPresent
+              ? "Hover a look · hold to try on · 👍 choose · ✋ back"
+              : "Raise your hand to point"}
+          </div>
+        </>
       )}
 
       {/* Full-bleed Lucy try-on: the customer sees themselves wearing the look. */}
@@ -412,6 +469,15 @@ export function StylingScreen({
           ← Back
         </button>
         <div className="mirror-topbar-right">
+          <button
+            className={`mirror-mute ${gestureOn ? "on" : ""}`}
+            type="button"
+            onClick={() => setGestureOn((on) => !on)}
+            aria-pressed={gestureOn}
+            aria-label={gestureOn ? "Turn gestures off" : "Control with gestures"}
+          >
+            {gestureOn ? "✋ Gestures on" : "✋ Gestures"}
+          </button>
           <button
             className="mirror-mute"
             type="button"
@@ -501,21 +567,27 @@ export function StylingScreen({
       {hasSets && !working && (
         <div className="styling-sets">
           {recommendationSets.map((set, index) => (
-            <RecommendationCard
+            <div
               key={set.set_id}
-              set={set}
-              index={index}
-              selected={set.set_id === selectedSet?.set_id}
-              onSelect={() => setSelectedSetId(set.set_id)}
-              onPreview={() => {
-                setSelectedSetId(set.set_id);
-                handlePreview(set);
-              }}
-              onConfirm={() => {
-                setSelectedSetId(set.set_id);
-                setShowConfirm(true);
-              }}
-            />
+              data-gesture-target
+              data-gesture-index={index}
+              data-gesture-disabled={busyAction !== null ? "true" : undefined}
+            >
+              <RecommendationCard
+                set={set}
+                index={index}
+                selected={set.set_id === selectedSet?.set_id}
+                onSelect={() => setSelectedSetId(set.set_id)}
+                onPreview={() => {
+                  setSelectedSetId(set.set_id);
+                  handlePreview(set);
+                }}
+                onConfirm={() => {
+                  setSelectedSetId(set.set_id);
+                  setShowConfirm(true);
+                }}
+              />
+            </div>
           ))}
         </div>
       )}
