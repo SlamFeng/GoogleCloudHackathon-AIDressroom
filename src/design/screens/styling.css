@@ -588,56 +588,65 @@
   background: #0a0a0c;
 }
 
-/* ---- P3 · gesture cursor + dwell ring ---- */
+/* ---- P3 · finger-count selection ---- */
 .mirror-mute.on {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(27, 43, 216, 0.08);
 }
-.gesture-cursor {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 46px;
-  height: 46px;
-  margin: -23px 0 0 -23px; /* center on the tracked point */
-  z-index: 60;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  will-change: transform;
+
+.styling-set-slot {
+  position: relative;
+  border-radius: var(--radius-card, 16px);
+  transition: transform var(--dur-fast, 0.15s) var(--ease-out, ease);
 }
-.gesture-dot {
+/* Number badge so the customer knows which finger count maps to which look. */
+.styling-set-num {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
+  top: -8px;
+  left: -8px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.styling-set-slot.arming {
+  transform: scale(1.015);
+}
+.styling-set-slot.arming .styling-set-num {
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 2px 10px rgba(0, 0, 0, 0.35);
 }
-.gesture-ring {
+/* Dwell fill: sweeps a ring around the card over dwellMs while the count is held. */
+.styling-set-arm {
   position: absolute;
-  inset: 0;
-  width: 46px;
-  height: 46px;
-  transform: rotate(-90deg); /* progress starts at 12 o'clock */
+  inset: -3px;
+  z-index: 2;
+  border-radius: calc(var(--radius-card, 16px) + 3px);
+  pointer-events: none;
+  border: 2px solid var(--accent);
+  clip-path: inset(0 100% 0 0);
+  animation: styling-arm-fill var(--dwell-ms, 700ms) linear forwards;
 }
-.gesture-ring-track {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.55);
-  stroke-width: 3;
+@keyframes styling-arm-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
 }
-.gesture-ring-progress {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-dasharray: 125.66; /* 2·π·20 */
-  stroke-dashoffset: 125.66; /* empty until the loop fills it */
+@media (prefers-reduced-motion: reduce) {
+  .styling-set-arm {
+    animation: none;
+    clip-path: inset(0 0 0 0);
+    opacity: 0.5;
+  }
 }
+
 .gesture-hint {
   position: absolute;
   bottom: calc(50% + 0px);

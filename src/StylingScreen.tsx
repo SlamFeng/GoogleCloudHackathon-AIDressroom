@@ -132,9 +132,6 @@ export function StylingScreen({
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
   const [gestureOn, setGestureOn] = useState(false);
-  const shellRef = useRef<HTMLElement>(null);
-  const gestureCursorRef = useRef<HTMLDivElement>(null);
-  const gestureRingRef = useRef<SVGCircleElement>(null);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
 
@@ -341,15 +338,12 @@ export function StylingScreen({
     }
   });
 
-  // Hands-free gesture control: dwell a look to try it on, 👍 to choose, ✋ back.
+  // Hands-free selection by finger count: 1/2/3 picks a look, 👍 choose, ✋ back.
   const gesture = useGestureControl({
     videoRef: mirror.videoRef,
-    containerRef: shellRef,
-    cursorRef: gestureCursorRef,
-    ringRef: gestureRingRef,
     enabled: gestureOn && mirror.state === "live",
-    onDwell: (target) => {
-      const index = Number(target.getAttribute("data-gesture-index"));
+    choiceCount: recommendationSets.length,
+    onSelect: (index) => {
       const set = recommendationSets[index];
       if (set && busyAction === null) {
         setSelectedSetId(set.set_id);
@@ -376,7 +370,7 @@ export function StylingScreen({
   });
 
   return (
-    <section className="mirror-shell" aria-label="Styling recommendations" ref={shellRef}>
+    <section className="mirror-shell" aria-label="Styling recommendations">
       {/* Always-on reflection — the customer sees themselves the whole time. */}
       <video
         className="mirror-feed"
@@ -395,22 +389,13 @@ export function StylingScreen({
         </div>
       )}
 
-      {/* Hands-free gesture cursor + dwell ring (opt-in; touch always works). */}
+      {/* Hands-free finger-count selection (opt-in; touch always works). */}
       {gestureOn && (
-        <>
-          <div className="gesture-cursor" ref={gestureCursorRef} aria-hidden="true">
-            <svg className="gesture-ring" viewBox="0 0 46 46">
-              <circle className="gesture-ring-track" cx="23" cy="23" r="20" />
-              <circle className="gesture-ring-progress" cx="23" cy="23" r="20" ref={gestureRingRef} />
-            </svg>
-            <span className="gesture-dot" />
-          </div>
-          <div className="gesture-hint">
-            {gesture.handPresent
-              ? "Hover a look · hold to try on · 👍 choose · ✋ back"
-              : "Raise your hand to point"}
-          </div>
-        </>
+        <div className="gesture-hint">
+          {gesture.handPresent
+            ? "Hold up 1 · 2 · 3 to pick a look · 👍 choose · ✋ back"
+            : "Raise 1, 2 or 3 fingers to pick a look"}
+        </div>
       )}
 
       {/* Full-bleed Lucy try-on: the customer sees themselves wearing the look. */}
@@ -569,10 +554,11 @@ export function StylingScreen({
           {recommendationSets.map((set, index) => (
             <div
               key={set.set_id}
-              data-gesture-target
-              data-gesture-index={index}
-              data-gesture-disabled={busyAction !== null ? "true" : undefined}
+              className={`styling-set-slot ${gesture.armedChoice === index ? "arming" : ""}`}
+              style={{ ["--dwell-ms" as string]: "700ms" }}
             >
+              {gestureOn && <span className="styling-set-num">{index + 1}</span>}
+              {gesture.armedChoice === index && <span className="styling-set-arm" aria-hidden="true" />}
               <RecommendationCard
                 set={set}
                 index={index}

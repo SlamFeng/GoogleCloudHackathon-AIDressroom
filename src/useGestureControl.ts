@@ -1,50 +1,67 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { loadGestureRecognizer } from "./gesture";
 
-// Drives a hands-free cursor from the mirror camera: the index fingertip moves
-// a floating dot, hovering a [data-gesture-target] for `dwellMs` selects it,
-// 👍 confirms and ✋ goes back. Cursor motion + dwell run imperatively inside
-// the rAF loop (moving DOM directly, no React re-render per frame); only the
-// low-frequency hand-present / gesture-label changes flow through state.
+// Hands-free selection by FINGER COUNT (far more robust than a free cursor on a
+// narrow webcam): hold up 1 / 2 / 3 fingers to arm the matching look, hold it
+// steady for `dwellMs` to pick it. 👍 confirms/advances, ✋ goes back. Finger
+// count is derived from the hand landmarks directly (the built-in categories
+// don't reliably distinguish 1/2/3); 👍/✋ use the built-in gesture labels.
 
 export type GestureAction = "confirm" | "back";
 
 interface Options {
   videoRef: RefObject<HTMLVideoElement | null>;
-  containerRef: RefObject<HTMLElement | null>;
-  cursorRef: RefObject<HTMLDivElement | null>;
-  ringRef: RefObject<SVGCircleElement | null>;
   enabled: boolean;
+  choiceCount: number;
   dwellMs?: number;
-  onDwell: (target: HTMLElement) => void;
+  onSelect: (index: number) => void;
   onGesture: (action: GestureAction) => void;
 }
 
-const RING_CIRCUMFERENCE = 2 * Math.PI * 20; // r=20 in the cursor SVG
+interface Landmark {
+  x: number;
+  y: number;
+}
+
+// Count extended fingers among index/middle/ring/pinky (thumb ignored): a
+// fingertip sitting above its PIP joint (smaller y) reads as extended. Assumes
+// an upright hand, which is how people naturally raise it at a mirror.
+function countFingers(hand: Landmark[]): number {
+  const pairs: Array<[number, number]> = [
+    [8, 6],
+    [12, 10],
+    [16, 14],
+    [20, 18]
+  ];
+  let count = 0;
+  for (const [tip, pip] of pairs) {
+    if (hand[tip].y < hand[pip].y - 0.02) count += 1;
+  }
+  return count;
+}
 
 export function useGestureControl({
   videoRef,
-  containerRef,
-  cursorRef,
-  ringRef,
   enabled,
-  dwellMs = 900,
-  onDwell,
+  choiceCount,
+  dwellMs = 700,
+  onSelect,
   onGesture
 }: Options) {
   const [handPresent, setHandPresent] = useState(false);
-  const [gestureLabel, setGestureLabel] = useState("");
+  const [armedChoice, setArmedChoice] = useState<number | null>(null);
 
-  // Keep the latest callbacks without re-subscribing the loop each render.
-  const onDwellRef = useRef(onDwell);
+  const onSelectRef = useRef(onSelect);
   const onGestureRef = useRef(onGesture);
-  onDwellRef.current = onDwell;
+  const choiceCountRef = useRef(choiceCount);
+  onSelectRef.current = onSelect;
   onGestureRef.current = onGesture;
+  choiceCountRef.current = choiceCount;
 
   useEffect(() => {
     if (!enabled) {
       setHandPresent(false);
-      setGestureLabel("");
+      setArmedChoice(null);
       return;
     }
 
@@ -53,28 +70,17 @@ export function useGestureControl({
     let recognizer: Awaited<ReturnType<typeof loadGestureRecognizer>> | null = null;
     let lastVideoTime = -1;
     let handShown = false;
-    let currentLabel = "";
-    let dwellTarget: HTMLElement | null = null;
-    let dwellStart = 0;
-    let gesture = "";
-    let gestureStable = 0;
+    let armedCount = 0; // 0 = nothing armed; else 1..choiceCount
+    let armedStart = 0;
+    let firedFor = 0;
     let cooldownUntil = 0;
 
-    function setRing(progress: number) {
-      if (ringRef.current) {
-        ringRef.current.style.strokeDashoffset = String(RING_CIRCUMFERENCE * (1 - progress));
+    function clearArm() {
+      if (armedCount !== 0) {
+        armedCount = 0;
+        setArmedChoice(null);
       }
-    }
-    function showCursor(x: number, y: number) {
-      const dot = cursorRef.current;
-      if (!dot) return;
-      dot.style.transform = `translate(${x}px, ${y}px)`;
-      dot.style.opacity = "1";
-    }
-    function hideCursor() {
-      if (cursorRef.current) cursorRef.current.style.opacity = "0";
-      dwellTarget = null;
-      setRing(0);
+      firedFor = 0;
     }
 
     function loop() {
@@ -82,9 +88,8 @@ export function useGestureControl({
       raf = requestAnimationFrame(loop);
 
       const video = videoRef.current;
-      const container = containerRef.current;
-      if (!recognizer || !video || !container || video.readyState < 2) return;
-      if (video.currentTime === lastVideoTime) return; // no fresh frame
+      if (!recognizer || !video || video.readyState < 2) return;
+      if (video.currentTime === lastVideoTime) return;
       lastVideoTime = video.currentTime;
 
       const now = performance.now();
@@ -95,17 +100,13 @@ export function useGestureControl({
         return;
       }
 
-      const hand = result.landmarks?.[0];
+      const hand = result.landmarks?.[0] as Landmark[] | undefined;
       if (!hand) {
         if (handShown) {
           handShown = false;
           setHandPresent(false);
         }
-        if (currentLabel) {
-          currentLabel = "";
-          setGestureLabel("");
-        }
-        hideCursor();
+        clearArm();
         return;
       }
       if (!handShown) {
@@ -113,55 +114,30 @@ export function useGestureControl({
         setHandPresent(true);
       }
 
-      // Index fingertip → screen point. The feed is displayed mirrored, so flip x.
-      const tip = hand[8];
-      const rect = container.getBoundingClientRect();
-      const x = rect.left + (1 - tip.x) * rect.width;
-      const y = rect.top + tip.y * rect.height;
-      showCursor(x, y);
+      // 👍 / ✋ take priority and reset any arming.
+      const label = result.gestures?.[0]?.[0]?.categoryName ?? "None";
+      if (now > cooldownUntil && (label === "Thumb_Up" || label === "Open_Palm")) {
+        cooldownUntil = now + 1500;
+        clearArm();
+        onGestureRef.current(label === "Thumb_Up" ? "confirm" : "back");
+        return;
+      }
 
-      // Dwell-to-select over the nearest gesture target under the cursor.
-      const under = document.elementFromPoint(x, y);
-      const target = (under?.closest?.("[data-gesture-target]") as HTMLElement | null) ?? null;
-      if (target && target.getAttribute("data-gesture-disabled") !== "true") {
-        if (target === dwellTarget) {
-          const progress = Math.min(1, (now - dwellStart) / dwellMs);
-          setRing(progress);
-          if (progress >= 1 && now > cooldownUntil) {
-            cooldownUntil = now + 1200;
-            dwellTarget = null;
-            setRing(0);
-            onDwellRef.current(target);
-          }
-        } else {
-          dwellTarget = target;
-          dwellStart = now;
-          setRing(0);
+      // Selection by finger count, held steady for dwellMs.
+      const count = countFingers(hand);
+      if (count >= 1 && count <= choiceCountRef.current) {
+        if (count !== armedCount) {
+          armedCount = count;
+          armedStart = now;
+          firedFor = 0;
+          setArmedChoice(count - 1);
+        } else if (now - armedStart >= dwellMs && now > cooldownUntil && firedFor !== count) {
+          firedFor = count;
+          cooldownUntil = now + 1500;
+          onSelectRef.current(count - 1);
         }
       } else {
-        dwellTarget = null;
-        setRing(0);
-      }
-
-      // Discrete gestures: require two stable frames + a cooldown before firing.
-      const name = result.gestures?.[0]?.[0]?.categoryName ?? "None";
-      if (name === gesture) gestureStable += 1;
-      else {
-        gesture = name;
-        gestureStable = 0;
-      }
-      if (name !== currentLabel) {
-        currentLabel = name;
-        setGestureLabel(name);
-      }
-      if (gestureStable === 2 && now > cooldownUntil) {
-        if (name === "Thumb_Up") {
-          cooldownUntil = now + 1500;
-          onGestureRef.current("confirm");
-        } else if (name === "Open_Palm") {
-          cooldownUntil = now + 1500;
-          onGestureRef.current("back");
-        }
+        clearArm();
       }
     }
 
@@ -172,15 +148,14 @@ export function useGestureControl({
         loop();
       })
       .catch(() => {
-        /* gesture control simply stays off if the model can't load */
+        /* gestures stay off if the model can't load */
       });
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
-      if (cursorRef.current) cursorRef.current.style.opacity = "0";
     };
-  }, [enabled, dwellMs, videoRef, containerRef, cursorRef, ringRef]);
+  }, [enabled, dwellMs, videoRef]);
 
-  return { handPresent, gestureLabel };
+  return { handPresent, armedChoice };
 }
