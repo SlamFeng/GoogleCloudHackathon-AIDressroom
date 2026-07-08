@@ -127,6 +127,9 @@ export function StylingScreen({
   const [error, setError] = useState<string | null>(null);
   const [toolPhase, setToolPhase] = useState<ToolPhase>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  // "cover" fills the frame (immersive, crops the sides); "contain" shows the
+  // camera's whole wide frame (better on a narrow laptop webcam).
+  const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
 
@@ -336,7 +339,14 @@ export function StylingScreen({
   return (
     <section className="mirror-shell" aria-label="Styling recommendations">
       {/* Always-on reflection — the customer sees themselves the whole time. */}
-      <video className="mirror-feed" ref={mirror.videoRef} autoPlay playsInline muted />
+      <video
+        className="mirror-feed"
+        ref={mirror.videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ objectFit: feedFit }}
+      />
       <div className="mirror-scrim" aria-hidden="true" />
       {(mirror.state === "denied" || mirror.state === "error") && (
         <div className="mirror-cam-note">
@@ -350,7 +360,14 @@ export function StylingScreen({
       {tryonActive && (
         <div className="mirror-tryon" data-mock={showMockPreview ? "true" : undefined}>
           {!showMockPreview && (
-            <video className="mirror-tryon-remote" ref={lucy.remoteVideoRef} autoPlay playsInline muted />
+            <video
+              className="mirror-tryon-remote"
+              ref={lucy.remoteVideoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{ objectFit: feedFit }}
+            />
           )}
           <video className="mirror-local-hidden" ref={lucy.localVideoRef} autoPlay playsInline muted />
           {showMockPreview && (
@@ -394,7 +411,16 @@ export function StylingScreen({
         <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
           ← Back
         </button>
-        {speech.supported && (
+        <div className="mirror-topbar-right">
+          <button
+            className="mirror-mute"
+            type="button"
+            onClick={() => setFeedFit((fit) => (fit === "cover" ? "contain" : "cover"))}
+            aria-label={feedFit === "cover" ? "Show full camera view" : "Fill the frame"}
+          >
+            {feedFit === "cover" ? "⤢ Fit view" : "⤡ Fill frame"}
+          </button>
+          {speech.supported && (
           <button
             className="mirror-mute"
             type="button"
@@ -404,7 +430,8 @@ export function StylingScreen({
           >
             {speech.enabled ? "🔊 Voice" : "🔇 Muted"}
           </button>
-        )}
+          )}
+        </div>
       </div>
       <MicroLabel>STYLING · YOUR LOOKS</MicroLabel>
       <h2 className="mirror-title">Let's style three looks for you</h2>

@@ -574,3 +574,16 @@
     animation: none;
   }
 }
+
+/* ---- fit toggle (narrow-laptop-webcam relief) ---- */
+.mirror-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* When fitting the whole (wide) camera frame into the portrait frame, letterbox
+   against the dark shell instead of cropping the sides. */
+.mirror-feed,
+.mirror-tryon-remote {
+  background: #0a0a0c;
+}

@@ -30,8 +30,11 @@ export function useMirrorCamera(active: boolean) {
       }
       setState("starting");
       try {
+        // Ask for the camera's WIDEST native (landscape) frame — laptop webcams
+        // are 16:9 sensors, so forcing a portrait size just centre-crops away
+        // the horizontal field of view. We fit it into the portrait frame in CSS.
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 1707 } },
+          video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
         if (cancelled) {
