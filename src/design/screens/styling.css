@@ -753,3 +753,27 @@ img.mirror-tryon-remote {
   cursor: pointer;
   text-overflow: ellipsis;
 }
+
+/* ---- compact the mirror sheet so it blocks less of the reflection ---- */
+.mirror-content {
+  gap: 10px;
+  padding: 12px clamp(14px, 4cqw, 24px) calc(16px + env(safe-area-inset-bottom, 0px));
+  max-height: 60%;
+}
+/* The big styling headline eats the whole reflection — shrink it right down. */
+.mirror h2.mirror-title {
+  font-size: clamp(17px, 4cqw, 23px);
+  line-height: 1.08;
+  margin: 0 0 2px;
+}
+.mirror-content .styling-need {
+  padding: 12px;
+  gap: 8px;
+}
+.mirror-content .styling-need textarea {
+  padding: 10px 12px;
+}
+/* Trim the footnote so it doesn't add another tall line up front. */
+.mirror-content .styling-note {
+  font-size: 11px;
+}
