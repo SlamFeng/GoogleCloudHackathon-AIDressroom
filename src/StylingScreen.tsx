@@ -14,6 +14,7 @@ import {
 } from "./api";
 import type { AnalysisHandoff } from "./types";
 import { useLucyRealtimeTryon } from "./useLucyRealtimeTryon";
+import { useMirrorCamera } from "./useMirrorCamera";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -116,7 +117,6 @@ export function StylingScreen({
   const [showConfirm, setShowConfirm] = useState(false);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
-  const previewRef = useRef<HTMLDivElement>(null);
 
   const agentSessionId = run?.state.session_id ?? null;
   const recommendationSets = run?.state.recommendation_sets ?? [];
@@ -131,14 +131,6 @@ export function StylingScreen({
     };
   }, []);
 
-  // The live-preview stage renders below three tall cards on the portrait
-  // kiosk; bring it into view when a preview opens so the tap has a visible
-  // effect instead of appearing to do nothing.
-  useEffect(() => {
-    if (lastPreviewPayload) {
-      previewRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [lastPreviewPayload]);
 
   // Animate a stack of ToolStep pills while a request is in flight: reveal them
   // one at a time (running), so the agent visibly "works". We don't have SSE —
@@ -303,17 +295,77 @@ export function StylingScreen({
   const hasSets = recommendationSets.length > 0;
   const working = toolPhase !== null;
 
-  return (
-    <section className="m-panel styling" aria-label="Styling recommendations">
-      <MicroLabel>STYLING · YOUR LOOKS</MicroLabel>
-      <h2>Let's style three looks for you</h2>
+  // Full-bleed Lucy try-on is showing (real stream, or the "not configured"
+  // placeholder over the live reflection).
+  const tryonActive = Boolean(selectedSet) && (lucy.status !== "idle" || lastPreviewPayload !== null);
+  // Lucy grabs its own camera only for a real (configured) preview; keep the
+  // ambient reflection running the rest of the time, and step aside when it does.
+  const lucyHoldsCamera =
+    !showMockPreview && (lucy.status === "connecting" || lucy.status === "previewing");
+  const mirror = useMirrorCamera(!lucyHoldsCamera);
 
-      <div className="styling-intro">
-        <p className="m-intro">
-          Tell us what you have in mind, or let the stylist pick from your current OOTD. We'll
-          pull three in-stock looks from the store.
-        </p>
-      </div>
+  return (
+    <section className="mirror-shell" aria-label="Styling recommendations">
+      {/* Always-on reflection — the customer sees themselves the whole time. */}
+      <video className="mirror-feed" ref={mirror.videoRef} autoPlay playsInline muted />
+      <div className="mirror-scrim" aria-hidden="true" />
+      {(mirror.state === "denied" || mirror.state === "error") && (
+        <div className="mirror-cam-note">
+          {mirror.state === "denied"
+            ? "Enable the camera to see yourself in the mirror."
+            : "Camera unavailable on this device."}
+        </div>
+      )}
+
+      {/* Full-bleed Lucy try-on: the customer sees themselves wearing the look. */}
+      {tryonActive && (
+        <div className="mirror-tryon" data-mock={showMockPreview ? "true" : undefined}>
+          {!showMockPreview && (
+            <video className="mirror-tryon-remote" ref={lucy.remoteVideoRef} autoPlay playsInline muted />
+          )}
+          <video className="mirror-local-hidden" ref={lucy.localVideoRef} autoPlay playsInline muted />
+          {showMockPreview && (
+            <div className="mirror-tryon-mock">
+              <strong>{lastPreviewPayload ? "Realtime try-on isn't set up on this mirror" : "Getting your preview ready"}</strong>
+              <span>You're looking at the live mirror — connect Lucy to see the outfit on you.</span>
+            </div>
+          )}
+          <div className="mirror-tryon-bar">
+            <div className="mirror-tryon-meta">
+              {selectedSet && (
+                <>
+                  <RecTypeLabel recType={selectedSet.rec_type} />
+                  <PriceTag amount={selectedTotal} />
+                </>
+              )}
+            </div>
+            <div className="mirror-tryon-actions">
+              <Button variant="secondary" onClick={handleStop}>
+                Back to looks
+              </Button>
+              <Button
+                variant="primary"
+                iconRight={<span aria-hidden="true">→</span>}
+                disabled={!agentSessionId || busyAction !== null}
+                onClick={() => {
+                  setShowConfirm(true);
+                  handleStop();
+                }}
+              >
+                Choose this
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glass info sheet floating over the reflection. */}
+      <div className="mirror-content" data-dim={tryonActive ? "true" : undefined}>
+      <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
+        ← Back
+      </button>
+      <MicroLabel>STYLING · YOUR LOOKS</MicroLabel>
+      <h2 className="mirror-title">Let's style three looks for you</h2>
 
       {/* Need input — customer can type / refine a need before styling. */}
       <div className="styling-need">
@@ -384,48 +436,6 @@ export function StylingScreen({
         </div>
       )}
 
-      {/* Realtime preview — Lucy try-on inside a white stage. */}
-      {selectedSet && (lucy.status !== "idle" || lastPreviewPayload) && (
-        <div className="styling-preview" ref={previewRef}>
-          <MicroLabel>Live preview</MicroLabel>
-          <div className="styling-stage">
-            <span className="styling-stage-badge">Lucy · realtime</span>
-            <video ref={lucy.remoteVideoRef} autoPlay playsInline muted />
-            {showMockPreview && (
-              <div className="styling-mock">
-                <strong>{lastPreviewPayload ? "Preview" : "Ready for preview"}</strong>
-                <span>
-                  {lastPreviewPayload
-                    ? "Realtime try-on is not configured on this mirror"
-                    : "Pick a look and tap Preview"}
-                </span>
-              </div>
-            )}
-            <div className="styling-stage-cam">
-              <video ref={lucy.localVideoRef} autoPlay playsInline muted />
-            </div>
-          </div>
-          <div className="styling-preview-actions">
-            <Button
-              variant="secondary"
-              block
-              disabled={!agentSessionId || !selectedSet || busyAction !== null}
-              onClick={() => handlePreview(selectedSet)}
-            >
-              Preview again
-            </Button>
-            <Button
-              variant="ghost"
-              block
-              disabled={lucy.status === "idle" || lucy.status === "stopped"}
-              onClick={handleStop}
-            >
-              Stop
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Confirm summary card — selected set + count-up total + reserve. */}
       {showConfirm && selectedSet && (
         <div className="styling-confirm">
@@ -462,11 +472,6 @@ export function StylingScreen({
         <span aria-hidden="true">i</span>
         Looks are pulled from live store stock. Reserve to have them brought to your fitting room.
       </div>
-
-      <div className="m-actions">
-        <Button variant="text" onClick={onBack}>
-          ← Back
-        </Button>
       </div>
     </section>
   );

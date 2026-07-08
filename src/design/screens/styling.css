@@ -301,3 +301,187 @@
   max-width: 1360px;
   margin: 0 auto;
 }
+
+/* ============================================================================
+   P1 · Magic-mirror layer
+   The styling step takes over the whole portrait frame: an always-on mirrored
+   camera reflection, a frosted glass info sheet floating at the bottom, and a
+   full-bleed Lucy try-on when a look is selected. Everything stays touch-safe.
+   ============================================================================ */
+
+.mirror-shell {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100vw, calc(100dvh * 3 / 4));
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #0a0a0c;
+  z-index: 40;
+}
+
+/* Always-on reflection */
+.mirror-feed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* read like a mirror */
+  background: #111;
+  z-index: 0;
+}
+.mirror-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0) 26%,
+    rgba(0, 0, 0, 0) 46%,
+    rgba(0, 0, 0, 0.34) 100%
+  );
+}
+.mirror-cam-note {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill, 100px);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: var(--text-body-s, 13px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Frosted glass info sheet, anchored to the bottom, sized to its content */
+.mirror-content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  max-height: 76%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px clamp(16px, 4cqw, 26px) calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(249, 249, 251, 0.82);
+  backdrop-filter: blur(26px) saturate(1.4);
+  -webkit-backdrop-filter: blur(26px) saturate(1.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 -18px 40px -24px rgba(0, 0, 0, 0.5);
+  border-radius: 22px 22px 0 0;
+}
+.mirror-content[data-dim="true"] {
+  display: none;
+}
+.mirror-back {
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  margin: -4px 0 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-body-s, 13px);
+  cursor: pointer;
+}
+.mirror-back:hover {
+  color: var(--ink);
+}
+.mirror-title {
+  margin: 0;
+}
+
+/* Full-bleed Lucy try-on */
+.mirror-tryon {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #000;
+}
+.mirror-tryon[data-mock="true"] {
+  background: transparent; /* let the live reflection show through */
+}
+.mirror-tryon-remote {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+.mirror-local-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.mirror-tryon-mock {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(88%, 420px);
+  text-align: center;
+  padding: 14px 18px;
+  border-radius: var(--radius-card, 16px);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.mirror-tryon-mock strong {
+  display: block;
+  font-size: var(--text-body, 15px);
+  margin-bottom: 4px;
+}
+.mirror-tryon-mock span {
+  font-size: var(--text-body-s, 13px);
+  opacity: 0.82;
+}
+.mirror-tryon-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px clamp(16px, 4cqw, 26px) calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+}
+.mirror-tryon-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill, 100px);
+  background: rgba(255, 255, 255, 0.94);
+}
+.mirror-tryon-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mirror-content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(249, 249, 251, 0.97);
+  }
+}
