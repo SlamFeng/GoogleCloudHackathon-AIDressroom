@@ -140,6 +140,14 @@ export function StylingScreen({
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
   const [gestureOn, setGestureOn] = useState(false);
+  // Chosen camera (e.g. an iPhone via Continuity Camera). Remembered per device.
+  const [camId, setCamId] = useState<string | undefined>(() => {
+    try {
+      return window.localStorage.getItem("fashini.camId") ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
   // Placeholder try-on: a 15s window (progress bar) while the "you wearing it"
   // image renders in the background; when it elapses we drop back to the mirror.
   const [tryonOpen, setTryonOpen] = useState(false);
@@ -378,7 +386,15 @@ export function StylingScreen({
   // ambient reflection running the rest of the time, and step aside when it does.
   const lucyHoldsCamera =
     !showMockPreview && (lucy.status === "connecting" || lucy.status === "previewing");
-  const mirror = useMirrorCamera(!lucyHoldsCamera);
+  const mirror = useMirrorCamera(!lucyHoldsCamera, camId);
+  function pickCamera(id: string) {
+    setCamId(id);
+    try {
+      window.localStorage.setItem("fashini.camId", id);
+    } catch {
+      /* storage unavailable — selection still applies for this session */
+    }
+  }
   const speech = useSpeech("en-US");
   const stt = useSpeechRecognition({
     lang: "en-US",
@@ -537,6 +553,21 @@ export function StylingScreen({
           ← Back
         </button>
         <div className="mirror-topbar-right">
+          {mirror.devices.length > 1 && (
+            <select
+              className="mirror-cam-select"
+              value={camId ?? ""}
+              onChange={(event) => pickCamera(event.target.value)}
+              aria-label="Camera"
+            >
+              {camId === undefined && <option value="">Camera</option>}
+              {mirror.devices.map((device, index) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label || `Camera ${index + 1}`}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             className={`mirror-mute ${gestureOn ? "on" : ""}`}
             type="button"

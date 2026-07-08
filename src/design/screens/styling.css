@@ -739,3 +739,17 @@ img.mirror-tryon-remote {
 @media (prefers-reduced-motion: reduce) {
   img.mirror-tryon-remote { animation: none; }
 }
+
+/* ---- camera picker (iPhone / Continuity / external webcam) ---- */
+.mirror-cam-select {
+  max-width: 130px;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-pill, 100px);
+  padding: 5px 10px;
+  font: inherit;
+  font-size: var(--text-body-s, 12.5px);
+  color: var(--ink);
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
