@@ -32,6 +32,11 @@ type Copy = Record<string, unknown>;
 
 const defaultCustomerNeed = "没什么想法，请根据我当前穿搭推荐三套适合我的衣服。";
 
+// How long the placeholder try-on window stays open before dropping back to the
+// mirror. Drives both the auto-dismiss timer and the progress-bar animation
+// (via the --tryon-ms CSS variable), so the two never drift apart.
+const TRYON_WINDOW_MS = 15000;
+
 // Quick-pick occasion presets (the "gesture preset" input, tappable now,
 // gesture-selectable in P3) — each fills a concrete need for the stylist.
 const OCCASION_PRESETS: { label: string; need: string }[] = [
@@ -262,7 +267,7 @@ export function StylingScreen({
     clearTryonTimer();
     setTryonImage(null);
     setTryonOpen(true);
-    tryonTimerRef.current = window.setTimeout(() => handleStop(), 15000);
+    tryonTimerRef.current = window.setTimeout(() => handleStop(), TRYON_WINDOW_MS);
 
     if (captureDataUrl) {
       setTryonGenerating(true);
@@ -452,7 +457,11 @@ export function StylingScreen({
 
       {/* Full-bleed Lucy try-on: the customer sees themselves wearing the look. */}
       {tryonActive && (
-        <div className="mirror-tryon" data-mock={showMockPreview ? "true" : undefined}>
+        <div
+          className="mirror-tryon"
+          data-mock={showMockPreview ? "true" : undefined}
+          style={{ ["--tryon-ms" as string]: `${TRYON_WINDOW_MS}ms` }}
+        >
           {!showMockPreview && (
             <video
               className="mirror-tryon-remote"

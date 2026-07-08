@@ -51,7 +51,7 @@ const translations = {
       step: "STEP 01 · PRIVACY",
       title: "Clear consent before the camera opens.",
       intro:
-        "We only capture one front-facing full-body photo after you actively agree, and use it for this styling analysis.",
+        "We only capture one front-facing full-body photo after you actively agree, and use it for this styling analysis. During styling, the mirror shows a live view of you — it is never recorded or saved.",
       cards: [
         ["Only one shot", "No background recording and no face identity recognition."],
         ["For this recommendation only", "The photo is used to generate body and outfit features."],
@@ -216,7 +216,7 @@ const translations = {
     consent: {
       step: "STEP 01 · PRIVACY",
       title: "先说清楚，再打开镜头。",
-      intro: "我们只会在你主动同意后拍摄一张正面全身照，用于本次穿搭分析。",
+      intro: "我们只会在你主动同意后拍摄一张正面全身照，用于本次穿搭分析。造型环节镜面会显示你的实时画面，但不会录制或保存。",
       cards: [
         ["只拍一张", "不会后台录像，也不会做人脸身份识别。"],
         ["仅作本次推荐", "图片只用于生成身体与当前穿搭特征。"],
@@ -372,7 +372,7 @@ const translations = {
     consent: {
       step: "STEP 01 · PRIVACY",
       title: "カメラを開く前に、同意内容を確認します。",
-      intro: "同意後に正面の全身写真を1枚だけ撮影し、このスタイリング分析に使用します。",
+      intro: "同意後に正面の全身写真を1枚だけ撮影し、このスタイリング分析に使用します。スタイリング中はミラーにライブ映像が表示されますが、録画・保存は行いません。",
       cards: [
         ["1枚だけ撮影", "バックグラウンド録画や顔認証は行いません。"],
         ["今回の提案のみ", "写真は身体とコーディネート特徴の生成に使います。"],

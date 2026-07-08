@@ -716,7 +716,7 @@
   height: 100%;
   width: 0;
   background: var(--accent);
-  animation: mirror-tryon-progress 15s linear forwards;
+  animation: mirror-tryon-progress var(--tryon-ms, 15s) linear forwards;
 }
 @keyframes mirror-tryon-progress {
   from { width: 0; }
