@@ -22,7 +22,6 @@ import { useGestureControl } from "./useGestureControl";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
-import { RecommendationCard } from "./design/components/agent/RecommendationCard";
 import { RecTypeLabel } from "./design/components/agent/RecTypeLabel";
 import { FeedbackTags, type FeedbackTag } from "./design/components/forms/FeedbackTags";
 
@@ -36,16 +35,6 @@ const defaultCustomerNeed = "没什么想法，请根据我当前穿搭推荐三
 // mirror. Drives both the auto-dismiss timer and the progress-bar animation
 // (via the --tryon-ms CSS variable), so the two never drift apart.
 const TRYON_WINDOW_MS = 15000;
-
-// Quick-pick occasion presets (the "gesture preset" input, tappable now,
-// gesture-selectable in P3) — each fills a concrete need for the stylist.
-const OCCASION_PRESETS: { label: string; need: string }[] = [
-  { label: "Date", need: "帮我搭一套约会穿的look，要好看但不用力过猛。" },
-  { label: "Work", need: "帮我搭一套通勤上班的look，得体一点。" },
-  { label: "Party", need: "帮我搭一套派对聚会的look，出挑一点。" },
-  { label: "Casual", need: "帮我搭一套日常休闲的look，舒服好穿。" },
-  { label: "Vacation", need: "帮我搭一套度假旅行的look，轻松透气。" }
-];
 
 // --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
 const feedbackActions: Array<{
@@ -379,6 +368,9 @@ export function StylingScreen({
   const showMockPreview = !lastPreviewPayload?.configured || lucy.status === "idle";
   const hasSets = recommendationSets.length > 0;
   const working = toolPhase !== null;
+  // Idle = nothing to browse yet → show only the floating mic over the mirror,
+  // no big sheet. The sheet returns once the agent is working / has looks.
+  const voiceMode = !hasSets && !working;
 
   // Full-bleed try-on layer is showing (real stream, or the placeholder window).
   const tryonActive = tryonOpen && Boolean(selectedSet);
@@ -396,14 +388,23 @@ export function StylingScreen({
     }
   }
   const speech = useSpeech("en-US");
-  const stt = useSpeechRecognition({
-    lang: "en-US",
-    onFinal: (transcript) => {
-      setCustomerNeed(transcript);
+  const stt = useSpeechRecognition({ lang: "en-US", continuous: true });
+
+  // Voice-first: a tap (or gesture) starts listening; the next one stops and
+  // submits what was heard. No big form — just the mirror and your voice.
+  function toggleVoice() {
+    if (stt.listening) {
+      stt.stop();
+      const said = stt.transcript.trim();
+      if (said) {
+        setCustomerNeed(said);
+        handleStyleMe(said);
+      }
+    } else {
       speech.warm();
-      handleStyleMe(transcript);
+      stt.start();
     }
-  });
+  }
 
   // Hands-free selection by finger count: 1/2/3 picks a look, 👍 choose, ✋ back.
   const gesture = useGestureControl({
@@ -411,11 +412,9 @@ export function StylingScreen({
     enabled: gestureOn && mirror.state === "live",
     choiceCount: recommendationSets.length,
     onSelect: (index) => {
+      // Fingers 1/2/3 just switch the active look; 👍 tries it on.
       const set = recommendationSets[index];
-      if (set && busyAction === null) {
-        setSelectedSetId(set.set_id);
-        handlePreview(set);
-      }
+      if (set) setSelectedSetId(set.set_id);
     },
     onGesture: (action) => {
       if (action === "confirm") {
@@ -429,9 +428,11 @@ export function StylingScreen({
           handlePreview(selectedSet);
         }
       } else {
-        // "back": leave the try-on, or close the confirm card.
+        // "back" (✋): leave try-on, close the confirm card, or — when idle —
+        // start / stop voice input.
         if (tryonActive) handleStop();
         else if (showConfirm) setShowConfirm(false);
+        else if (recommendationSets.length === 0 && busyAction === null) toggleVoice();
       }
     }
   });
@@ -546,202 +547,202 @@ export function StylingScreen({
         </div>
       )}
 
-      {/* Glass info sheet floating over the reflection. */}
-      <div className="mirror-content" data-dim={tryonActive ? "true" : undefined}>
-      <div className="mirror-topbar">
-        <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
-          ← Back
-        </button>
-        <div className="mirror-topbar-right">
-          {mirror.devices.length > 1 && (
-            <select
-              className="mirror-cam-select"
-              value={camId ?? ""}
-              onChange={(event) => pickCamera(event.target.value)}
-              aria-label="Camera"
-            >
-              {camId === undefined && <option value="">Camera</option>}
-              {mirror.devices.map((device, index) => (
-                <option key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Camera ${index + 1}`}
-                </option>
-              ))}
-            </select>
-          )}
-          <button
-            className={`mirror-mute ${gestureOn ? "on" : ""}`}
-            type="button"
-            onClick={() => setGestureOn((on) => !on)}
-            aria-pressed={gestureOn}
-            aria-label={gestureOn ? "Turn gestures off" : "Control with gestures"}
-          >
-            {gestureOn ? "✋ Gestures on" : "✋ Gestures"}
+      {/* Minimal controls floating over the reflection — no big sheet. */}
+      <div
+        className="mirror-content"
+        data-dim={tryonActive ? "true" : undefined}
+        data-mode={voiceMode ? "voice" : "sheet"}
+      >
+        <div className="mirror-topbar">
+          <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
+            ← Back
           </button>
-          <button
-            className="mirror-mute"
-            type="button"
-            onClick={() => setFeedFit((fit) => (fit === "cover" ? "contain" : "cover"))}
-            aria-label={feedFit === "cover" ? "Show full camera view" : "Fill the frame"}
-          >
-            {feedFit === "cover" ? "⤢ Fit view" : "⤡ Fill frame"}
-          </button>
-          {speech.supported && (
-          <button
-            className="mirror-mute"
-            type="button"
-            onClick={speech.toggle}
-            aria-pressed={speech.enabled}
-            aria-label={speech.enabled ? "Turn voice off" : "Turn voice on"}
-          >
-            {speech.enabled ? "🔊 Voice" : "🔇 Muted"}
-          </button>
-          )}
-        </div>
-      </div>
-      <MicroLabel>STYLING · YOUR LOOKS</MicroLabel>
-      <h2 className="mirror-title">Let's style three looks for you</h2>
-
-      {/* Need input — speak it, tap a preset, or type. */}
-      <div className="styling-need">
-        <MicroLabel>What are you after?</MicroLabel>
-        <div className="styling-need-input">
-          <textarea
-            value={stt.listening ? stt.transcript || customerNeed : customerNeed}
-            onChange={(event) => setCustomerNeed(event.target.value)}
-            rows={2}
-            aria-label="Your styling need"
-            placeholder={stt.listening ? "Listening…" : defaultCustomerNeed}
-          />
-          {stt.supported && (
+          <div className="mirror-topbar-right">
+            {mirror.devices.length > 1 && (
+              <select
+                className="mirror-cam-select"
+                value={camId ?? ""}
+                onChange={(event) => pickCamera(event.target.value)}
+                aria-label="Camera"
+              >
+                {camId === undefined && <option value="">Camera</option>}
+                {mirror.devices.map((device, index) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Camera ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
-              className={`mirror-mic ${stt.listening ? "on" : ""}`}
+              className={`mirror-mute ${gestureOn ? "on" : ""}`}
               type="button"
-              onClick={() => stt.toggle()}
+              onClick={() => setGestureOn((on) => !on)}
+              aria-pressed={gestureOn}
+              aria-label={gestureOn ? "Turn gestures off" : "Control with gestures"}
+            >
+              {gestureOn ? "✋ On" : "✋"}
+            </button>
+            <button
+              className="mirror-mute"
+              type="button"
+              onClick={() => setFeedFit((fit) => (fit === "cover" ? "contain" : "cover"))}
+              aria-label={feedFit === "cover" ? "Show full camera view" : "Fill the frame"}
+            >
+              {feedFit === "cover" ? "⤢ Fit" : "⤡ Fill"}
+            </button>
+            {speech.supported && (
+              <button
+                className="mirror-mute"
+                type="button"
+                onClick={speech.toggle}
+                aria-pressed={speech.enabled}
+                aria-label={speech.enabled ? "Turn voice off" : "Turn voice on"}
+              >
+                {speech.enabled ? "🔊" : "🔇"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && <div className="styling-error">{error}</div>}
+
+        {/* Idle: just a floating mic (tap or ✋ to talk). */}
+        {voiceMode && (
+          <div className="mirror-voice">
+            {stt.listening && <div className="mirror-caption">{stt.transcript || "…"}</div>}
+            <button
+              className={`mirror-talk ${stt.listening ? "on" : ""}`}
+              type="button"
+              onClick={stt.supported ? toggleVoice : () => handleStyleMe(defaultCustomerNeed)}
               aria-pressed={stt.listening}
-              aria-label={stt.listening ? "Stop listening" : "Speak your need"}
+              aria-label={stt.listening ? "Stop and send" : "Tap to talk"}
             >
               🎤
             </button>
-          )}
-        </div>
-        <div className="styling-presets" role="group" aria-label="Occasion presets">
-          {OCCASION_PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              className="styling-preset"
-              disabled={busyAction !== null}
-              onClick={() => {
-                setCustomerNeed(preset.need);
-                handleStyleMe(preset.need);
-              }}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-        <Button
-          variant="primary"
-          size="lg"
-          iconRight={<span aria-hidden="true">→</span>}
-          disabled={busyAction !== null || customerNeed.trim().length === 0}
-          onClick={() => handleStyleMe()}
-        >
-          {hasSets ? "Restyle with this" : "Style me"}
-        </Button>
-      </div>
-
-      {error && <div className="styling-error">{error}</div>}
-
-      {/* ToolStep pills — the agent visibly working. */}
-      {working && toolPhase && (
-        <div className="styling-tools" aria-live="polite">
-          {toolPhase.labels.map((label, index) => (
-            <ToolStep key={label} label={label} done={index < toolPhase.runningIndex} />
-          ))}
-        </div>
-      )}
-
-      {/* Recommendation set cards. */}
-      {hasSets && !working && (
-        <div className="styling-sets">
-          {recommendationSets.map((set, index) => (
-            <div
-              key={set.set_id}
-              className={`styling-set-slot ${gesture.armedChoice === index ? "arming" : ""}`}
-              style={{ ["--dwell-ms" as string]: "700ms" }}
-            >
-              {gestureOn && <span className="styling-set-num">{index + 1}</span>}
-              {gesture.armedChoice === index && <span className="styling-set-arm" aria-hidden="true" />}
-              <RecommendationCard
-                set={set}
-                index={index}
-                selected={set.set_id === selectedSet?.set_id}
-                onSelect={() => setSelectedSetId(set.set_id)}
-                onPreview={() => {
-                  setSelectedSetId(set.set_id);
-                  handlePreview(set);
-                }}
-                onConfirm={() => {
-                  setSelectedSetId(set.set_id);
-                  setShowConfirm(true);
-                }}
-              />
+            <div className="mirror-voice-hint">
+              {stt.listening
+                ? "Listening… tap to send"
+                : stt.supported
+                  ? gestureOn
+                    ? "Tap or ✋ to talk"
+                    : "Tap to tell me what you're after"
+                  : "Tap to get three looks"}
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Feedback pills — ChoiceCard paradigm; drives the re-recommendation loop. */}
-      {hasSets && !working && (
-        <div className="styling-feedback">
-          <MicroLabel>Not quite right? Nudge it</MicroLabel>
-          <FeedbackTags
-            disabled={!agentSessionId || !selectedSet || busyAction !== null}
-            onSelect={(tag: FeedbackTag) => {
-              const action = feedbackActions.find((item) => item.dimension === tag.dimension);
-              if (action) handleFeedback(action);
-            }}
-          />
-        </div>
-      )}
-
-      {/* Confirm summary card — selected set + count-up total + reserve. */}
-      {showConfirm && selectedSet && (
-        <div className="styling-confirm">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <RecTypeLabel recType={selectedSet.rec_type} />
-            <MicroLabel>Your pick</MicroLabel>
+            <button
+              className="mirror-voice-skip"
+              type="button"
+              disabled={busyAction !== null}
+              onClick={() => handleStyleMe(defaultCustomerNeed)}
+            >
+              Just pick for me →
+            </button>
           </div>
-          <div className="styling-confirm-lines">
-            {selectedSet.products.map((product) => (
-              <div className="styling-confirm-line" key={product.product_id}>
-                <span>{product.name}</span>
-                <PriceTag amount={product.price_yen} />
-              </div>
+        )}
+
+        {/* Agent working. */}
+        {working && toolPhase && (
+          <div className="styling-tools" aria-live="polite">
+            {toolPhase.labels.map((label, index) => (
+              <ToolStep key={label} label={label} done={index < toolPhase.runningIndex} />
             ))}
           </div>
-          <div className="styling-confirm-total">
-            <span>Total</span>
-            <PriceTag amount={selectedTotal} size="lg" countUp />
-          </div>
-          <Button
-            variant="primary"
-            size="lg"
-            block
-            iconRight={<span aria-hidden="true">→</span>}
-            disabled={!agentSessionId || busyAction !== null}
-            onClick={handleConfirm}
-          >
-            Reserve &amp; try on
-          </Button>
-        </div>
-      )}
+        )}
 
-      <div className="styling-note">
-        <span aria-hidden="true">i</span>
-        Looks are pulled from live store stock. Reserve to have them brought to your fitting room.
-      </div>
+        {/* Three looks as a compact strip — switch with fingers 1·2·3, still see yourself. */}
+        {hasSets && !working && (
+          <div className="mirror-looks">
+            <div className="mirror-looks-tabs" role="tablist">
+              {recommendationSets.map((set, index) => (
+                <button
+                  key={set.set_id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedSet?.set_id === set.set_id}
+                  className={`mirror-looks-tab ${selectedSet?.set_id === set.set_id ? "on" : ""} ${
+                    gesture.armedChoice === index ? "arming" : ""
+                  }`}
+                  style={{ ["--dwell-ms" as string]: "700ms" }}
+                  onClick={() => setSelectedSetId(set.set_id)}
+                >
+                  {gesture.armedChoice === index && (
+                    <span className="mirror-looks-arm" aria-hidden="true" />
+                  )}
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+
+            {selectedSet && (
+              <div className="mirror-look">
+                <div className="mirror-look-head">
+                  <RecTypeLabel recType={selectedSet.rec_type} />
+                  <PriceTag amount={selectedTotal} />
+                </div>
+                <div className="mirror-look-thumbs">
+                  {selectedSet.products.map((product) => (
+                    <span className="mirror-look-thumb" key={product.product_id} title={product.name}>
+                      {product.image_url && (
+                        <img src={product.image_url} alt={product.name} loading="lazy" />
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <div className="mirror-look-actions">
+                  <Button
+                    variant="secondary"
+                    disabled={!agentSessionId || busyAction !== null}
+                    onClick={() => handlePreview(selectedSet)}
+                  >
+                    Try it on
+                  </Button>
+                  <Button
+                    variant="primary"
+                    iconRight={<span aria-hidden="true">→</span>}
+                    disabled={busyAction !== null}
+                    onClick={() => setShowConfirm(true)}
+                  >
+                    Choose
+                  </Button>
+                </div>
+                <FeedbackTags
+                  disabled={!agentSessionId || busyAction !== null}
+                  onSelect={(tag: FeedbackTag) => {
+                    const action = feedbackActions.find((item) => item.dimension === tag.dimension);
+                    if (action) handleFeedback(action);
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="mirror-hint-line">
+              {gestureOn ? "Hold up 1 · 2 · 3 to switch · 👍 try on" : "Tap a number to switch looks"}
+            </div>
+          </div>
+        )}
+
+        {/* Confirm summary. */}
+        {showConfirm && selectedSet && (
+          <div className="styling-confirm">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <RecTypeLabel recType={selectedSet.rec_type} />
+              <MicroLabel>Your pick</MicroLabel>
+            </div>
+            <div className="styling-confirm-total">
+              <span>Total</span>
+              <PriceTag amount={selectedTotal} size="lg" countUp />
+            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              iconRight={<span aria-hidden="true">→</span>}
+              disabled={!agentSessionId || busyAction !== null}
+              onClick={handleConfirm}
+            >
+              Reserve &amp; try on
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -42,9 +42,10 @@ function getCtor(): SpeechRecognitionCtor | null {
 
 export function useSpeechRecognition(options: {
   lang?: string;
+  continuous?: boolean;
   onFinal?: (transcript: string) => void;
 }) {
-  const { lang = "en-US", onFinal } = options;
+  const { lang = "en-US", continuous = false, onFinal } = options;
   const supported = getCtor() !== null;
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -68,7 +69,7 @@ export function useSpeechRecognition(options: {
 
     const recognition = new Ctor();
     recognition.lang = lang;
-    recognition.continuous = false;
+    recognition.continuous = continuous; // keep listening until explicitly stopped
     recognition.interimResults = true; // live transcript as they speak
     recognition.maxAlternatives = 1;
 
@@ -95,7 +96,7 @@ export function useSpeechRecognition(options: {
     } catch {
       setListening(false);
     }
-  }, [lang]);
+  }, [lang, continuous]);
 
   const toggle = useCallback(() => {
     if (listening) stop();
