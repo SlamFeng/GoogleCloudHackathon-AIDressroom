@@ -9,7 +9,8 @@ import {
   sendAgentFeedback,
   type AgentRunResponse,
   type FeedbackDimension,
-  type LucyRealtimeTryonPayload
+  type LucyRealtimeTryonPayload,
+  type RecommendationSet
 } from "./api";
 import type { AnalysisHandoff } from "./types";
 import { useLucyRealtimeTryon } from "./useLucyRealtimeTryon";
@@ -115,6 +116,7 @@ export function StylingScreen({
   const [showConfirm, setShowConfirm] = useState(false);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const agentSessionId = run?.state.session_id ?? null;
   const recommendationSets = run?.state.recommendation_sets ?? [];
@@ -128,6 +130,15 @@ export function StylingScreen({
       toolTimersRef.current.forEach((id) => window.clearTimeout(id));
     };
   }, []);
+
+  // The live-preview stage renders below three tall cards on the portrait
+  // kiosk; bring it into view when a preview opens so the tap has a visible
+  // effect instead of appearing to do nothing.
+  useEffect(() => {
+    if (lastPreviewPayload) {
+      previewRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [lastPreviewPayload]);
 
   // Animate a stack of ToolStep pills while a request is in flight: reveal them
   // one at a time (running), so the agent visibly "works". We don't have SSE —
@@ -215,12 +226,22 @@ export function StylingScreen({
     });
   }
 
-  function handlePreview() {
+  function handlePreview(set: RecommendationSet | undefined = selectedSet) {
     void execute("lucy_preview", async () => {
-      if (!agentSessionId || !selectedSet) return;
-      const response = await requestRealtimePreview(agentSessionId, selectedSet.set_id);
+      // Take the set explicitly so a fresh click previews THAT card, not the
+      // set that happened to be selected on the previous render.
+      if (!agentSessionId || !set) return;
+      const response = await requestRealtimePreview(agentSessionId, set.set_id);
       applyRun(response);
-      if (response.output.type !== "realtime_tryon_payload") return;
+      if (response.output.type !== "realtime_tryon_payload") {
+        // Surface the reason instead of silently doing nothing.
+        setError(
+          response.output.type === "failed"
+            ? `Preview unavailable: ${response.output.reason}`
+            : "Preview unavailable"
+        );
+        return;
+      }
       setLastPreviewPayload(response.output.payload);
       await lucy.start({
         payload: response.output.payload,
@@ -338,7 +359,7 @@ export function StylingScreen({
               onSelect={() => setSelectedSetId(set.set_id)}
               onPreview={() => {
                 setSelectedSetId(set.set_id);
-                handlePreview();
+                handlePreview(set);
               }}
               onConfirm={() => {
                 setSelectedSetId(set.set_id);
@@ -365,7 +386,7 @@ export function StylingScreen({
 
       {/* Realtime preview — Lucy try-on inside a white stage. */}
       {selectedSet && (lucy.status !== "idle" || lastPreviewPayload) && (
-        <div className="styling-preview">
+        <div className="styling-preview" ref={previewRef}>
           <MicroLabel>Live preview</MicroLabel>
           <div className="styling-stage">
             <span className="styling-stage-badge">Lucy · realtime</span>
@@ -389,7 +410,7 @@ export function StylingScreen({
               variant="secondary"
               block
               disabled={!agentSessionId || !selectedSet || busyAction !== null}
-              onClick={handlePreview}
+              onClick={() => handlePreview(selectedSet)}
             >
               Preview again
             </Button>
