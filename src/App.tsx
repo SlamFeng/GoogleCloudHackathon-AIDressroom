@@ -674,6 +674,7 @@ function App() {
           <StylingScreen
             analysis={analysis}
             copy={copy}
+            captureDataUrl={captureDataUrl}
             onBack={() => setStep("review")}
             onComplete={() => setStep("complete")}
           />

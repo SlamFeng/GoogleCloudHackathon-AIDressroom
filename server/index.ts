@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import {
   analyzeDressroomImage,
+  generateTryonImage,
   getGeminiModel,
   getGeminiImageModel,
   hasGeminiApiKey,
@@ -100,6 +102,45 @@ app.post("/api/analyses/:analysisId/confirm", (request, response) => {
   analyses.set(analysis.analysis_id, confirmed);
   response.json(confirmed);
 });
+
+// Background "high-quality try-on": compose the customer wearing an outfit from
+// their capture photo + the set's garment images. Returns { image_data_url:
+// null } when Gemini isn't configured or generation fails (client shows the
+// live-mirror placeholder instead).
+app.post("/api/tryon-image", async (request, response) => {
+  const body = (request.body ?? {}) as {
+    person_image?: unknown;
+    product_ids?: unknown;
+    look_label?: unknown;
+  };
+  if (typeof body.person_image !== "string" || !Array.isArray(body.product_ids)) {
+    response.status(400).json({ error: "person_image and product_ids are required." });
+    return;
+  }
+  const garments: Array<{ mimeType: string; base64Data: string }> = [];
+  for (const id of body.product_ids) {
+    if (typeof id !== "string") continue;
+    const buffer = readProductImage(id);
+    if (buffer) garments.push({ mimeType: "image/jpeg", base64Data: buffer.toString("base64") });
+  }
+  const imageDataUrl = await generateTryonImage({
+    personImageDataUrl: body.person_image,
+    garments,
+    lookLabel: typeof body.look_label === "string" ? body.look_label : undefined
+  });
+  response.json({ image_data_url: imageDataUrl });
+});
+
+function readProductImage(productId: string): Buffer | null {
+  for (const base of ["../dist/mock-products", "../public/mock-products"]) {
+    try {
+      return readFileSync(fileURLToPath(new URL(`${base}/${productId}.jpg`, import.meta.url)));
+    } catch {
+      /* try next location */
+    }
+  }
+  return null;
+}
 
 app.delete("/api/sessions/:sessionId", (request, response) => {
   for (const [analysisId, analysis] of analyses.entries()) {

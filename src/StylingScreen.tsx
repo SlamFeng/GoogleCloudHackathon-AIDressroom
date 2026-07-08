@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   confirmAgentSelection,
   createAgentSession,
+  generateTryonImage,
   recordPreviewStatus,
   requestRealtimePreview,
   sendAgentChat,
@@ -110,11 +111,13 @@ type ToolPhase = { labels: string[]; runningIndex: number } | null;
 export function StylingScreen({
   analysis,
   copy: _copy,
+  captureDataUrl,
   onComplete,
   onBack
 }: {
   analysis: AnalysisHandoff;
   copy: Copy;
+  captureDataUrl: string | null;
   onComplete: () => void;
   onBack: () => void;
 }) {
@@ -132,6 +135,12 @@ export function StylingScreen({
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
   const [gestureOn, setGestureOn] = useState(false);
+  // Placeholder try-on: a 15s window with a countdown while the "you wearing it"
+  // image renders in the background.
+  const [tryonCountdown, setTryonCountdown] = useState<number | null>(null);
+  const [tryonImage, setTryonImage] = useState<string | null>(null);
+  const [tryonGenerating, setTryonGenerating] = useState(false);
+  const tryonTimerRef = useRef<number | null>(null);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
 
@@ -145,6 +154,7 @@ export function StylingScreen({
   useEffect(() => {
     return () => {
       toolTimersRef.current.forEach((id) => window.clearTimeout(id));
+      if (tryonTimerRef.current !== null) window.clearInterval(tryonTimerRef.current);
     };
   }, []);
 
@@ -238,6 +248,44 @@ export function StylingScreen({
     });
   }
 
+  function clearTryonTimer() {
+    if (tryonTimerRef.current !== null) {
+      window.clearInterval(tryonTimerRef.current);
+      tryonTimerRef.current = null;
+    }
+  }
+
+  // Placeholder try-on: run a 15s countdown while the "you wearing this look"
+  // image renders in the background, then show it when it lands.
+  function startTryonGeneration(set: RecommendationSet) {
+    clearTryonTimer();
+    setTryonImage(null);
+    setTryonCountdown(15);
+    tryonTimerRef.current = window.setInterval(() => {
+      setTryonCountdown((seconds) => {
+        if (seconds === null || seconds <= 1) {
+          clearTryonTimer();
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+
+    if (captureDataUrl) {
+      setTryonGenerating(true);
+      generateTryonImage(
+        captureDataUrl,
+        set.products.map((product) => product.product_id),
+        set.reason
+      )
+        .then((image) => {
+          if (image) setTryonImage(image);
+        })
+        .catch(() => {})
+        .finally(() => setTryonGenerating(false));
+    }
+  }
+
   function handlePreview(set: RecommendationSet | undefined = selectedSet) {
     void execute("lucy_preview", async () => {
       // Take the set explicitly so a fresh click previews THAT card, not the
@@ -256,6 +304,7 @@ export function StylingScreen({
       }
       setLastPreviewPayload(response.output.payload);
       speech.speak("Here's how it looks on you.");
+      startTryonGeneration(set);
       await lucy.start({
         payload: response.output.payload,
         onStatusChange: async (statusPayload) => {
@@ -267,6 +316,10 @@ export function StylingScreen({
   }
 
   function handleStop() {
+    clearTryonTimer();
+    setTryonCountdown(null);
+    setTryonImage(null);
+    setTryonGenerating(false);
     void execute("stop_lucy_preview", async () => {
       const reason = lucy.stop("manual_stop");
       if (!agentSessionId) return;
@@ -418,12 +471,36 @@ export function StylingScreen({
             />
           )}
           <video className="mirror-local-hidden" ref={lucy.localVideoRef} autoPlay playsInline muted />
-          {showMockPreview && (
-            <div className="mirror-tryon-mock">
-              <strong>{lastPreviewPayload ? "Realtime try-on isn't set up on this mirror" : "Getting your preview ready"}</strong>
-              <span>You're looking at the live mirror — connect Lucy to see the outfit on you.</span>
-            </div>
-          )}
+          {showMockPreview &&
+            (tryonImage ? (
+              <img
+                className="mirror-tryon-remote"
+                src={tryonImage}
+                alt="You in this look"
+                style={{ objectFit: feedFit }}
+              />
+            ) : (
+              <div className="mirror-tryon-mock">
+                {tryonCountdown !== null && (
+                  <div className="mirror-countdown" aria-live="polite">
+                    {tryonCountdown}
+                    <small>sec</small>
+                  </div>
+                )}
+                <strong>
+                  {tryonGenerating
+                    ? "Styling you into this look…"
+                    : captureDataUrl
+                      ? "Rendering your try-on…"
+                      : "Realtime try-on isn't set up on this mirror"}
+                </strong>
+                <span>
+                  {captureDataUrl
+                    ? "You're on the live mirror while we render you wearing it."
+                    : "You're looking at the live mirror — connect Lucy to see the outfit on you."}
+                </span>
+              </div>
+            ))}
           <div className="mirror-tryon-bar">
             <div className="mirror-tryon-meta">
               {selectedSet && (

@@ -268,6 +268,50 @@ async function generateImageFromParts(
   return { mimeType, base64Data: data, dataUrl: `data:${mimeType};base64,${data}` };
 }
 
+function buildTryonPrompt(lookLabel?: string) {
+  return [
+    "Photorealistic virtual try-on.",
+    "Reference image 1 is the customer. Keep their face, hair, body shape, pose, framing, and background exactly.",
+    "Dress the SAME person in ALL the garment items shown in the following reference images, replacing their current clothes.",
+    lookLabel ? `The intended look is: ${lookLabel}.` : "",
+    "Natural fit and draping, realistic fabric, consistent lighting and shadows with the original photo.",
+    "Full-body, portrait 3:4 framing. No text, no watermark, no extra people, no accessories that were not provided."
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/**
+ * Compose a "the customer wearing this outfit" image from their capture photo +
+ * the outfit's garment images. Returns a data URL, or null when there's no key
+ * or generation fails (so the caller can fall back to the placeholder).
+ */
+export async function generateTryonImage(input: {
+  personImageDataUrl: string;
+  garments: Array<{ mimeType: string; base64Data: string }>;
+  lookLabel?: string;
+}): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
+  if (!apiKey || input.garments.length === 0) return null;
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const person = parseImageDataUrl(input.personImageDataUrl);
+    const parts: Array<Record<string, unknown>> = [
+      { text: buildTryonPrompt(input.lookLabel) },
+      { inlineData: { mimeType: person.mimeType, data: person.base64Data } },
+      { text: "Reference image 1: the customer (keep them and the background)." },
+      ...input.garments.flatMap((garment, index) => [
+        { inlineData: { mimeType: garment.mimeType, data: garment.base64Data } },
+        { text: `Reference image ${index + 2}: a garment to put on the customer.` }
+      ])
+    ];
+    const result = await generateImageFromParts(ai, parts);
+    return result?.dataUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function generateSegmentedItemReference(
   ai: GoogleGenAI,
   sourceImage: ReturnType<typeof parseImageDataUrl>,

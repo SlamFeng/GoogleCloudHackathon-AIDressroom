@@ -284,6 +284,24 @@ export async function requestRealtimePreview(
   });
 }
 
+// Background "high-quality try-on" image: the customer wearing the selected
+// outfit. Returns null when generation isn't available (client keeps the
+// live-mirror placeholder).
+export async function generateTryonImage(
+  personImage: string,
+  productIds: string[],
+  lookLabel?: string
+): Promise<string | null> {
+  const response = await fetch(`${API_BASE}/api/tryon-image`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ person_image: personImage, product_ids: productIds, look_label: lookLabel })
+  });
+  if (!response.ok) return null;
+  const data = (await response.json()) as { image_data_url: string | null };
+  return data.image_data_url ?? null;
+}
+
 export async function recordPreviewStatus(
   agentSessionId: string,
   payload: {

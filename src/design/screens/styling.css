@@ -699,3 +699,33 @@
 @media (prefers-reduced-motion: reduce) {
   .mirror-live-dot { animation: none; }
 }
+
+/* ---- placeholder try-on: 15s countdown while the look renders ---- */
+.mirror-countdown {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 46px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 6px;
+}
+.mirror-countdown small {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.7;
+  letter-spacing: 0.04em;
+}
+img.mirror-tryon-remote {
+  animation: mirror-tryon-in 0.5s var(--ease-out, ease) both;
+}
+@keyframes mirror-tryon-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  img.mirror-tryon-remote { animation: none; }
+}
