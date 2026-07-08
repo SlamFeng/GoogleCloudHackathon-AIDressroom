@@ -12,6 +12,7 @@ import {
   imageAnalysisInputSchema,
   type ImageAnalysisToolResult
 } from "./image-analysis-tool.js";
+import { generateSpeech } from "./tts.js";
 import { agentRouter } from "./agent/api.js";
 import { inventoryRouter } from "./inventory/api.js";
 import { getInventoryService, resolveBackend } from "./inventory/factory.js";
@@ -129,6 +130,18 @@ app.post("/api/tryon-image", async (request, response) => {
     lookLabel: typeof body.look_label === "string" ? body.look_label : undefined
   });
   response.json({ image_data_url: imageDataUrl });
+});
+
+// Gemini TTS for the agent's spoken lines. Returns { audio_data_url: null }
+// when unavailable so the client falls back to on-device speechSynthesis.
+app.post("/api/tts", async (request, response) => {
+  const body = (request.body ?? {}) as { text?: unknown; voice?: unknown };
+  if (typeof body.text !== "string") {
+    response.status(400).json({ error: "text is required." });
+    return;
+  }
+  const audio = await generateSpeech(body.text, typeof body.voice === "string" ? body.voice : undefined);
+  response.json({ audio_data_url: audio });
 });
 
 function readProductImage(productId: string): Buffer | null {

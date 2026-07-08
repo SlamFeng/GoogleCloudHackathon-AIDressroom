@@ -1,21 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { synthesizeSpeech } from "./api";
 
-// Fast, on-device text-to-speech via the browser SpeechSynthesis API — no
-// network round-trip, so time-to-first-word is typically <100ms (the cloud-TTS
-// path that felt slow before is avoided entirely). Speed tricks:
-//   1. cancel() any backlog before speaking, so the new line starts immediately;
-//   2. split into sentences and queue them, so the FIRST sentence plays while
-//      the engine is still parsing the rest;
-//   3. prewarm the pipeline on the first user gesture;
-//   4. callers pass short curated lines, not whole paragraphs.
+// Agent voice. Prefers Gemini TTS (natural, good Chinese) but never waits on it:
+//   - fixed lines are PREFETCHED on mount and cached, so playback is instant;
+//   - if a line isn't cached yet, we speak it immediately with the on-device
+//     browser voice and fetch the Gemini audio in the background for next time.
+// So the voice upgrades to Gemini once cached, and is never slow.
 
 function pickVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynthesisVoice | null {
   const base = lang.slice(0, 2).toLowerCase();
   const byLang = voices.filter((v) => v.lang.slice(0, 2).toLowerCase() === base);
   const pool = byLang.length > 0 ? byLang : voices;
-  // Prefer higher-quality local/neural voices when the OS ships them.
   const nice = pool.find((v) =>
-    /(enhanced|premium|natural|neural|siri|ava|samantha|google|zira|allison)/i.test(v.name)
+    /(enhanced|premium|natural|neural|siri|ting-?ting|mei-?jia|google|yue|hui)/i.test(v.name)
   );
   return nice ?? pool.find((v) => v.default) ?? pool[0] ?? null;
 }
@@ -25,47 +22,43 @@ function splitSentences(text: string): string[] {
   return (parts ?? [text]).map((s) => s.trim()).filter(Boolean);
 }
 
-export function useSpeech(lang = "en-US") {
-  const supported = typeof window !== "undefined" && "speechSynthesis" in window;
+export function useSpeech(lang = "zh-CN") {
+  const browserTts = typeof window !== "undefined" && "speechSynthesis" in window;
   const [enabled, setEnabled] = useState(true);
   const [speaking, setSpeaking] = useState(false);
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const audioCache = useRef<Map<string, string>>(new Map());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const warmedRef = useRef(false);
 
   useEffect(() => {
-    if (!supported) return;
+    if (!browserTts) return;
     const load = () => {
       voiceRef.current = pickVoice(window.speechSynthesis.getVoices(), lang);
     };
     load();
     window.speechSynthesis.addEventListener("voiceschanged", load);
     return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
-  }, [supported, lang]);
+  }, [browserTts, lang]);
 
   useEffect(() => {
     return () => {
-      if (supported) window.speechSynthesis.cancel();
+      if (browserTts) window.speechSynthesis.cancel();
+      audioRef.current?.pause();
     };
-  }, [supported]);
+  }, [browserTts]);
 
-  const cancel = useCallback(() => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
-    setSpeaking(false);
-  }, [supported]);
-
-  const speak = useCallback(
+  const speakBrowser = useCallback(
     (text: string) => {
-      if (!supported || !enabled || !text.trim()) return;
+      if (!browserTts) return;
       const synth = window.speechSynthesis;
-      synth.cancel(); // drop backlog → minimal time-to-first-word
+      synth.cancel();
       const chunks = splitSentences(text);
       chunks.forEach((chunk, index) => {
         const utterance = new SpeechSynthesisUtterance(chunk);
         if (voiceRef.current) utterance.voice = voiceRef.current;
         utterance.lang = voiceRef.current?.lang ?? lang;
-        utterance.rate = 1.06; // a touch brisk without sounding rushed
-        utterance.pitch = 1;
+        utterance.rate = 1.05;
         if (index === 0) utterance.onstart = () => setSpeaking(true);
         if (index === chunks.length - 1) {
           utterance.onend = () => setSpeaking(false);
@@ -74,24 +67,87 @@ export function useSpeech(lang = "en-US") {
         synth.speak(utterance);
       });
     },
-    [supported, enabled, lang]
+    [browserTts, lang]
   );
 
-  // Warm the engine on the first user gesture so the first real line is instant.
+  const playAudio = useCallback((dataUrl: string) => {
+    let audio = audioRef.current;
+    if (!audio) {
+      audio = new Audio();
+      audioRef.current = audio;
+    }
+    if (browserTts) window.speechSynthesis.cancel();
+    audio.pause();
+    audio.src = dataUrl;
+    audio.onplay = () => setSpeaking(true);
+    audio.onended = () => setSpeaking(false);
+    audio.onerror = () => setSpeaking(false);
+    return audio.play();
+  }, [browserTts]);
+
+  const speak = useCallback(
+    (text: string) => {
+      if (!enabled || !text.trim()) return;
+      const cached = audioCache.current.get(text);
+      if (cached) {
+        void playAudio(cached).catch(() => speakBrowser(text));
+        return;
+      }
+      // Not cached yet → speak instantly with the browser voice, and fetch the
+      // Gemini audio in the background so it's ready (and nicer) next time.
+      speakBrowser(text);
+      void synthesizeSpeech(text).then((url) => {
+        if (url) audioCache.current.set(text, url);
+      });
+    },
+    [enabled, playAudio, speakBrowser]
+  );
+
+  // Prefetch a fixed set of lines so their Gemini audio is cached before use.
+  const prefetch = useCallback((lines: string[]) => {
+    void (async () => {
+      for (const line of lines) {
+        if (!line.trim() || audioCache.current.has(line)) continue;
+        const url = await synthesizeSpeech(line);
+        if (url) audioCache.current.set(line, url);
+      }
+    })();
+  }, []);
+
+  const cancel = useCallback(() => {
+    if (browserTts) window.speechSynthesis.cancel();
+    audioRef.current?.pause();
+    setSpeaking(false);
+  }, [browserTts]);
+
+  // Unlock audio playback + warm the browser voice on the first user gesture.
   const warm = useCallback(() => {
-    if (!supported || warmedRef.current) return;
+    if (warmedRef.current) return;
     warmedRef.current = true;
-    const u = new SpeechSynthesisUtterance(" ");
-    u.volume = 0;
-    window.speechSynthesis.speak(u);
-  }, [supported]);
+    if (browserTts) {
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
+    if (!audioRef.current) audioRef.current = new Audio();
+    audioRef.current.muted = true;
+    audioRef.current
+      .play()
+      .then(() => {
+        audioRef.current?.pause();
+        if (audioRef.current) audioRef.current.muted = false;
+      })
+      .catch(() => {
+        if (audioRef.current) audioRef.current.muted = false;
+      });
+  }, [browserTts]);
 
   const toggle = useCallback(() => {
     setEnabled((on) => {
-      if (on && supported) window.speechSynthesis.cancel();
+      if (on) cancel();
       return !on;
     });
-  }, [supported]);
+  }, [cancel]);
 
-  return { speak, cancel, warm, toggle, speaking, enabled, supported };
+  return { speak, prefetch, cancel, warm, toggle, speaking, enabled, supported: browserTts };
 }

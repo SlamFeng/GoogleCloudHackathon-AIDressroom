@@ -36,6 +36,14 @@ const defaultCustomerNeed = "没什么想法，请根据我当前穿搭推荐三
 // (via the --tryon-ms CSS variable), so the two never drift apart.
 const TRYON_WINDOW_MS = 15000;
 
+// The agent's fixed spoken lines — prefetched (and cached) on mount so the
+// Gemini voice is ready and instant when each one is actually needed.
+const LINE_LOOKS_READY = "给你搭好了三套，都是现货。选一套试穿吧。";
+const LINE_ON_YOU = "看看你穿上的样子。";
+const LINE_RESTYLED = "换了一版，选一套试穿。";
+const LINE_RESERVED = "已预留，给你送到试衣间。";
+const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED];
+
 // --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
 const feedbackActions: Array<{
   label: string;
@@ -243,7 +251,7 @@ export function StylingScreen({
         applyRun(response);
         setShowConfirm(false);
         const count = response.state.recommendation_sets.length;
-        if (count > 0) speech.speak("给你搭好了三套，都是现货。选一套试穿吧。");
+        if (count > 0) speech.speak(LINE_LOOKS_READY);
       } finally {
         finishTools();
       }
@@ -298,7 +306,7 @@ export function StylingScreen({
         return;
       }
       setLastPreviewPayload(response.output.payload);
-      speech.speak("看看你穿上的样子。");
+      speech.speak(LINE_ON_YOU);
       startTryonGeneration(set);
       await lucy.start({
         payload: response.output.payload,
@@ -341,7 +349,7 @@ export function StylingScreen({
         });
         applyRun(response);
         if (response.state.recommendation_sets.length > 0) {
-          speech.speak("换了一版，选一套试穿。");
+          speech.speak(LINE_RESTYLED);
         }
       } finally {
         finishTools();
@@ -358,7 +366,7 @@ export function StylingScreen({
         face_profile_consent: false
       });
       applyRun(response);
-      speech.speak("已预留，给你送到试衣间。");
+      speech.speak(LINE_RESERVED);
       onComplete();
     });
   }
@@ -439,6 +447,11 @@ export function StylingScreen({
       else if (showConfirm) setShowConfirm(false);
     }
   });
+
+  // Warm the Gemini voice cache for the fixed lines as soon as we're on screen.
+  useEffect(() => {
+    speech.prefetch(AGENT_LINES);
+  }, [speech.prefetch]);
 
   return (
     <section className="mirror-shell" aria-label="Styling recommendations">

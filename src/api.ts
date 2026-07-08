@@ -284,6 +284,23 @@ export async function requestRealtimePreview(
   });
 }
 
+// Gemini TTS for a line of agent speech → a playable audio data URL, or null
+// when unavailable (client falls back to on-device speechSynthesis).
+export async function synthesizeSpeech(text: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { audio_data_url: string | null };
+    return data.audio_data_url ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Background "high-quality try-on" image: the customer wearing the selected
 // outfit. Returns null when generation isn't available (client keeps the
 // live-mirror placeholder).
