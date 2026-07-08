@@ -105,6 +105,24 @@ export function useLucyRealtimeTryon() {
         if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
 
         const client = createDecartClient({ apiKey: payload.client_token });
+
+        // The realtime API takes an uploaded file reference (id), not a URL, for
+        // the garment. Upload the catalog image so Decart gets the bytes directly
+        // (works from localhost — no public URL needed). If it fails, we still
+        // connect, just without the garment overlay.
+        let imageRef: string | undefined;
+        if (payload.garment_image_url) {
+          try {
+            const garmentResponse = await fetch(payload.garment_image_url);
+            if (garmentResponse.ok) {
+              const ref = await client.files.upload(await garmentResponse.blob());
+              imageRef = ref.id;
+            }
+          } catch {
+            /* proceed without the garment overlay rather than failing the preview */
+          }
+        }
+
         let lucySessionId: string | undefined;
         const realtimeClient = await client.realtime.connect(localStream, {
           model,
@@ -114,7 +132,7 @@ export function useLucyRealtimeTryon() {
               text: payload.prompt,
               enhance: payload.enhance
             },
-            image: payload.garment_image_url
+            image: imageRef
           },
           onRemoteStream: (stream) => {
             if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;

@@ -294,7 +294,9 @@ export class MockAgentTools {
       set_id: input.set.set_id,
       slot: selected.slot,
       product_id: selected.product_id,
-      garment_image_url: selected.vton_reference_image_url,
+      // Use the real catalog image (the -vton.png variants were never generated);
+      // the client uploads it to Decart as a file reference for the VTON overlay.
+      garment_image_url: selected.image_url ?? selected.vton_reference_image_url,
       prompt: selected.prompt,
       duration_limit_sec: token.duration_limit_sec,
       enhance: false,
