@@ -15,6 +15,8 @@ import {
 import type { AnalysisHandoff } from "./types";
 import { useLucyRealtimeTryon } from "./useLucyRealtimeTryon";
 import { useMirrorCamera } from "./useMirrorCamera";
+import { useSpeech } from "./useSpeech";
+import { useSpeechRecognition } from "./useSpeechRecognition";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -27,6 +29,16 @@ import { FeedbackTags, type FeedbackTag } from "./design/components/forms/Feedba
 type Copy = Record<string, unknown>;
 
 const defaultCustomerNeed = "没什么想法，请根据我当前穿搭推荐三套适合我的衣服。";
+
+// Quick-pick occasion presets (the "gesture preset" input, tappable now,
+// gesture-selectable in P3) — each fills a concrete need for the stylist.
+const OCCASION_PRESETS: { label: string; need: string }[] = [
+  { label: "Date", need: "帮我搭一套约会穿的look，要好看但不用力过猛。" },
+  { label: "Work", need: "帮我搭一套通勤上班的look，得体一点。" },
+  { label: "Party", need: "帮我搭一套派对聚会的look，出挑一点。" },
+  { label: "Casual", need: "帮我搭一套日常休闲的look，舒服好穿。" },
+  { label: "Vacation", need: "帮我搭一套度假旅行的look，轻松透气。" }
+];
 
 // --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
 const feedbackActions: Array<{
@@ -205,6 +217,7 @@ export function StylingScreen({
   function handleStyleMe(need?: string) {
     const text = (need ?? customerNeed).trim();
     if (!text) return;
+    speech.warm();
     void execute("recommend", async () => {
       runTools(["Reading your body template", "Searching in-stock outfits", "Styling three looks"]);
       try {
@@ -212,6 +225,8 @@ export function StylingScreen({
         const response = await sendAgentChat(sessionId, text);
         applyRun(response);
         setShowConfirm(false);
+        const count = response.state.recommendation_sets.length;
+        if (count > 0) speech.speak("Here are your looks, all in stock. Tap one to try it on.");
       } finally {
         finishTools();
       }
@@ -235,6 +250,7 @@ export function StylingScreen({
         return;
       }
       setLastPreviewPayload(response.output.payload);
+      speech.speak("Here's how it looks on you.");
       await lucy.start({
         payload: response.output.payload,
         onStatusChange: async (statusPayload) => {
@@ -270,6 +286,9 @@ export function StylingScreen({
           raw_voice_text: action.voice
         });
         applyRun(response);
+        if (response.state.recommendation_sets.length > 0) {
+          speech.speak("Here's another take. Tap one to try it on.");
+        }
       } finally {
         finishTools();
       }
@@ -285,6 +304,7 @@ export function StylingScreen({
         face_profile_consent: false
       });
       applyRun(response);
+      speech.speak("Reserved. I'll have it brought to your fitting room.");
       onComplete();
     });
   }
@@ -303,6 +323,15 @@ export function StylingScreen({
   const lucyHoldsCamera =
     !showMockPreview && (lucy.status === "connecting" || lucy.status === "previewing");
   const mirror = useMirrorCamera(!lucyHoldsCamera);
+  const speech = useSpeech("en-US");
+  const stt = useSpeechRecognition({
+    lang: "en-US",
+    onFinal: (transcript) => {
+      setCustomerNeed(transcript);
+      speech.warm();
+      handleStyleMe(transcript);
+    }
+  });
 
   return (
     <section className="mirror-shell" aria-label="Styling recommendations">
@@ -361,22 +390,64 @@ export function StylingScreen({
 
       {/* Glass info sheet floating over the reflection. */}
       <div className="mirror-content" data-dim={tryonActive ? "true" : undefined}>
-      <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
-        ← Back
-      </button>
+      <div className="mirror-topbar">
+        <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
+          ← Back
+        </button>
+        {speech.supported && (
+          <button
+            className="mirror-mute"
+            type="button"
+            onClick={speech.toggle}
+            aria-pressed={speech.enabled}
+            aria-label={speech.enabled ? "Turn voice off" : "Turn voice on"}
+          >
+            {speech.enabled ? "🔊 Voice" : "🔇 Muted"}
+          </button>
+        )}
+      </div>
       <MicroLabel>STYLING · YOUR LOOKS</MicroLabel>
       <h2 className="mirror-title">Let's style three looks for you</h2>
 
-      {/* Need input — customer can type / refine a need before styling. */}
+      {/* Need input — speak it, tap a preset, or type. */}
       <div className="styling-need">
         <MicroLabel>What are you after?</MicroLabel>
-        <textarea
-          value={customerNeed}
-          onChange={(event) => setCustomerNeed(event.target.value)}
-          rows={2}
-          aria-label="Your styling need"
-          placeholder={defaultCustomerNeed}
-        />
+        <div className="styling-need-input">
+          <textarea
+            value={stt.listening ? stt.transcript || customerNeed : customerNeed}
+            onChange={(event) => setCustomerNeed(event.target.value)}
+            rows={2}
+            aria-label="Your styling need"
+            placeholder={stt.listening ? "Listening…" : defaultCustomerNeed}
+          />
+          {stt.supported && (
+            <button
+              className={`mirror-mic ${stt.listening ? "on" : ""}`}
+              type="button"
+              onClick={() => stt.toggle()}
+              aria-pressed={stt.listening}
+              aria-label={stt.listening ? "Stop listening" : "Speak your need"}
+            >
+              🎤
+            </button>
+          )}
+        </div>
+        <div className="styling-presets" role="group" aria-label="Occasion presets">
+          {OCCASION_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              className="styling-preset"
+              disabled={busyAction !== null}
+              onClick={() => {
+                setCustomerNeed(preset.need);
+                handleStyleMe(preset.need);
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <Button
           variant="primary"
           size="lg"
