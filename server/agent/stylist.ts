@@ -152,15 +152,42 @@ function validate(rawSets: unknown, validIds: Set<string>): StylistSet[] {
   return out;
 }
 
+// Hard cap on how long we wait for the LLM stylist before falling back to the
+// deterministic (coordinated) scorer, so "styling three looks" is never slow.
+const STYLIST_TIMEOUT_MS = Number(process.env.STYLIST_TIMEOUT_MS ?? 9000);
+// Cap how many candidates go into the prompt — a 200-item list makes the call
+// slow; the top slice keeps it fast without losing much choice.
+const STYLIST_MAX_CANDIDATES = Number(process.env.STYLIST_MAX_CANDIDATES ?? 60);
+
 /**
  * Ask Gemini to compose outfits from the real candidate list. Returns one
- * validated StylistSet per requested type, or null to signal fallback.
+ * validated StylistSet per requested type, or null to signal fallback (no key,
+ * failure, invalid output, or exceeding the latency budget).
  */
 export async function composeOutfitSets(
   candidates: StylistCandidate[],
   ctx: StylistContext
 ): Promise<StylistSet[] | null> {
   if (!apiKey() || candidates.length === 0) return null;
+  const trimmed = candidates.slice(0, STYLIST_MAX_CANDIDATES);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      logAgentTurn({ event: "stylist_timeout", latency_ms: STYLIST_TIMEOUT_MS }, "WARNING");
+      resolve(null);
+    }, STYLIST_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([composeInner(trimmed, ctx), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function composeInner(
+  candidates: StylistCandidate[],
+  ctx: StylistContext
+): Promise<StylistSet[] | null> {
   try {
     const ai = new GoogleGenAI({ apiKey: apiKey() });
     const response = await generateWithRetry(ai, {

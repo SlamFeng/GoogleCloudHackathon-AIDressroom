@@ -448,9 +448,11 @@ export function StylingScreen({
     }
   });
 
-  // Warm the Gemini voice cache for the fixed lines as soon as we're on screen.
+  // Warm the Gemini voice cache for the fixed lines — but a few seconds in, so
+  // the TTS calls don't contend with the customer's first styling request.
   useEffect(() => {
-    speech.prefetch(AGENT_LINES);
+    const id = window.setTimeout(() => speech.prefetch(AGENT_LINES), 5000);
+    return () => window.clearTimeout(id);
   }, [speech.prefetch]);
 
   return (
