@@ -135,9 +135,9 @@ export function StylingScreen({
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
   const [gestureOn, setGestureOn] = useState(false);
-  // Placeholder try-on: a 15s window with a countdown while the "you wearing it"
-  // image renders in the background.
-  const [tryonCountdown, setTryonCountdown] = useState<number | null>(null);
+  // Placeholder try-on: a 15s window (progress bar) while the "you wearing it"
+  // image renders in the background; when it elapses we drop back to the mirror.
+  const [tryonOpen, setTryonOpen] = useState(false);
   const [tryonImage, setTryonImage] = useState<string | null>(null);
   const [tryonGenerating, setTryonGenerating] = useState(false);
   const tryonTimerRef = useRef<number | null>(null);
@@ -255,21 +255,14 @@ export function StylingScreen({
     }
   }
 
-  // Placeholder try-on: run a 15s countdown while the "you wearing this look"
-  // image renders in the background, then show it when it lands.
+  // Placeholder try-on: open a 15s window (a progress bar counts it down) while
+  // the "you wearing this look" image renders in the background; when the window
+  // elapses, drop the try-on layer and fall back to the plain mirror.
   function startTryonGeneration(set: RecommendationSet) {
     clearTryonTimer();
     setTryonImage(null);
-    setTryonCountdown(15);
-    tryonTimerRef.current = window.setInterval(() => {
-      setTryonCountdown((seconds) => {
-        if (seconds === null || seconds <= 1) {
-          clearTryonTimer();
-          return 0;
-        }
-        return seconds - 1;
-      });
-    }, 1000);
+    setTryonOpen(true);
+    tryonTimerRef.current = window.setTimeout(() => handleStop(), 15000);
 
     if (captureDataUrl) {
       setTryonGenerating(true);
@@ -317,9 +310,10 @@ export function StylingScreen({
 
   function handleStop() {
     clearTryonTimer();
-    setTryonCountdown(null);
+    setTryonOpen(false);
     setTryonImage(null);
     setTryonGenerating(false);
+    setLastPreviewPayload(null);
     void execute("stop_lucy_preview", async () => {
       const reason = lucy.stop("manual_stop");
       if (!agentSessionId) return;
@@ -373,9 +367,8 @@ export function StylingScreen({
   const hasSets = recommendationSets.length > 0;
   const working = toolPhase !== null;
 
-  // Full-bleed Lucy try-on is showing (real stream, or the "not configured"
-  // placeholder over the live reflection).
-  const tryonActive = Boolean(selectedSet) && (lucy.status !== "idle" || lastPreviewPayload !== null);
+  // Full-bleed try-on layer is showing (real stream, or the placeholder window).
+  const tryonActive = tryonOpen && Boolean(selectedSet);
   // Lucy grabs its own camera only for a real (configured) preview; keep the
   // ambient reflection running the rest of the time, and step aside when it does.
   const lucyHoldsCamera =
@@ -481,12 +474,6 @@ export function StylingScreen({
               />
             ) : (
               <div className="mirror-tryon-mock">
-                {tryonCountdown !== null && (
-                  <div className="mirror-countdown" aria-live="polite">
-                    {tryonCountdown}
-                    <small>sec</small>
-                  </div>
-                )}
                 <strong>
                   {tryonGenerating
                     ? "Styling you into this look…"
@@ -501,6 +488,10 @@ export function StylingScreen({
                 </span>
               </div>
             ))}
+          {/* 15s window progress bar; on elapse the layer auto-dismisses. */}
+          <div className="mirror-tryon-progress" aria-hidden="true">
+            <span />
+          </div>
           <div className="mirror-tryon-bar">
             <div className="mirror-tryon-meta">
               {selectedSet && (

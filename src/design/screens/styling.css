@@ -700,24 +700,34 @@
   .mirror-live-dot { animation: none; }
 }
 
-/* ---- placeholder try-on: 15s countdown while the look renders ---- */
-.mirror-countdown {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  font-family: var(--font-mono, monospace);
-  font-size: 46px;
-  font-weight: 600;
-  line-height: 1;
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 6px;
+/* ---- placeholder try-on: 15s window shown as a progress bar ---- */
+.mirror-tryon-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 6;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
 }
-.mirror-countdown small {
-  font-size: 14px;
-  font-weight: 500;
-  opacity: 0.7;
-  letter-spacing: 0.04em;
+.mirror-tryon-progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  animation: mirror-tryon-progress 15s linear forwards;
+}
+@keyframes mirror-tryon-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mirror-tryon-progress span {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
 }
 img.mirror-tryon-remote {
   animation: mirror-tryon-in 0.5s var(--ease-out, ease) both;
