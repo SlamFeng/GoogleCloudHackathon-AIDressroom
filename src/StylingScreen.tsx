@@ -243,7 +243,7 @@ export function StylingScreen({
         applyRun(response);
         setShowConfirm(false);
         const count = response.state.recommendation_sets.length;
-        if (count > 0) speech.speak("Here are your looks, all in stock. Tap one to try it on.");
+        if (count > 0) speech.speak("给你搭好了三套，都是现货。选一套试穿吧。");
       } finally {
         finishTools();
       }
@@ -298,7 +298,7 @@ export function StylingScreen({
         return;
       }
       setLastPreviewPayload(response.output.payload);
-      speech.speak("Here's how it looks on you.");
+      speech.speak("看看你穿上的样子。");
       startTryonGeneration(set);
       await lucy.start({
         payload: response.output.payload,
@@ -341,7 +341,7 @@ export function StylingScreen({
         });
         applyRun(response);
         if (response.state.recommendation_sets.length > 0) {
-          speech.speak("Here's another take. Tap one to try it on.");
+          speech.speak("换了一版，选一套试穿。");
         }
       } finally {
         finishTools();
@@ -358,7 +358,7 @@ export function StylingScreen({
         face_profile_consent: false
       });
       applyRun(response);
-      speech.speak("Reserved. I'll have it brought to your fitting room.");
+      speech.speak("已预留，给你送到试衣间。");
       onComplete();
     });
   }
@@ -387,8 +387,8 @@ export function StylingScreen({
       /* storage unavailable — selection still applies for this session */
     }
   }
-  const speech = useSpeech("en-US");
-  const stt = useSpeechRecognition({ lang: "en-US", continuous: true });
+  const speech = useSpeech("zh-CN");
+  const stt = useSpeechRecognition({ lang: "zh-CN", continuous: true });
 
   // Voice-first: a tap (or gesture) starts listening; the next one stops and
   // submits what was heard. No big form — just the mirror and your voice.
