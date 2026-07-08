@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { loadGestureRecognizer } from "./gesture";
 
-// Hands-free selection by FINGER COUNT (far more robust than a free cursor on a
-// narrow webcam): hold up 1 / 2 / 3 fingers to arm the matching look, hold it
-// steady for `dwellMs` to pick it. 👍 confirms/advances, ✋ goes back. Finger
-// count is derived from the hand landmarks directly (the built-in categories
-// don't reliably distinguish 1/2/3); 👍/✋ use the built-in gesture labels.
+// Hands-free control. Finger count 1/2/3 arms the matching look (held steady for
+// `dwellMs`); the built-in gesture labels drive the rest — consistently, one
+// gesture = one meaning everywhere:
+//   ✋ Open_Palm  → "talk"    (start / stop voice)
+//   👍 Thumb_Up   → "confirm" (try on / choose / reserve)
+//   ✊ Closed_Fist → "back"    (leave try-on / cancel)
+// Finger count is derived from the landmarks directly (the categories don't
+// reliably tell 1/2/3 apart).
 
-export type GestureAction = "confirm" | "back";
+export type GestureAction = "confirm" | "back" | "talk";
 
 interface Options {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -114,12 +117,20 @@ export function useGestureControl({
         setHandPresent(true);
       }
 
-      // 👍 / ✋ take priority and reset any arming.
+      // ✋ / 👍 / ✊ take priority and reset any arming.
       const label = result.gestures?.[0]?.[0]?.categoryName ?? "None";
-      if (now > cooldownUntil && (label === "Thumb_Up" || label === "Open_Palm")) {
+      const action: GestureAction | null =
+        label === "Thumb_Up"
+          ? "confirm"
+          : label === "Open_Palm"
+            ? "talk"
+            : label === "Closed_Fist"
+              ? "back"
+              : null;
+      if (action && now > cooldownUntil) {
         cooldownUntil = now + 1500;
         clearArm();
-        onGestureRef.current(label === "Thumb_Up" ? "confirm" : "back");
+        onGestureRef.current(action);
         return;
       }
 

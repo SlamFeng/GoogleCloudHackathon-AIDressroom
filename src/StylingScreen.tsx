@@ -128,7 +128,7 @@ export function StylingScreen({
   // "cover" fills the frame (immersive, crops the sides); "contain" shows the
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
-  const [gestureOn, setGestureOn] = useState(false);
+  const [gestureOn, setGestureOn] = useState(true);
   // Chosen camera (e.g. an iPhone via Continuity Camera). Remembered per device.
   const [camId, setCamId] = useState<string | undefined>(() => {
     try {
@@ -417,8 +417,13 @@ export function StylingScreen({
       if (set) setSelectedSetId(set.set_id);
     },
     onGesture: (action) => {
+      if (action === "talk") {
+        // ✋ = talk, in every context (starts a restyle when looks are up).
+        if (busyAction === null) toggleVoice();
+        return;
+      }
       if (action === "confirm") {
-        // Advance the current step: try-on → choose it; confirm card → reserve.
+        // 👍 = yes / next: try on the active look → choose → reserve.
         if (tryonActive) {
           setShowConfirm(true);
           handleStop();
@@ -427,13 +432,11 @@ export function StylingScreen({
         } else if (selectedSet && busyAction === null) {
           handlePreview(selectedSet);
         }
-      } else {
-        // "back" (✋): leave try-on, close the confirm card, or — when idle —
-        // start / stop voice input.
-        if (tryonActive) handleStop();
-        else if (showConfirm) setShowConfirm(false);
-        else if (recommendationSets.length === 0 && busyAction === null) toggleVoice();
+        return;
       }
+      // ✊ = back / cancel.
+      if (tryonActive) handleStop();
+      else if (showConfirm) setShowConfirm(false);
     }
   });
 
@@ -715,7 +718,7 @@ export function StylingScreen({
             )}
 
             <div className="mirror-hint-line">
-              {gestureOn ? "Hold up 1 · 2 · 3 to switch · 👍 try on" : "Tap a number to switch looks"}
+              {gestureOn ? "1·2·3 switch · 👍 try on · ✊ back · ✋ talk" : "Tap a number to switch looks"}
             </div>
           </div>
         )}
