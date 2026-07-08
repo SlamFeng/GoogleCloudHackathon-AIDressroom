@@ -4,6 +4,38 @@ Status: minimum demo path for hackathon judging.
 
 Goal: prove that the project is an Agent-centered inventory + sales workflow, not just an image generation demo.
 
+## 0. Pre-flight checklist (before you present)
+
+Hardware
+
+- [ ] **Wide camera.** A laptop webcam cannot fit a full body at desk distance. Use an **iPhone as webcam (Continuity Camera)** or an external wide-angle USB cam, mounted above a large / portrait screen, and stand ~2–3 m back. Tap **⤢ Fit view** to show the whole camera frame.
+- [ ] Screen mirrored to a TV / large display is fine.
+
+Browser & permissions
+
+- [ ] Use **Chrome or Edge** — best SpeechRecognition (STT) + gesture support. Safari STT is flaky.
+- [ ] Allow **camera** and **microphone** when prompted (mirror, voice, and gestures need them).
+- [ ] Serve over **https or localhost** — `getUserMedia` requires a secure context.
+
+Env / services (all degrade gracefully — nothing here dead-ends the demo)
+
+- [ ] `GEMINI_API_KEY` set → live OOTD analysis, LLM stylist, background try-on render. Without it everything falls back to deterministic mocks.
+- [ ] `DECART_API_KEY` set → real Lucy realtime try-on. Without it the try-on shows the 15s placeholder window over the live mirror.
+- [ ] `npm run setup:assets` has fetched the MediaPipe pose + gesture models.
+
+## 0b. Magic-mirror walkthrough (customer touchpoint)
+
+Hands-free where possible; touch is always available in parallel.
+
+1. **Step in** → the mirror shows your live reflection (`● Camera on · nothing is saved`).
+2. **Say the need** — tap 🎤 and speak ("something for a date"), tap a preset (Date / Work / Party / Casual / Vacation), or type. The agent replies out loud (fast on-device TTS).
+3. **Three looks** appear as glass cards over the reflection — each grounded in real in-stock inventory, composed by the LLM stylist.
+4. **Pick one** — hands-free: turn on **✋ Gestures**, then hold up **1 / 2 / 3 fingers** for that look (~0.7s). Or just tap.
+5. **Try-on** goes full-screen with a 15s progress bar; the "you wearing it" image renders in the background and reveals when ready, then the layer drops back to the mirror. (With a Decart key this is Lucy realtime instead.)
+6. **Confirm** — 👍 (or tap **Choose this**) → reserve; the agent voices "Reserved…".
+
+Touch, voice, and gestures are interchangeable at every step; if one fails, the others still work.
+
 ## 1. Demo Claim
 
 ```text
