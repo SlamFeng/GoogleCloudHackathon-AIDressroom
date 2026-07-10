@@ -27,6 +27,7 @@ import {
   type StyleTag
 } from "../inventory/types.js";
 import { composeOutfitSets, type StylistCandidate } from "./stylist.js";
+import { readTrends, currentSeason, type TrendResult } from "./trends.js";
 
 export class ToolCallLog {
   readonly calls: ToolCallRecord[] = [];
@@ -71,6 +72,7 @@ export class MockAgentTools {
     current_style: string[];
     current_colors?: string[];
     gender?: string;
+    age_range?: string;
     constraints: AgentConstraints;
     round: number;
   }): Promise<RecommendationResponse> {
@@ -79,20 +81,37 @@ export class MockAgentTools {
     );
     const preferences = extractPreferences(input.constraints);
 
+    // Live Google-Search trend signal, folded into the styling preferences so it
+    // biases both the shortlist and the LLM stylist toward what is trending now.
+    const trends = await this.getTrendingStyles({
+      session_id: input.session_id,
+      occasion: preferences.occasion,
+      gender: input.gender,
+      age_range: input.age_range
+    });
+    const trendedPreferences = {
+      ...preferences,
+      styles: unique([...preferences.styles, ...((trends?.trend_styles ?? []) as StyleTag[])]),
+      colors: unique([...preferences.colors, ...((trends?.trend_colors ?? []) as StandardColor[])])
+    };
+
     // Two-stage selection: first a fast deterministic shortlist (top few per
     // slot), then the LLM only composes coherent looks from that small set —
     // small prompt, low latency. Falls back to the deterministic scorer when
     // there's no key / it times out / the result is invalid.
-    const shortlist = buildStylistShortlist(candidates, preferences, input.current_style);
+    const shortlist = buildStylistShortlist(candidates, trendedPreferences, input.current_style);
     const composed = await composeOutfitSets(shortlist.map(toStylistCandidate), {
       requestedTypes: input.requested_types,
       matchedBodyTemplateId: input.matched_body_template_id,
       currentStyle: input.current_style,
       currentColors: input.current_colors ?? [],
-      preferredStyles: preferences.styles,
-      preferredColors: preferences.colors,
+      preferredStyles: trendedPreferences.styles,
+      preferredColors: trendedPreferences.colors,
       occasion: preferences.occasion,
-      budgetYen: input.constraints.budget_yen
+      budgetYen: input.constraints.budget_yen,
+      trendingCategories: trends?.trend_categories,
+      trendingStyles: trends?.trend_styles,
+      trendingColors: trends?.trend_colors
     });
 
     let styledBy: "llm" | "heuristic" = "heuristic";
@@ -155,6 +174,7 @@ export class MockAgentTools {
     current_style: string[];
     current_colors?: string[];
     gender?: string;
+    age_range?: string;
     constraints: AgentConstraints;
     round: number;
   }): Promise<RecommendationResponse> {
@@ -172,6 +192,7 @@ export class MockAgentTools {
       current_style: input.current_style,
       current_colors: input.current_colors,
       gender: input.gender,
+      age_range: input.age_range,
       constraints: input.constraints,
       round: input.round
     });
@@ -195,6 +216,58 @@ export class MockAgentTools {
       { count: products.length, product_ids: products.map((p) => p.product_id) }
     );
     return products;
+  }
+
+  /**
+   * Live "what's trending now" signal via Gemini + Google Search grounding.
+   * Logged as `get_trending_styles` so the tool trace proves Google Search was
+   * actually used (and whether this turn hit a fresh search or the daily cache).
+   */
+  /**
+   * Cache-only trend read for the recommendation path — NEVER runs a live search
+   * (that happens once at profile time via prewarmTrends). Reads the prefetched
+   * base bucket for this demographic; the LLM stylist combines it with the live
+   * occasion. Returns null (and the turn stays trend-agnostic) if prefetch hasn't
+   * landed yet — keeping every turn fast.
+   */
+  async getTrendingStyles(input: {
+    session_id: string;
+    occasion?: string;
+    gender?: string;
+    age_range?: string;
+  }): Promise<TrendResult | null> {
+    const now = new Date();
+    const base = {
+      occasion: undefined,
+      gender: input.gender,
+      ageRange: input.age_range,
+      region: process.env.STORE_REGION ?? "Japan",
+      season: currentSeason(now.getMonth() + 1)
+    };
+    const result = readTrends({ ...base, occasion: input.occasion }, now) ?? readTrends(base, now);
+    this.log.append(
+      "get_trending_styles",
+      {
+        session_id: input.session_id,
+        source: "cache",
+        region: base.region,
+        season: base.season,
+        occasion: input.occasion ?? null,
+        gender: input.gender ?? null
+      },
+      result
+        ? {
+            used_google_search: true,
+            from_cache: true,
+            sources: result.source_count,
+            trend_categories: result.trend_categories,
+            trend_styles: result.trend_styles,
+            trend_colors: result.trend_colors,
+            summary: result.summary.slice(0, 160)
+          }
+        : { used_google_search: false, reason: "prefetch_not_ready" }
+    );
+    return result;
   }
 
   /** Reserve one unit (first available size) of every product in a set. Logged as `reserve_items`. */

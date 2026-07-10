@@ -11,6 +11,7 @@ import {
 import { AgentAdkRuntime, redactSensitive, serializeAdkRun } from "./adk-runtime.js";
 import { AgentSessionStore } from "./session-store.js";
 import { logAgentTurn } from "./logger.js";
+import { warmTrends, currentSeason } from "./trends.js";
 import type { AgentState } from "./state.js";
 
 const router = Router();
@@ -136,6 +137,25 @@ router.post("/sessions/:sessionId/purchase", async (request, response) => {
   await runAdkCommand(request.params.sessionId, "purchase", request.body ?? {}, requestOrigin(request), response);
 });
 
+// Fire the (slow) grounded Google trend search ONCE, in the background, as soon
+// as the customer submits their profile — so later recommendation turns read it
+// from cache and never wait on a live search.
+router.post("/prewarm-trends", (request, response) => {
+  const gender = typeof request.body?.gender === "string" ? request.body.gender : undefined;
+  const ageRange = typeof request.body?.age_range === "string" ? request.body.age_range : undefined;
+  const now = new Date();
+  void warmTrends(
+    {
+      gender,
+      ageRange,
+      region: process.env.STORE_REGION ?? "Japan",
+      season: currentSeason(now.getMonth() + 1)
+    },
+    now
+  ).catch(() => {});
+  response.status(202).json({ status: "warming" });
+});
+
 router.get("/tool-calls", (_request, response) => {
   response.json({
     tool_calls: Array.from(sessions.values()).flatMap((state) =>
@@ -169,13 +189,20 @@ async function runAdkCommand(
     const run = await runtime.run(adkSessionId, { action, payload, requestContext: { origin } });
     rememberRun(run.result.state.session_id, adkSessionId, run.result.state, run.result.output);
     const state = run.result.state;
+    const output = run.result.output as { type?: string; message?: string };
+    const inputText =
+      action === "chat" && payload && typeof payload === "object"
+        ? String((payload as { text?: unknown }).text ?? "").slice(0, 160)
+        : undefined;
     logAgentTurn({
       event: "agent_turn",
       session_id: state.session_id,
       action,
+      input_text: inputText,
+      output_message: typeof output?.message === "string" ? output.message : undefined,
       route: state.route,
       status: state.status,
-      output_type: (run.result.output as { type?: string })?.type,
+      output_type: output?.type,
       recommendation_round: state.recommendation_round,
       tool_calls: state.tool_calls.length,
       latency_ms: Date.now() - startedAt,

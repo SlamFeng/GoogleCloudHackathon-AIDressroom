@@ -28,6 +28,12 @@ export interface StylistContext {
   preferredColors: string[];
   occasion?: string;
   budgetYen?: number;
+  // Live "what's trending now" signal from a real Google web search. These are
+  // preferences to bias toward WHERE STOCK ALLOWS — never a hard filter, and
+  // never a specific external item (only tags matched against real inventory).
+  trendingCategories?: string[];
+  trendingStyles?: string[];
+  trendingColors?: string[];
 }
 
 export interface StylistSet {
@@ -83,6 +89,7 @@ function buildPrompt(candidates: StylistCandidate[], ctx: StylistContext) {
     `- Current outfit style: ${ctx.currentStyle.join(", ") || "unknown"}; current colours: ${ctx.currentColors.join(", ") || "unknown"}.`,
     `- Occasion: ${ctx.occasion ?? "unspecified"}. Prefers styles: ${ctx.preferredStyles.join(", ") || "none"}; colours: ${ctx.preferredColors.join(", ") || "none"}.`,
     ctx.budgetYen ? `- Budget: keep each outfit's total at or under ¥${ctx.budgetYen}.` : "- Budget: no hard limit.",
+    trendLine(ctx),
     "",
     "Each outfit is ONE coherent look: a top and a bottom (or a single dress/one_piece instead of top+bottom), shoes, and outerwear only if it suits. Coordinate colour harmony and style consistency ACROSS the pieces, fit the body template, and suit the occasion.",
     "",
@@ -105,6 +112,18 @@ function buildPrompt(candidates: StylistCandidate[], ctx: StylistContext) {
       }))
     )
   ].join("\n");
+}
+
+function trendLine(ctx: StylistContext): string {
+  const parts: string[] = [];
+  if (ctx.trendingCategories?.length) parts.push(`categories ${ctx.trendingCategories.join(", ")}`);
+  if (ctx.trendingStyles?.length) parts.push(`styles ${ctx.trendingStyles.join(", ")}`);
+  if (ctx.trendingColors?.length) parts.push(`colours ${ctx.trendingColors.join(", ")}`);
+  if (parts.length === 0) return "";
+  return (
+    `- Trending right now (from a live Google web search): ${parts.join("; ")}. ` +
+    "Lean toward these where a matching in-stock item suits the customer — but never sacrifice fit, occasion, coherence or budget, and only ever pick from the in-stock list."
+  );
 }
 
 function schema() {
