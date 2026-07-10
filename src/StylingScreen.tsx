@@ -45,7 +45,7 @@ const LINE_ON_YOU = "看看你穿上的样子。";
 const LINE_RESTYLED = "换了一版，选一套试穿。";
 const LINE_RESERVED = "已预留，给你送到试衣间。";
 // Spoken when the customer smiles at their try-on reflection (expression → TTS).
-const LINE_COMPLIMENT = "哎，你穿这套真好看！";
+const LINE_COMPLIMENT = "哎呀，你好像很开心！看来这套很适合你～";
 const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED, LINE_COMPLIMENT];
 
 // Each "thinking" step stays on screen at least this long, so even a fast
@@ -158,8 +158,11 @@ export function StylingScreen({
   const [tryonOpen, setTryonOpen] = useState(false);
   const [tryonImage, setTryonImage] = useState<string | null>(null);
   const [tryonGenerating, setTryonGenerating] = useState(false);
-  const [petMessage, setPetMessage] = useState<string | undefined>(undefined);
+  const [petMessage, setPetMessage] = useState<string | undefined>(
+    "你好呀～跟我说说你想去的场合或想要的风格！"
+  );
   const [petMood, setPetMood] = useState<PetMood>("idle");
+  const [petLeaving, setPetLeaving] = useState(false);
   const tryonTimerRef = useRef<number | null>(null);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
@@ -203,15 +206,18 @@ export function StylingScreen({
     });
   }
 
-  function finishTools() {
+  function finishTools(onDone?: () => void) {
     // Keep the steps on screen for a minimum time so a fast (cached) response
     // still visibly walks through each step instead of snapping straight to done.
+    // `onDone` (e.g. the spoken reply) fires only once the steps complete, so the
+    // agent never talks while the loading animation is still running.
     const minTotal = toolStepsRef.current * TOOL_STEP_MS;
     const wait = Math.max(0, minTotal - (performance.now() - toolStartRef.current));
     const doneId = window.setTimeout(() => {
       setToolPhase((current) =>
         current ? { labels: current.labels, runningIndex: current.labels.length } : null
       );
+      onDone?.();
       const clearId = window.setTimeout(() => setToolPhase(null), 700);
       toolTimersRef.current.push(clearId);
     }, wait);
@@ -268,17 +274,27 @@ export function StylingScreen({
         "匹配店内现货…",
         "为你搭配三套…"
       ]);
+      setPetMessage("收到！让我找找…");
+      let line: string | undefined;
       try {
         const sessionId = await ensureAgentSession();
         const response = await sendAgentChat(sessionId, text);
         applyRun(response);
         setShowConfirm(false);
-        const count = response.state.recommendation_sets.length;
-        if (count > 0) {
-          speech.speak((response.output as { message?: string }).message ?? LINE_LOOKS_READY);
+        if (response.state.recommendation_sets.length > 0) {
+          line = (response.output as { message?: string }).message ?? LINE_LOOKS_READY;
         }
       } finally {
-        finishTools();
+        // The pet announces the result only after the steps finish animating.
+        const spoken = line;
+        finishTools(
+          spoken
+            ? () => {
+                setPetMessage(spoken);
+                speech.speak(spoken);
+              }
+            : undefined
+        );
       }
     });
   }
@@ -363,7 +379,9 @@ export function StylingScreen({
   function handleFeedback(action: (typeof feedbackActions)[number]) {
     void execute(`feedback_${action.dimension}`, async () => {
       if (!agentSessionId || !selectedSet) return;
-      runTools(["Updating your look", "Re-checking stock"]);
+      runTools(["更新你的偏好…", "重新检查现货…", "调整搭配…"]);
+      setPetMessage("明白，我再调整一下…");
+      let line: string | undefined;
       try {
         const response = await sendAgentFeedback(agentSessionId, {
           set_id: selectedSet.set_id,
@@ -373,11 +391,17 @@ export function StylingScreen({
           raw_voice_text: action.voice
         });
         applyRun(response);
-        if (response.state.recommendation_sets.length > 0) {
-          speech.speak(LINE_RESTYLED);
-        }
+        if (response.state.recommendation_sets.length > 0) line = LINE_RESTYLED;
       } finally {
-        finishTools();
+        const spoken = line;
+        finishTools(
+          spoken
+            ? () => {
+                setPetMessage(spoken);
+                speech.speak(spoken);
+              }
+            : undefined
+        );
       }
     });
   }
@@ -392,7 +416,11 @@ export function StylingScreen({
       });
       applyRun(response);
       speech.speak(LINE_RESERVED);
-      onComplete();
+      // Farewell: the pet waves off with its exit animation before the screen
+      // moves on (purchase complete = the pet's cue to leave).
+      setPetMessage(LINE_RESERVED);
+      setPetLeaving(true);
+      window.setTimeout(onComplete, 520);
     });
   }
 
@@ -435,6 +463,7 @@ export function StylingScreen({
       }
     } else {
       speech.warm();
+      setPetMessage("我在听，请说～");
       stt.start();
     }
   }
@@ -489,11 +518,24 @@ export function StylingScreen({
     }
   });
 
-  // The pet greets when the try-on opens; mood follows speech unless it's mid-cheer.
+  // The pet greets when the try-on opens.
   useEffect(() => {
     if (tryonActive) setPetMessage("来，看看你穿上这套的样子～");
   }, [tryonActive]);
-  const petMoodShown: PetMood = petMood === "happy" ? "happy" : speech.speaking ? "talking" : "idle";
+
+  // Pet mood follows what's actually happening: a cheer wins, then "listening"
+  // while the mic is open, "working" while the tool steps animate, "talking"
+  // while the voice is speaking, otherwise idle.
+  const petMoodShown: PetMood =
+    petMood === "happy"
+      ? "happy"
+      : stt.listening
+        ? "listening"
+        : working
+          ? "working"
+          : speech.speaking
+            ? "talking"
+            : "idle";
 
   // Warm the Gemini voice cache for the fixed lines — but a few seconds in, so
   // the TTS calls don't contend with the customer's first styling request.
@@ -504,8 +546,9 @@ export function StylingScreen({
 
   return (
     <section className="mirror-shell" aria-label="Styling recommendations">
-      {/* Shopping-guide pet — only during the realtime try-on. */}
-      <GuidePet visible={tryonActive} message={petMessage} mood={petMoodShown} />
+      {/* Shopping-guide pet — present for the whole realtime mirror session;
+          waves off (exit animation) once the purchase is confirmed. */}
+      <GuidePet visible={!petLeaving} message={petMessage} mood={petMoodShown} />
       {/* Always-on reflection — the customer sees themselves the whole time. */}
       <video
         className="mirror-feed"
