@@ -47,7 +47,7 @@ export function GuidePet({
       style={{
         position: "absolute",
         right: 20,
-        bottom: 20,
+        top: "34%",
         zIndex: 40,
         display: "flex",
         flexDirection: "column",

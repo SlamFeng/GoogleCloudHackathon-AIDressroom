@@ -48,6 +48,10 @@ const LINE_RESERVED = "已预留，给你送到试衣间。";
 const LINE_COMPLIMENT = "哎，你穿这套真好看！";
 const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED, LINE_COMPLIMENT];
 
+// Each "thinking" step stays on screen at least this long, so even a fast
+// (cache-hit) turn visibly walks step-by-step instead of snapping to done.
+const TOOL_STEP_MS = 850;
+
 // --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
 const feedbackActions: Array<{
   label: string;
@@ -159,6 +163,8 @@ export function StylingScreen({
   const tryonTimerRef = useRef<number | null>(null);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
+  const toolStartRef = useRef(0);
+  const toolStepsRef = useRef(0);
 
   const agentSessionId = run?.state.session_id ?? null;
   const recommendationSets = run?.state.recommendation_sets ?? [];
@@ -181,6 +187,8 @@ export function StylingScreen({
   function runTools(labels: string[]) {
     toolTimersRef.current.forEach((id) => window.clearTimeout(id));
     toolTimersRef.current = [];
+    toolStartRef.current = performance.now();
+    toolStepsRef.current = labels.length;
     setToolPhase({ labels, runningIndex: 0 });
     labels.forEach((_, index) => {
       if (index === 0) return;
@@ -190,20 +198,24 @@ export function StylingScreen({
             ? { labels, runningIndex: Math.min(index, labels.length - 1) }
             : current
         );
-      }, index * 650);
+      }, index * TOOL_STEP_MS);
       toolTimersRef.current.push(id);
     });
   }
 
   function finishTools() {
-    toolTimersRef.current.forEach((id) => window.clearTimeout(id));
-    toolTimersRef.current = [];
-    setToolPhase((current) =>
-      current ? { labels: current.labels, runningIndex: current.labels.length } : null
-    );
-    // Let the last "done" flash read, then clear.
-    const id = window.setTimeout(() => setToolPhase(null), 700);
-    toolTimersRef.current.push(id);
+    // Keep the steps on screen for a minimum time so a fast (cached) response
+    // still visibly walks through each step instead of snapping straight to done.
+    const minTotal = toolStepsRef.current * TOOL_STEP_MS;
+    const wait = Math.max(0, minTotal - (performance.now() - toolStartRef.current));
+    const doneId = window.setTimeout(() => {
+      setToolPhase((current) =>
+        current ? { labels: current.labels, runningIndex: current.labels.length } : null
+      );
+      const clearId = window.setTimeout(() => setToolPhase(null), 700);
+      toolTimersRef.current.push(clearId);
+    }, wait);
+    toolTimersRef.current.push(doneId);
   }
 
   async function execute(label: string, action: () => Promise<void>) {
@@ -251,10 +263,10 @@ export function StylingScreen({
     speech.warm();
     void execute("recommend", async () => {
       runTools([
-        "Reading your body template",
-        "🔎 Checking what's trending now · Google Search",
-        "Matching in-stock looks",
-        "Styling three looks for you"
+        "正在听取你的需求…",
+        "🔎 正在用 Google 搜索当季流行…",
+        "匹配店内现货…",
+        "为你搭配三套…"
       ]);
       try {
         const sessionId = await ensureAgentSession();
@@ -262,7 +274,9 @@ export function StylingScreen({
         applyRun(response);
         setShowConfirm(false);
         const count = response.state.recommendation_sets.length;
-        if (count > 0) speech.speak(LINE_LOOKS_READY);
+        if (count > 0) {
+          speech.speak((response.output as { message?: string }).message ?? LINE_LOOKS_READY);
+        }
       } finally {
         finishTools();
       }
