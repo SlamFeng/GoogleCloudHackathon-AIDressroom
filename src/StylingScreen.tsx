@@ -52,6 +52,16 @@ const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED
 // (cache-hit) turn visibly walks step-by-step instead of snapping to done.
 const TOOL_STEP_MS = 850;
 
+// Pull the customer's own occasion phrase ("明天要参加朋友的婚礼") out of what they
+// just said, so the agent can acknowledge it in their words immediately — before
+// the backend even responds. Regex, not a lookup table.
+function echoRequest(text: string): string | undefined {
+  const m = text.match(
+    /((?:今天|明天|后天|这周末|周末|下周)?[要想]?(?:去|参加|上))((?:[一-龥]{1,4}的)?[一-龥]{1,6}?)(?=[了，。！？、\s吗呢啊]|穿|想|要|能|有|帮|给|$)/
+  );
+  return m ? `${m[1]}${m[2]}` : undefined;
+}
+
 // --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
 const feedbackActions: Array<{
   label: string;
@@ -274,7 +284,12 @@ export function StylingScreen({
         "匹配店内现货…",
         "为你搭配三套…"
       ]);
-      setPetMessage("收到！让我找找…");
+      // Phase 1 — acknowledge in the customer's own words the moment they finish
+      // speaking, while the steps run: "啊，明天要参加朋友的婚礼是吗？…"
+      const echo = echoRequest(text);
+      const ack = echo ? `啊，${echo}是吗？正在为你挑选合适的搭配…` : "好的，正在为你挑选合适的搭配…";
+      setPetMessage(ack);
+      speech.speak(ack);
       let line: string | undefined;
       try {
         const sessionId = await ensureAgentSession();

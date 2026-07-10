@@ -479,23 +479,18 @@ export class AgentWorkflow {
   }
 }
 
-// Echo the customer's own words instead of a hardcoded occasion table: pull a
-// short "(要)去 / 参加 / 上 …" phrase straight from their message, stopping at the
-// next particle so it doesn't over-match.
-function occasionEcho(raw: string): string | undefined {
-  const m = raw.match(/(要?去|参加|上)([一-龥]{2,4}?)(?=[的了，。！？、\s穿玩时想要能有请帮给吗呢啊]|$)/);
-  return m ? `${m[1]}${m[2]}` : undefined;
-}
-
-/** A spoken acknowledgement that echoes the customer's actual request + whether trends were used. */
+/**
+ * Completion line, spoken when the looks are ready. The frontend already
+ * acknowledged the request in the customer's own words ("啊，…是吗？正在挑选…"),
+ * so this just reports the outcome — and credits the live trend search when it
+ * actually contributed.
+ */
 function buildRecoMessage(state: AgentState, response: RecommendationResponse): string {
-  const echo = occasionEcho(state.user_need?.raw_text ?? "");
   const trendUsed = state.tool_calls.some(
     (call) => call.tool === "get_trending_styles" && (call.output as { used_google_search?: boolean }).used_google_search
   );
-  const lead = echo ? `你${echo}对吧？` : "";
   const trend = trendUsed ? "结合当季流行趋势，" : "";
-  return `${lead}OK，${trend}帮你挑了${response.sets.length}套现货，选一套试穿吧。`;
+  return `已经挑选好了！${trend}这${response.sets.length}套都是现货，选一套试穿吧。`;
 }
 
 function addRecommendationResponse(state: AgentState, response: RecommendationResponse) {
