@@ -321,6 +321,25 @@ export function StylingScreen({
     }
   }
 
+  // Grab a still frame from the live mirror to stand in for an OOTD photo, so the
+  // "you wearing this look" render has a picture of the customer even though we
+  // no longer capture one up front.
+  function captureMirrorFrame(): string | null {
+    const video = mirror.videoRef.current;
+    if (!video || video.readyState < 2 || !video.videoWidth) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      return canvas.toDataURL("image/jpeg", 0.85);
+    } catch {
+      return null;
+    }
+  }
+
   // Placeholder try-on: open a 15s window (a progress bar counts it down) while
   // the "you wearing this look" image renders in the background; when the window
   // elapses, drop the try-on layer and fall back to the plain mirror.
@@ -330,10 +349,11 @@ export function StylingScreen({
     setTryonOpen(true);
     tryonTimerRef.current = window.setTimeout(() => handleStop(), TRYON_WINDOW_MS);
 
-    if (captureDataUrl) {
+    const personImage = captureMirrorFrame() ?? captureDataUrl;
+    if (personImage) {
       setTryonGenerating(true);
       generateTryonImage(
-        captureDataUrl,
+        personImage,
         set.products.map((product) => product.product_id),
         set.reason
       )
@@ -625,18 +645,8 @@ export function StylingScreen({
               />
             ) : (
               <div className="mirror-tryon-mock">
-                <strong>
-                  {tryonGenerating
-                    ? "Styling you into this look…"
-                    : captureDataUrl
-                      ? "Rendering your try-on…"
-                      : "Realtime try-on isn't set up on this mirror"}
-                </strong>
-                <span>
-                  {captureDataUrl
-                    ? "You're on the live mirror while we render you wearing it."
-                    : "You're looking at the live mirror — connect Lucy to see the outfit on you."}
-                </span>
+                <strong>{tryonGenerating ? "正在把这套穿到你身上…" : "正在生成试穿效果…"}</strong>
+                <span>你正看着实时镜面，稍等就能看到自己穿上的样子。</span>
               </div>
             ))}
           {/* 15s window progress bar; on elapse the layer auto-dismisses. */}

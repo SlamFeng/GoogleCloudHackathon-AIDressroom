@@ -76,7 +76,7 @@ const translations = {
         neutral: "Neutral / Not specified"
       },
       age: "Age range",
-      continue: "Ready to capture"
+      continue: "Start styling"
     },
     capture: {
       step: "STEP 03 · CAPTURE",
@@ -239,7 +239,7 @@ const translations = {
         neutral: "中性 / 不限定"
       },
       age: "年龄段",
-      continue: "准备拍摄"
+      continue: "开始搭配"
     },
     capture: {
       step: "STEP 03 · CAPTURE",
@@ -395,7 +395,7 @@ const translations = {
         neutral: "中性的 / 指定しない"
       },
       age: "年齢層",
-      continue: "撮影へ進む"
+      continue: "スタイリング開始"
     },
     capture: {
       step: "STEP 03 · CAPTURE",
@@ -510,16 +510,9 @@ const initialProfile: ManualProfile = {
   age_range: "26-35"
 };
 
-const stepOrder: AppStep[] = [
-  "welcome",
-  "consent",
-  "profile",
-  "capture",
-  "analyzing",
-  "review",
-  "styling",
-  "complete"
-];
+// OOTD capture/analyzing/review are removed from the live flow — profile goes
+// straight to the mirror. (Those step components still exist but are unreachable.)
+const stepOrder: AppStep[] = ["welcome", "consent", "profile", "styling", "complete"];
 
 function App() {
   const [language, setLanguage] = useState<Language>("en");
@@ -584,15 +577,15 @@ function App() {
     }
   }
 
-  // Dev shortcut: skip capture/OOTD/review and jump straight to recommendation +
-  // try-on. Runs a deterministic mock analysis (no camera, no Gemini key) just to
-  // get a schema-valid `analysis` object for the styling screen.
+  // Profile → mirror: no OOTD photo/analysis/review. A deterministic mock
+  // analysis turns the manual profile (gender/age/height/weight) into a
+  // schema-valid `analysis` for the styling screen; the try-on later grabs a
+  // live frame from the mirror instead of an OOTD capture.
   async function skipToStyling() {
-    const SKIP_IMAGE =
+    const PLACEHOLDER_IMAGE =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
     setError(null);
-    // Skipping bypasses the profile "next" that normally kicks off the trend
-    // search — fire it here too so trends still prewarm.
+    // Kick off the background trend search from the profile just entered.
     void prewarmTrends(manualProfile.gender_presentation, manualProfile.age_range);
     try {
       let sid = sessionId;
@@ -601,8 +594,8 @@ function App() {
         sid = session.session_id;
         setSessionId(sid);
       }
-      const result = await analyzeCapture(sid, manualProfile, SKIP_IMAGE, "mock");
-      setCaptureDataUrl(SKIP_IMAGE);
+      const result = await analyzeCapture(sid, manualProfile, PLACEHOLDER_IMAGE, "mock");
+      setCaptureDataUrl(null); // no OOTD photo — the try-on uses a live mirror frame
       setAnalysis(result);
       setStep("styling");
     } catch (requestError) {
@@ -676,12 +669,7 @@ function App() {
             value={manualProfile}
             onChange={setManualProfile}
             onBack={() => setStep("consent")}
-            onContinue={() => {
-              // Kick off the background trend search now, from the profile the
-              // customer just entered — so it's cached before they start styling.
-              void prewarmTrends(manualProfile.gender_presentation, manualProfile.age_range);
-              setStep("capture");
-            }}
+            onContinue={() => void skipToStyling()}
           />
         )}
         {step === "capture" && (
@@ -714,7 +702,7 @@ function App() {
             analysis={analysis}
             copy={copy}
             captureDataUrl={captureDataUrl}
-            onBack={() => setStep("review")}
+            onBack={() => setStep("profile")}
             onComplete={() => setStep("complete")}
           />
         )}
