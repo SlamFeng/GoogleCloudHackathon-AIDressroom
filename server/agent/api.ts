@@ -144,15 +144,18 @@ router.post("/prewarm-trends", (request, response) => {
   const gender = typeof request.body?.gender === "string" ? request.body.gender : undefined;
   const ageRange = typeof request.body?.age_range === "string" ? request.body.age_range : undefined;
   const now = new Date();
-  void warmTrends(
-    {
-      gender,
-      ageRange,
-      region: process.env.STORE_REGION ?? "Japan",
-      season: currentSeason(now.getMonth() + 1)
-    },
-    now
-  ).catch(() => {});
+  const season = currentSeason(now.getMonth() + 1);
+  const startedAt = Date.now();
+  logAgentTurn({ event: "trends_prewarm_start", status: `${gender ?? "any"}/${ageRange ?? "any"}/${season}` });
+  void warmTrends({ gender, ageRange, region: process.env.STORE_REGION ?? "Japan", season }, now)
+    .then((result) =>
+      logAgentTurn({
+        event: "trends_prewarm_done",
+        status: result ? `styles=${result.trend_styles.join(",")}` : "empty",
+        latency_ms: Date.now() - startedAt
+      })
+    )
+    .catch(() => {});
   response.status(202).json({ status: "warming" });
 });
 

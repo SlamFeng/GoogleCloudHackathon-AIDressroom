@@ -218,17 +218,32 @@ export async function createSession(): Promise<{ session_id: string }> {
   return request("/api/sessions", { method: "POST", body: "{}" });
 }
 
+// Fire-and-forget: kick off the background Google trend search the moment the
+// customer submits their profile, so later recommendations read it from cache.
+export async function prewarmTrends(gender: string, ageRange: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/agent/prewarm-trends`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gender, age_range: ageRange })
+    });
+  } catch {
+    // A failed prewarm just means the first turn may be trend-agnostic.
+  }
+}
+
 export async function analyzeCapture(
   sessionId: string,
   manualProfile: ManualProfile,
-  captureDataUrl: string
+  captureDataUrl: string,
+  mode: string = ANALYSIS_MODE
 ): Promise<AnalysisHandoff> {
   return request(`/api/sessions/${sessionId}/analyses`, {
     method: "POST",
     body: JSON.stringify({
       manual_profile: manualProfile,
       capture_data_url: captureDataUrl,
-      analysis_mode: ANALYSIS_MODE
+      analysis_mode: mode
     })
   });
 }

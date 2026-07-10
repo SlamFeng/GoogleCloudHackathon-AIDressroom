@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./design/screens/mirror.css";
-import { analyzeCapture, confirmAnalysis, createSession } from "./api";
+import { analyzeCapture, confirmAnalysis, createSession, prewarmTrends } from "./api";
 import { StylingScreen } from "./StylingScreen";
 import type {
   AnalysisHandoff,
@@ -584,6 +584,32 @@ function App() {
     }
   }
 
+  // Dev shortcut: skip capture/OOTD/review and jump straight to recommendation +
+  // try-on. Runs a deterministic mock analysis (no camera, no Gemini key) just to
+  // get a schema-valid `analysis` object for the styling screen.
+  async function skipToStyling() {
+    const SKIP_IMAGE =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+    setError(null);
+    // Skipping bypasses the profile "next" that normally kicks off the trend
+    // search — fire it here too so trends still prewarm.
+    void prewarmTrends(manualProfile.gender_presentation, manualProfile.age_range);
+    try {
+      let sid = sessionId;
+      if (!sid) {
+        const session = await createSession();
+        sid = session.session_id;
+        setSessionId(sid);
+      }
+      const result = await analyzeCapture(sid, manualProfile, SKIP_IMAGE, "mock");
+      setCaptureDataUrl(SKIP_IMAGE);
+      setAnalysis(result);
+      setStep("styling");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : copy.errors.analyze);
+    }
+  }
+
   function reset() {
     setStep("welcome");
     setManualProfile(initialProfile);
@@ -627,6 +653,14 @@ function App() {
         </div>
       )}
 
+      {step === "analyzing" && (
+        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
+          <Button variant="ghost" size="md" onClick={() => void skipToStyling()}>
+            跳过 OOTD，直接推荐 / 试穿（调试）
+          </Button>
+        </div>
+      )}
+
       <div className="m-body">
         {step === "welcome" && <Welcome copy={copy} onStart={() => void begin()} />}
         {step === "consent" && (
@@ -642,7 +676,12 @@ function App() {
             value={manualProfile}
             onChange={setManualProfile}
             onBack={() => setStep("consent")}
-            onContinue={() => setStep("capture")}
+            onContinue={() => {
+              // Kick off the background trend search now, from the profile the
+              // customer just entered — so it's cached before they start styling.
+              void prewarmTrends(manualProfile.gender_presentation, manualProfile.age_range);
+              setStep("capture");
+            }}
           />
         )}
         {step === "capture" && (

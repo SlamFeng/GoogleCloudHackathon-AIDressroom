@@ -19,6 +19,8 @@ import { useMirrorCamera } from "./useMirrorCamera";
 import { useSpeech } from "./useSpeech";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 import { useGestureControl } from "./useGestureControl";
+import { useExpression } from "./useExpression";
+import { GuidePet, type PetMood } from "./GuidePet";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -42,7 +44,9 @@ const LINE_LOOKS_READY = "给你搭好了三套，都是现货。选一套试穿
 const LINE_ON_YOU = "看看你穿上的样子。";
 const LINE_RESTYLED = "换了一版，选一套试穿。";
 const LINE_RESERVED = "已预留，给你送到试衣间。";
-const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED];
+// Spoken when the customer smiles at their try-on reflection (expression → TTS).
+const LINE_COMPLIMENT = "哎，你穿这套真好看！";
+const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED, LINE_COMPLIMENT];
 
 // --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
 const feedbackActions: Array<{
@@ -150,6 +154,8 @@ export function StylingScreen({
   const [tryonOpen, setTryonOpen] = useState(false);
   const [tryonImage, setTryonImage] = useState<string | null>(null);
   const [tryonGenerating, setTryonGenerating] = useState(false);
+  const [petMessage, setPetMessage] = useState<string | undefined>(undefined);
+  const [petMood, setPetMood] = useState<PetMood>("idle");
   const tryonTimerRef = useRef<number | null>(null);
   const lucy = useLucyRealtimeTryon();
   const toolTimersRef = useRef<number[]>([]);
@@ -244,7 +250,12 @@ export function StylingScreen({
     if (!text) return;
     speech.warm();
     void execute("recommend", async () => {
-      runTools(["Reading your body template", "Searching in-stock outfits", "Styling three looks"]);
+      runTools([
+        "Reading your body template",
+        "🔎 Checking what's trending now · Google Search",
+        "Matching in-stock looks",
+        "Styling three looks for you"
+      ]);
       try {
         const sessionId = await ensureAgentSession();
         const response = await sendAgentChat(sessionId, text);
@@ -448,6 +459,28 @@ export function StylingScreen({
     }
   });
 
+  // Read the customer's reaction while they see themselves in the try-on: a
+  // sustained smile triggers a spoken compliment (MediaPipe Face Landmarker ->
+  // existing Gemini TTS). Only active during the try-on so it reacts to the
+  // outfit, not to the browsing UI.
+  useExpression({
+    videoRef: mirror.videoRef,
+    enabled: mirror.state === "live" && tryonActive,
+    onSatisfied: () => {
+      if (busyAction !== null) return;
+      setPetMessage(LINE_COMPLIMENT);
+      setPetMood("happy");
+      speech.speak(LINE_COMPLIMENT);
+      window.setTimeout(() => setPetMood("idle"), 2600);
+    }
+  });
+
+  // The pet greets when the try-on opens; mood follows speech unless it's mid-cheer.
+  useEffect(() => {
+    if (tryonActive) setPetMessage("来，看看你穿上这套的样子～");
+  }, [tryonActive]);
+  const petMoodShown: PetMood = petMood === "happy" ? "happy" : speech.speaking ? "talking" : "idle";
+
   // Warm the Gemini voice cache for the fixed lines — but a few seconds in, so
   // the TTS calls don't contend with the customer's first styling request.
   useEffect(() => {
@@ -457,6 +490,8 @@ export function StylingScreen({
 
   return (
     <section className="mirror-shell" aria-label="Styling recommendations">
+      {/* Shopping-guide pet — only during the realtime try-on. */}
+      <GuidePet visible={tryonActive} message={petMessage} mood={petMoodShown} />
       {/* Always-on reflection — the customer sees themselves the whole time. */}
       <video
         className="mirror-feed"

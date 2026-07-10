@@ -16,6 +16,11 @@ const models = [
     label: "Gesture Recognizer",
     target: path.join(root, "public", "models", "gesture_recognizer.task"),
     url: "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task"
+  },
+  {
+    label: "Face Landmarker",
+    target: path.join(root, "public", "models", "face_landmarker.task"),
+    url: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
   }
 ];
 
