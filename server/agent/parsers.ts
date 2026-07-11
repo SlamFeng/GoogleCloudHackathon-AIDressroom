@@ -95,9 +95,23 @@ const toneLexicon: Record<string, string> = {
 
 export function routeIntent(text: string): "explicit" | "recommendation" | "unclear" {
   const normalized = text.toLowerCase();
-  if (/没.*想法|不知道|推荐|随便|适合我|你来/.test(normalized)) return "recommendation";
+  // Concrete preference words → treat as an explicit styling request.
   if (Object.keys(categoryLexicon).some((keyword) => normalized.includes(keyword))) return "explicit";
+  if (Object.keys(styleLexicon).some((keyword) => normalized.includes(keyword))) return "explicit";
+  if (Object.keys(colorLexicon).some((keyword) => normalized.includes(keyword))) return "explicit";
+  if (Object.keys(formalityLexicon).some((keyword) => normalized.includes(keyword))) return "explicit";
+  if (Object.keys(toneLexicon).some((keyword) => normalized.includes(keyword))) return "explicit";
+  // Occasion words imply a concrete need even when no garment is named.
+  if (/约会|婚礼|婚宴|面试|上班|通勤|派对|聚会|宴会|旅行|旅游|度假|海边|运动|健身|约会|正式场合|商务|开会/.test(normalized))
+    return "explicit";
   if (/预算|以内|日元|yen|想要|找/.test(normalized)) return "explicit";
+  // "帮我挑几套 / 帮我搭 / 搭配 / 穿搭 / 来几套 / 推荐" → let the agent suggest.
+  if (
+    /没.*想法|不知道|推荐|随便|适合我|你来|帮我挑|挑[几一]套|挑套|帮我搭|搭[几一]套|搭配|穿搭|来[几一]套|看看有什么/.test(
+      normalized
+    )
+  )
+    return "recommendation";
   return "unclear";
 }
 

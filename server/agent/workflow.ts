@@ -4,6 +4,7 @@ import type {
   ConstraintDelta,
   FeedbackDimension,
   OutfitSlotName,
+  Route,
   RecommendationResponse,
   RecommendationSet,
   RecommendationType,
@@ -59,9 +60,23 @@ export class AgentWorkflow {
     // Intent and need both parse the same text — run them concurrently so their
     // two model calls overlap instead of stacking.
     const [route, need] = await Promise.all([classifyIntent(text), extractNeed(text)]);
-    state.route = route;
 
-    if (route === "unclear") {
+    // If we extracted ANY concrete need signal (colour / style / category /
+    // occasion / formality / tone / budget), the customer clearly wants clothes
+    // — never fall back to a clarifying question just because intent routing was
+    // unsure (which happens whenever the slow LLM classifier times out). Only a
+    // genuinely empty, signal-free "unclear" gets the clarify prompt.
+    const needHasSignal =
+      need.colors.length > 0 ||
+      need.style_tags.length > 0 ||
+      (need.categories?.length ?? 0) > 0 ||
+      Boolean(need.occasion) ||
+      Boolean(need.formality) ||
+      Boolean(need.color_tone) ||
+      Boolean(need.budget_yen);
+
+    if (route === "unclear" && !needHasSignal) {
+      state.route = route;
       state.loop_status = "clarifying";
       state.status = "communicating";
       return {
@@ -73,6 +88,9 @@ export class AgentWorkflow {
       };
     }
 
+    // Unclear-but-has-signal is treated as a recommendation request.
+    const effectiveRoute: Route = route === "unclear" ? "recommendation" : route;
+    state.route = effectiveRoute;
     state.status = "recommending";
     state.loop_status = "active";
     state.user_need = need;
@@ -82,13 +100,15 @@ export class AgentWorkflow {
     // explicit need, anchor the first set to it and round out with style +
     // seasonal variety rather than showing a single lonely card.
     const requestedTypes: RecommendationType[] =
-      route === "explicit" ? ["explicit_need", "style", "seasonal"] : ["similar", "style", "seasonal"];
+      effectiveRoute === "explicit"
+        ? ["explicit_need", "style", "seasonal"]
+        : ["similar", "style", "seasonal"];
     const response = await this.callGetRecommendations(state, requestedTypes);
     return {
       state,
       output: {
         type: "recommendations",
-        route,
+        route: effectiveRoute,
         message: buildRecoMessage(state, response),
         recommendation: response
       }
