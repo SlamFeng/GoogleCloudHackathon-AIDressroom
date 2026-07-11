@@ -57,7 +57,9 @@ const TOOL_STEP_MS = 850;
 // the backend even responds. Regex, not a lookup table.
 function echoRequest(text: string): string | undefined {
   const m = text.match(
-    /((?:今天|明天|后天|这周末|周末|下周)?[要想]?(?:去|参加|上))((?:[一-龥]{1,4}的)?[一-龥]{1,6}?)(?=[了，。！？、\s吗呢啊]|穿|想|要|能|有|帮|给|$)/
+    // The lookbehind keeps bare 上 as a verb ("上班") but not as the tail of a
+    // compound like 穿上/试上/配上 ("我想穿上这件外套" must not echo "上这件外套").
+    /((?:今天|明天|后天|这周末|周末|下周)?[要想]?(?:去|参加|(?<![穿试戴配加披套换])上))((?:[一-龥]{1,4}的)?[一-龥]{1,6}?)(?=[了，。！？、\s吗呢啊]|穿|想|要|能|有|帮|给|$)/
   );
   return m ? `${m[1]}${m[2]}` : undefined;
 }
@@ -306,7 +308,7 @@ export function StylingScreen({
           spoken
             ? () => {
                 setPetMessage(spoken);
-                speech.speak(spoken);
+                speech.speakSoon(spoken);
               }
             : undefined
         );
@@ -433,7 +435,7 @@ export function StylingScreen({
           spoken
             ? () => {
                 setPetMessage(spoken);
-                speech.speak(spoken);
+                speech.speakSoon(spoken);
               }
             : undefined
         );
@@ -509,11 +511,16 @@ export function StylingScreen({
     enabled: gestureOn && mirror.state === "live",
     choiceCount: recommendationSets.length,
     onSelect: (index) => {
+      // Ignore gestures while the thinking steps are still animating — firing a
+      // new turn mid-animation clears the pending completion (speech + pet line)
+      // of the one in flight.
+      if (working) return;
       // Fingers 1/2/3 just switch the active look; 👍 tries it on.
       const set = recommendationSets[index];
       if (set) setSelectedSetId(set.set_id);
     },
     onGesture: (action) => {
+      if (working) return;
       if (action === "talk") {
         // ✋ = talk, in every context (starts a restyle when looks are up).
         if (busyAction === null) toggleVoice();

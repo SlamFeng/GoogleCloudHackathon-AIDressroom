@@ -210,7 +210,8 @@ async function composeInner(
   try {
     const ai = new GoogleGenAI({ apiKey: apiKey() });
     const response = await generateWithRetry(ai, {
-      model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
+      // Must fit STYLIST_TIMEOUT_MS — see reasoning.ts for why 3.5-flash can't.
+      model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
       contents: buildPrompt(candidates, ctx),
       config: {
         temperature: 0.4,

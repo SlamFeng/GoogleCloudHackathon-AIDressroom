@@ -174,6 +174,18 @@ router.get("/tool-calls", (_request, response) => {
 export const agentRouter = router;
 export const agentSessions = sessions;
 
+// Commands for the same agent session run strictly one-at-a-time. Two
+// concurrent turns would each clone the session state, mutate independently,
+// and last-write-wins — e.g. a double-clicked confirm reserving stock twice.
+const sessionQueues = new Map<string, Promise<unknown>>();
+
+function enqueuePerSession<T>(sessionId: string, task: () => Promise<T>): Promise<T> {
+  const previous = sessionQueues.get(sessionId) ?? Promise.resolve();
+  const next = previous.then(task, task);
+  sessionQueues.set(sessionId, next.catch(() => {}));
+  return next;
+}
+
 async function runAdkCommand(
   agentSessionId: string,
   action: "chat" | "preview" | "preview_status" | "feedback" | "confirm" | "purchase",
@@ -186,6 +198,19 @@ async function runAdkCommand(
     response.status(404).json({ error: "agent session not found" });
     return;
   }
+  await enqueuePerSession(agentSessionId, () =>
+    runAdkCommandInner(agentSessionId, adkSessionId, action, payload, origin, response)
+  );
+}
+
+async function runAdkCommandInner(
+  agentSessionId: string,
+  adkSessionId: string,
+  action: "chat" | "preview" | "preview_status" | "feedback" | "confirm" | "purchase",
+  payload: unknown,
+  origin: string | undefined,
+  response: Response
+) {
 
   const startedAt = Date.now();
   try {

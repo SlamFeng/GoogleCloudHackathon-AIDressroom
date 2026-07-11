@@ -13,7 +13,10 @@ function apiKey() {
 }
 
 function reasoningModel() {
-  return process.env.GEMINI_MODEL ?? "gemini-3.5-flash";
+  // Default must be a model whose real latency fits REASONING_TIMEOUT_MS —
+  // gemini-3.5-flash (~30s cold) always lost the race and silently degraded
+  // every turn to the heuristic parsers.
+  return process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 }
 
 // Cap each reasoning call so a slow Gemini can't stall the turn — on timeout we

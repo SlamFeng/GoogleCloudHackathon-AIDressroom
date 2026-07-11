@@ -290,6 +290,14 @@ export class AgentWorkflow {
       };
     }
 
+    // Idempotency: re-confirming the same set (double-click / client retry) must
+    // not place a second hold — the first reservation stays authoritative.
+    // Evaluate BEFORE selected_set_id is overwritten below.
+    const alreadyHeld =
+      state.reservation !== undefined &&
+      "reservation_id" in state.reservation &&
+      state.selected_set_id === input.set_id;
+
     state.selected_set_id = input.set_id;
     state.camera_processing_consent = input.camera_processing_consent;
     state.status = "handoff_ready";
@@ -299,15 +307,17 @@ export class AgentWorkflow {
     // Place a hold on the selected outfit's stock. A failure here (an item sold
     // out between recommendation and confirmation) is surfaced so the flow can
     // re-plan the affected slot instead of silently proceeding.
-    const reservation = await this.tools.reserveOutfit({ session_id: state.session_id, set: selected });
-    if (reservation.ok) {
-      state.reservation = {
-        reservation_id: reservation.reservation.reservation_id,
-        status: reservation.reservation.status
-      };
-    } else {
-      state.reservation = { ok: false, reason: reservation.reason, shortfalls: reservation.shortfalls };
-      state.errors.push("reservation_failed");
+    if (!alreadyHeld) {
+      const reservation = await this.tools.reserveOutfit({ session_id: state.session_id, set: selected });
+      if (reservation.ok) {
+        state.reservation = {
+          reservation_id: reservation.reservation.reservation_id,
+          status: reservation.reservation.status
+        };
+      } else {
+        state.reservation = { ok: false, reason: reservation.reason, shortfalls: reservation.shortfalls };
+        state.errors.push("reservation_failed");
+      }
     }
     state.aha_demo = {
       ...state.aha_demo,

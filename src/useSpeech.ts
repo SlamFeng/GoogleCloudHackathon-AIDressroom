@@ -30,6 +30,7 @@ export function useSpeech(lang = "zh-CN") {
   const audioCache = useRef<Map<string, string>>(new Map());
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const warmedRef = useRef(false);
+  const pendingRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!browserTts) return;
@@ -43,6 +44,7 @@ export function useSpeech(lang = "zh-CN") {
 
   useEffect(() => {
     return () => {
+      if (pendingRef.current !== null) window.clearInterval(pendingRef.current);
       if (browserTts) window.speechSynthesis.cancel();
       audioRef.current?.pause();
     };
@@ -103,6 +105,31 @@ export function useSpeech(lang = "zh-CN") {
     [enabled, playAudio, speakBrowser]
   );
 
+  // Speak WITHOUT cutting off whatever is currently playing (speak() cancels the
+  // current utterance). Polls the live synth/audio state — not React state — and
+  // speaks once idle; force-speaks after 8s so the line can never be lost.
+  const speakSoon = useCallback(
+    (text: string) => {
+      const busy = () =>
+        (browserTts && window.speechSynthesis.speaking) ||
+        Boolean(audioRef.current && !audioRef.current.paused && !audioRef.current.ended);
+      if (pendingRef.current !== null) window.clearInterval(pendingRef.current);
+      if (!busy()) {
+        speak(text);
+        return;
+      }
+      const startedAt = Date.now();
+      pendingRef.current = window.setInterval(() => {
+        if (!busy() || Date.now() - startedAt > 8000) {
+          if (pendingRef.current !== null) window.clearInterval(pendingRef.current);
+          pendingRef.current = null;
+          speak(text);
+        }
+      }, 150);
+    },
+    [browserTts, speak]
+  );
+
   // Prefetch a fixed set of lines so their Gemini audio is cached before use.
   const prefetch = useCallback((lines: string[]) => {
     void (async () => {
@@ -115,6 +142,10 @@ export function useSpeech(lang = "zh-CN") {
   }, []);
 
   const cancel = useCallback(() => {
+    if (pendingRef.current !== null) {
+      window.clearInterval(pendingRef.current);
+      pendingRef.current = null;
+    }
     if (browserTts) window.speechSynthesis.cancel();
     audioRef.current?.pause();
     setSpeaking(false);
@@ -149,5 +180,5 @@ export function useSpeech(lang = "zh-CN") {
     });
   }, [cancel]);
 
-  return { speak, prefetch, cancel, warm, toggle, speaking, enabled, supported: browserTts };
+  return { speak, speakSoon, prefetch, cancel, warm, toggle, speaking, enabled, supported: browserTts };
 }

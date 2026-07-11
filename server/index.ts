@@ -179,4 +179,10 @@ app.listen(port, "0.0.0.0", () => {
 });
 
 // Release abandoned reservation holds back to available stock on a timer.
-void getInventoryService().then((service) => service.startExpirySweeper());
+getInventoryService()
+  .then((service) => service.startExpirySweeper())
+  .catch((error) => {
+    // A misconfigured backend (e.g. Firestore without credentials) must surface
+    // as a readable error, not an unhandled rejection that kills the process.
+    console.error("inventory service failed to start:", error instanceof Error ? error.message : error);
+  });
