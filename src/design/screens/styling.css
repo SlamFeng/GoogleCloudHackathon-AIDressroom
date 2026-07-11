@@ -959,23 +959,29 @@ img.mirror-tryon-remote {
   z-index: 0;
 }
 
-/* Try-on reveal bloom — a light sweep down the reflection when try-on opens. */
+/* Try-on reveal scan — a light scan-line that sweeps the reflection back and
+   forth twice as the try-on opens (down · up · down · up). Steady ease-in-out so
+   it reads as a deliberate scan, not a quick flash. */
 .mirror-bloom {
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  height: 45%;
+  height: 38%;
   z-index: 4;
   pointer-events: none;
-  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.4) 55%, transparent);
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.46) 55%, transparent);
   mix-blend-mode: screen;
-  animation: mirror-bloom-sweep 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: mirror-bloom-sweep 3s ease-in-out both;
 }
 @keyframes mirror-bloom-sweep {
-  from { transform: translateY(-100%); opacity: 0; }
-  40% { opacity: 1; }
-  to { transform: translateY(230%); opacity: 0; }
+  0% { transform: translateY(-100%); opacity: 0; }
+  8% { opacity: 1; }
+  27% { transform: translateY(255%); } /* down 1 */
+  50% { transform: translateY(-100%); } /* up 1 */
+  73% { transform: translateY(255%); } /* down 2 */
+  92% { opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; } /* up 2, fade out */
 }
 @media (prefers-reduced-motion: reduce) {
   .mirror-bloom { animation: none; opacity: 0; }
