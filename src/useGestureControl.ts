@@ -10,7 +10,7 @@ import { loadGestureRecognizer } from "./gesture";
 // Finger count is derived from the landmarks directly (the categories don't
 // reliably tell 1/2/3 apart).
 
-export type GestureAction = "confirm" | "back" | "talk";
+export type GestureAction = "confirm" | "back" | "talk" | "proceed";
 
 interface Options {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -41,6 +41,22 @@ function countFingers(hand: Landmark[]): number {
     if (hand[tip].y < hand[pip].y - 0.02) count += 1;
   }
   return count;
+}
+
+// 👌 OK sign — MediaPipe has no built-in for it, so detect from landmarks:
+// thumb tip (4) and index tip (8) pinched into a ring, with middle/ring/pinky
+// extended. Distinct from 👍 (all folded) and 3 fingers (index not pinched).
+function isOkSign(hand: Landmark[]): boolean {
+  const pinch = Math.hypot(hand[4].x - hand[8].x, hand[4].y - hand[8].y);
+  const handSize = Math.hypot(hand[0].x - hand[9].x, hand[0].y - hand[9].y) || 0.1;
+  if (pinch / handSize > 0.38) return false; // thumb + index not touching
+  const others: Array<[number, number]> = [
+    [12, 10],
+    [16, 14],
+    [20, 18]
+  ];
+  const extended = others.filter(([tip, pip]) => hand[tip].y < hand[pip].y - 0.02).length;
+  return extended >= 2;
 }
 
 export function useGestureControl({
@@ -133,7 +149,7 @@ export function useGestureControl({
 
       // ✋ / 👍 / ✊ take priority and reset any arming.
       const label = result.gestures?.[0]?.[0]?.categoryName ?? "None";
-      const action: GestureAction | null =
+      let action: GestureAction | null =
         label === "Thumb_Up"
           ? "confirm"
           : label === "Open_Palm"
@@ -141,6 +157,8 @@ export function useGestureControl({
             : label === "Closed_Fist"
               ? "back"
               : null;
+      // 👌 OK (custom landmark detection) → proceed to the next step.
+      if (!action && isOkSign(hand)) action = "proceed";
       // While a named gesture (👍/✋/✊) is shown, NEVER run finger-count
       // selection — a stray finger in the 👍 pose must not re-pick an option.
       // The gesture must be HELD for dwellMs (a read-bar fills) before it fires,

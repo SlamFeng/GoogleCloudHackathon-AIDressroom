@@ -548,14 +548,22 @@ export function StylingScreen({
         return;
       }
       if (action === "confirm") {
-        // 👍 = yes / next: try on the active look → choose → reserve.
-        if (tryonActive) {
+        // 👍 = try on the active look (from the looks strip).
+        if (!tryonActive && !showConfirm && selectedSet && busyAction === null) {
+          handlePreview(selectedSet);
+        }
+        return;
+      }
+      if (action === "proceed") {
+        // 👌 = OK / go to the next step: looks → choose, try-on → choose,
+        // confirm → reserve.
+        if (showConfirm) {
+          if (agentSessionId && busyAction === null) handleConfirm();
+        } else if (tryonActive) {
           setShowConfirm(true);
           handleStop();
-        } else if (showConfirm && agentSessionId && busyAction === null) {
-          handleConfirm();
         } else if (selectedSet && busyAction === null) {
-          handlePreview(selectedSet);
+          setShowConfirm(true);
         }
         return;
       }

@@ -2,7 +2,8 @@ import "./gesture-readbar.css";
 import type { GestureAction } from "./useGestureControl";
 
 const LABEL: Record<GestureAction, { glyph: string; text: string }> = {
-  confirm: { glyph: "👍", text: "确认" },
+  confirm: { glyph: "👍", text: "试穿" },
+  proceed: { glyph: "👌", text: "确定" },
   talk: { glyph: "✋", text: "说话" },
   back: { glyph: "✊", text: "返回" }
 };

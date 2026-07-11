@@ -1,11 +1,12 @@
 import "./gesture-hint.css";
 
-export type GestureHintKey = "talk" | "pick" | "confirm" | "back";
+export type GestureHintKey = "talk" | "pick" | "confirm" | "proceed" | "back";
 
 const HINTS: { key: GestureHintKey; glyph: string; label: string }[] = [
   { key: "talk", glyph: "✋", label: "说话" },
   { key: "pick", glyph: "1·2·3", label: "选择" },
   { key: "confirm", glyph: "👍", label: "试穿" },
+  { key: "proceed", glyph: "👌", label: "确定" },
   { key: "back", glyph: "✊", label: "返回" }
 ];
 

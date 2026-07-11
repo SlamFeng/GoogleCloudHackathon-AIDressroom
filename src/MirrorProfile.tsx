@@ -112,7 +112,7 @@ export function MirrorProfile({
     choiceCount,
     onSelect: pick,
     onGesture: (action) => {
-      if (action === "confirm") next();
+      if (action === "confirm" || action === "proceed") next();
       else if (action === "back") back();
       else if (action === "talk" && step.kind === "height") toggleHeightVoice();
     }
