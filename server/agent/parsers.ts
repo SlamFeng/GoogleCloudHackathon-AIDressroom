@@ -58,6 +58,41 @@ const styleLexicon: Record<string, string> = {
   street: "streetwear"
 };
 
+// Coarse formality the customer asks for → the product `formality` facet.
+const formalityLexicon: Record<string, string> = {
+  正式: "formal",
+  正装: "formal",
+  商务: "formal",
+  通勤: "formal",
+  庄重: "formal",
+  隆重: "formal",
+  formal: "formal",
+  商务休闲: "smart_casual",
+  轻正式: "smart_casual",
+  "smart casual": "smart_casual",
+  休闲: "casual",
+  随意: "casual",
+  日常: "casual",
+  居家: "casual",
+  casual: "casual"
+};
+
+// Colour tone the customer asks for → the product `color_tone` facet.
+const toneLexicon: Record<string, string> = {
+  深色: "dark",
+  深: "dark",
+  暗色: "dark",
+  暗: "dark",
+  "深色系": "dark",
+  dark: "dark",
+  浅色: "light",
+  浅: "light",
+  淡色: "light",
+  亮色: "light",
+  "浅色系": "light",
+  light: "light"
+};
+
 export function routeIntent(text: string): "explicit" | "recommendation" | "unclear" {
   const normalized = text.toLowerCase();
   if (/没.*想法|不知道|推荐|随便|适合我|你来/.test(normalized)) return "recommendation";
@@ -76,7 +111,9 @@ export function parseNeed(text: string): ParsedNeed {
     categories,
     colors,
     style_tags: styleTags,
-    budget_yen: budget
+    budget_yen: budget,
+    formality: collectMatches(text, formalityLexicon)[0],
+    color_tone: collectMatches(text, toneLexicon)[0]
   };
 }
 

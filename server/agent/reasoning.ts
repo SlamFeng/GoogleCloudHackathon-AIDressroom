@@ -88,30 +88,38 @@ export async function extractNeed(text: string): Promise<ParsedNeed> {
         "colors, style_tags: lowercase tags.",
         "occasion: e.g. date, work, beach; null if none.",
         "budget_yen: integer JPY budget ceiling, or null.",
+        "formality: how dressed-up they want to be — one of casual, smart_casual, formal — or null (正式/商务→formal, 商务休闲/轻正式→smart_casual, 休闲/日常→casual).",
+        "color_tone: overall darkness they want — dark or light — or null (深色/暗→dark, 浅色/淡→light). This is separate from a specific hue like blue, which goes in colors.",
         "Do not invent values that are not implied. Return only JSON.",
         `Customer message: ${text}`
       ].join("\n"),
       {
         type: "object",
         additionalProperties: false,
-        required: ["categories", "colors", "style_tags", "occasion", "budget_yen"],
+        required: ["categories", "colors", "style_tags", "occasion", "budget_yen", "formality", "color_tone"],
         properties: {
           categories: { type: "array", items: { type: "string" } },
           colors: { type: "array", items: { type: "string" } },
           style_tags: { type: "array", items: { type: "string" } },
           occasion: { type: ["string", "null"] },
-          budget_yen: { type: ["number", "null"] }
+          budget_yen: { type: ["number", "null"] },
+          formality: { type: ["string", "null"] },
+          color_tone: { type: ["string", "null"] }
         }
       }
     );
     if (!out) return parseNeed(text);
+    const formality = typeof out.formality === "string" ? out.formality.toLowerCase() : undefined;
+    const colorTone = typeof out.color_tone === "string" ? out.color_tone.toLowerCase() : undefined;
     return {
       raw_text: text,
       categories: asStringArray(out.categories),
       colors: asStringArray(out.colors),
       style_tags: asStringArray(out.style_tags),
       occasion: typeof out.occasion === "string" ? out.occasion : undefined,
-      budget_yen: typeof out.budget_yen === "number" ? Math.round(out.budget_yen) : undefined
+      budget_yen: typeof out.budget_yen === "number" ? Math.round(out.budget_yen) : undefined,
+      formality: ["casual", "smart_casual", "formal"].includes(formality ?? "") ? formality : undefined,
+      color_tone: ["dark", "light"].includes(colorTone ?? "") ? colorTone : undefined
     };
   } catch (error) {
     logAgentTurn(

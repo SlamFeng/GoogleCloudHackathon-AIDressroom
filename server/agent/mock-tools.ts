@@ -529,6 +529,8 @@ interface RecPreferences {
   colors: StandardColor[];
   styles: StyleTag[];
   occasion?: string;
+  formality?: string;
+  colorTone?: string;
 }
 
 /** Occasion words (from LLM/heuristic need extraction) → controlled style vocabulary. */
@@ -591,7 +593,10 @@ function extractPreferences(constraints: AgentConstraints): RecPreferences {
     for (const tag of mapToStyleTags(c.value)) styles.add(tag);
   }
   if (occasion) for (const tag of occasionToStyleTags(occasion)) styles.add(tag);
-  return { colors, styles: Array.from(styles), occasion };
+  // Most-recent formality / colour-tone request wins (customers refine).
+  const formality = [...prefer].reverse().find((c) => c.dimension === "formality")?.value;
+  const colorTone = [...prefer].reverse().find((c) => c.dimension === "color_tone")?.value;
+  return { colors, styles: Array.from(styles), occasion, formality, colorTone };
 }
 
 function unique<T>(values: T[]): T[] {
@@ -620,6 +625,32 @@ function orderSlots(products: Product[]): Product[] {
   );
 }
 
+// Style tags that read as dressed-up (→ formal) vs. deliberately relaxed. Anything
+// in between (smart_casual / minimal / preppy) is the middle ground.
+const FORMAL_STYLE_TAGS = new Set<string>(["formal", "business", "classic", "workwear"]);
+const SMART_STYLE_TAGS = new Set<string>(["smart_casual", "minimal", "preppy"]);
+/** Coarse formality facet from a product's style tags. */
+function deriveFormality(styleTags: string[]): "formal" | "smart_casual" | "casual" {
+  if (styleTags.some((tag) => FORMAL_STYLE_TAGS.has(tag))) return "formal";
+  if (styleTags.some((tag) => SMART_STYLE_TAGS.has(tag))) return "smart_casual";
+  return "casual";
+}
+
+const DARK_TONE_COLORS = new Set<string>(["black", "navy", "gray", "olive", "brown", "purple"]);
+const LIGHT_TONE_COLORS = new Set<string>(["white", "cream", "beige", "silver", "pink", "yellow", "gold"]);
+/** Coarse colour-tone facet: dark / light / mixed, by majority of the palette. */
+function deriveColorTone(colors: string[]): "dark" | "light" | "mixed" {
+  let dark = 0;
+  let light = 0;
+  for (const color of colors) {
+    if (DARK_TONE_COLORS.has(color)) dark += 1;
+    else if (LIGHT_TONE_COLORS.has(color)) light += 1;
+  }
+  if (dark > light) return "dark";
+  if (light > dark) return "light";
+  return "mixed";
+}
+
 function toRecProduct(pa: ProductAvailability): Product {
   const stock: Record<string, number> = {};
   for (const size of pa.availability) stock[size.size] = size.available;
@@ -632,6 +663,8 @@ function toRecProduct(pa: ProductAvailability): Product {
     price_yen: pa.product.price_yen,
     colors: pa.product.colors,
     style_tags: pa.product.style_tags,
+    formality: deriveFormality(pa.product.style_tags),
+    color_tone: deriveColorTone(pa.product.colors),
     body_template_tags: pa.product.body_template_tags,
     seasonal_rank: pa.product.seasonal_rank,
     stock,
@@ -707,6 +740,9 @@ function scoreProduct(product: Product, anchorStyle?: string, preferences?: RecP
   for (const color of preferences?.colors ?? []) {
     if (product.colors.includes(color)) score += 8;
   }
+  // Coarse facet requests ("正式一点" / "深色系") boost items that fit the tone.
+  if (preferences?.formality && product.formality === preferences.formality) score += 10;
+  if (preferences?.colorTone && product.color_tone === preferences.colorTone) score += 8;
   return score;
 }
 

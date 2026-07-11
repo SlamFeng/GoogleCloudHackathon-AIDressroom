@@ -604,7 +604,15 @@ function normalizeSlot(raw: string | undefined): OutfitSlotName | undefined {
 
 function mergeParsedNeedIntoConstraints(
   state: AgentState,
-  need: { colors: string[]; style_tags: string[]; categories?: string[]; occasion?: string; budget_yen?: number }
+  need: {
+    colors: string[];
+    style_tags: string[];
+    categories?: string[];
+    occasion?: string;
+    budget_yen?: number;
+    formality?: string;
+    color_tone?: string;
+  }
 ) {
   for (const color of need.colors) {
     state.constraints.prefer.push({ dimension: "color", value: color, reason: "explicit_need" });
@@ -617,6 +625,12 @@ function mergeParsedNeedIntoConstraints(
   }
   if (need.occasion) {
     state.constraints.prefer.push({ dimension: "occasion", value: need.occasion, reason: "explicit_need" });
+  }
+  if (need.formality) {
+    state.constraints.prefer.push({ dimension: "formality", value: need.formality, reason: "explicit_need" });
+  }
+  if (need.color_tone) {
+    state.constraints.prefer.push({ dimension: "color_tone", value: need.color_tone, reason: "explicit_need" });
   }
   if (need.budget_yen) state.constraints.budget_yen = need.budget_yen;
 }

@@ -47,7 +47,7 @@ export interface BodyTemplateResult {
 }
 
 export interface AgentConstraint {
-  dimension: FeedbackDimension | "category" | "body_template" | "occasion";
+  dimension: FeedbackDimension | "category" | "body_template" | "occasion" | "formality" | "color_tone";
   value: string;
   reason: string;
 }
@@ -65,6 +65,10 @@ export interface ParsedNeed {
   style_tags: string[];
   occasion?: string;
   budget_yen?: number;
+  // "正式/休闲" → formality; "深色/浅色" → color tone. Coarse facets the customer
+  // asks for that map onto the derived product facets.
+  formality?: string;
+  color_tone?: string;
 }
 
 export interface ConstraintDelta {
@@ -84,6 +88,11 @@ export interface Product {
   price_yen: number;
   colors: string[];
   style_tags: string[];
+  // Derived facets for coarse matching: formality (casual | smart_casual |
+  // formal) and colour tone (dark | light | mixed). Computed from style_tags /
+  // colors so the agent can honour "正式一点" / "深色系" requests directly.
+  formality?: string;
+  color_tone?: string;
   body_template_tags: string[];
   seasonal_rank: number;
   stock: Record<string, number>;
