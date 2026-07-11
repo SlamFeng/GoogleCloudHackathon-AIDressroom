@@ -214,6 +214,71 @@ export class MockAgentTools {
     return response;
   }
 
+  /**
+   * Swap ONE slot in an existing look, keeping every other piece untouched
+   * ("不喜欢上衣，其余都不错" → new top only). Picks the replacement that best
+   * coordinates with the KEPT pieces (colour/style harmony), never the item
+   * that's already there. Returns a single set that reuses the original set_id
+   * so the UI updates the chosen look in place.
+   */
+  async swapSlot(input: {
+    session_id: string;
+    route: Route;
+    previous_set: RecommendationSet;
+    category: OutfitSlotName;
+    gender?: string;
+    constraints: AgentConstraints;
+    round: number;
+  }): Promise<RecommendationResponse> {
+    const keep = input.previous_set.products.filter((product) => product.category !== input.category);
+    const currentIds = new Set(input.previous_set.products.map((product) => product.product_id));
+    const pool = (await this.searchInventory(input.session_id, input.constraints)).filter(
+      (product) =>
+        product.category === input.category &&
+        !currentIds.has(product.product_id) &&
+        isGenderAppropriate(product, input.gender)
+    );
+    const preferences = extractPreferences(input.constraints);
+
+    // Rank each candidate by base preference score plus how well it coordinates
+    // with the pieces we're keeping — so the swapped-in item still reads as one
+    // coherent outfit, not a random substitution.
+    const replacement = pool
+      .map((product) => ({
+        product,
+        score:
+          scoreProduct(product, undefined, preferences) +
+          keep.reduce((sum, kept) => sum + coordinationScore(product, kept), 0)
+      }))
+      .sort((a, b) => b.score - a.score)[0]?.product;
+
+    const products = replacement ? orderSlots([...keep, replacement]) : input.previous_set.products;
+    const set: RecommendationSet = {
+      set_id: input.previous_set.set_id,
+      round: input.round,
+      rec_type: input.previous_set.rec_type,
+      products,
+      outfit: buildOutfitPayload(products),
+      reason: replacement
+        ? `保留了其余单品，只为你换了一件更搭的${input.category}。`
+        : input.previous_set.reason
+    };
+
+    this.log.append(
+      "swap_slot",
+      { session_id: input.session_id, set_id: input.previous_set.set_id, category: input.category },
+      { swapped_to: replacement?.product_id ?? null, kept: keep.map((product) => product.product_id) }
+    );
+
+    return {
+      session_id: input.session_id,
+      round: input.round,
+      route: input.route,
+      sets: [set],
+      warnings: replacement ? [] : ["no_swap_candidate"]
+    };
+  }
+
   /** Live inventory search — the tool that replaces the old hard-coded catalog. Logged as `search_inventory`. */
   async searchInventory(sessionId: string, constraints: AgentConstraints): Promise<Product[]> {
     const service = await this.inventoryProvider();
@@ -545,6 +610,15 @@ const SLOT_BY_CATEGORY: Record<ProductCategory, OutfitSlotName> = {
   bag: "accessory",
   accessory: "accessory"
 };
+
+// Canonical head-to-toe order so a swapped-in piece slots back into its natural
+// position instead of appearing at the end of the look.
+const SLOT_ORDER: OutfitSlotName[] = ["outerwear", "top", "dress", "bottom", "shoes", "accessory"];
+function orderSlots(products: Product[]): Product[] {
+  return [...products].sort(
+    (a, b) => SLOT_ORDER.indexOf(a.category) - SLOT_ORDER.indexOf(b.category)
+  );
+}
 
 function toRecProduct(pa: ProductAvailability): Product {
   const stock: Record<string, number> = {};

@@ -21,7 +21,10 @@ export const feedbackTypeSchema = z.enum([
   "reject_all",
   "partial_adjust",
   "positive_keep",
-  "confirm"
+  "confirm",
+  // "换掉这件上衣，其余保留" — swap ONE slot, keep the rest. The slot to replace
+  // rides in `dimension_value` (an OutfitSlotName).
+  "swap_slot"
 ]);
 export const feedbackDimensionSchema = z.enum(["color", "fit", "style", "price", "overall"]);
 export const faceModeSchema = z.enum(["real_face", "default_face"]);

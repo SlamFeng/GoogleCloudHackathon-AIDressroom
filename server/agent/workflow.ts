@@ -3,6 +3,7 @@ import type {
   AnalysisHandoff,
   ConstraintDelta,
   FeedbackDimension,
+  OutfitSlotName,
   RecommendationResponse,
   RecommendationSet,
   RecommendationType,
@@ -208,6 +209,9 @@ export class AgentWorkflow {
   }
 
   async applyFeedback(state: AgentState, feedback: FeedbackPayloadInput): Promise<WorkflowResult> {
+    if (feedback.feedback_type === "swap_slot") {
+      return this.swapSlot(state, feedback.set_id, feedback.dimension_value, feedback);
+    }
     if (feedback.feedback_type === "confirm") {
       state.selected_set_id = feedback.set_id;
       state.status = "confirmed";
@@ -451,6 +455,76 @@ export class AgentWorkflow {
   }
 
   /**
+   * Swap a single slot in an existing look, keeping the rest ("换掉上衣，其余保留").
+   * Replaces the chosen set in place (same set_id) so the UI just refreshes the
+   * one item. Falls through to `failed` if the set or slot can't be resolved.
+   */
+  private async swapSlot(
+    state: AgentState,
+    setId: string,
+    categoryRaw: string | undefined,
+    feedback: FeedbackPayloadInput
+  ): Promise<WorkflowResult> {
+    const previous = findSet(state, setId);
+    if (!previous) {
+      state.errors.push("recommendation_set_not_found");
+      return { state, output: { type: "failed", reason: "recommendation_set_not_found" } };
+    }
+    const category = normalizeSlot(categoryRaw);
+    if (!category) {
+      return { state, output: { type: "failed", reason: "swap_category_unknown" } };
+    }
+
+    const delta: ConstraintDelta = {
+      prefer: [],
+      avoid: [],
+      requires_new_recommendation: true,
+      notes: `swap_${category}`
+    };
+    state.feedback_history.push({
+      set_id: setId,
+      feedback,
+      constraint_delta: delta,
+      created_at: new Date().toISOString()
+    });
+    this.tools.recordFeedback({
+      session_id: state.session_id,
+      set_id: setId,
+      feedback,
+      constraint_delta: delta
+    });
+
+    state.recommendation_round += 1;
+    const response = await this.tools.swapSlot({
+      session_id: state.session_id,
+      route: state.route === "unclear" ? "recommendation" : state.route,
+      previous_set: previous,
+      category,
+      gender: state.analysis?.body_profile.gender_presentation,
+      constraints: state.constraints,
+      round: state.recommendation_round
+    });
+
+    // Replace the chosen look in place (same set_id) — don't grow the list.
+    const swapped = response.sets[0];
+    if (swapped) {
+      const index = state.recommendation_sets.findIndex((set) => set.set_id === setId);
+      if (index >= 0) state.recommendation_sets[index] = swapped;
+      state.shown_set_ids.push(swapped.set_id);
+    }
+    syncToolCalls(state, this.tools);
+
+    return {
+      state,
+      output: {
+        type: "recommendations_refined",
+        constraint_delta: delta,
+        recommendation: response
+      }
+    };
+  }
+
+  /**
    * Terminal purchase step (user picked "确认购买"). Commits the hold placed at
    * confirm time to a real stock decrement and returns the in-store pickup route.
    */
@@ -510,6 +584,12 @@ function addRecommendationResponse(state: AgentState, response: RecommendationRe
 
 function findSet(state: AgentState, setId: string): RecommendationSet | undefined {
   return state.recommendation_sets.find((set) => set.set_id === setId);
+}
+
+const SWAPPABLE_SLOTS: OutfitSlotName[] = ["outerwear", "top", "bottom", "dress", "shoes", "accessory"];
+/** Accept an OutfitSlotName sent by the client; reject anything else. */
+function normalizeSlot(raw: string | undefined): OutfitSlotName | undefined {
+  return raw && (SWAPPABLE_SLOTS as string[]).includes(raw) ? (raw as OutfitSlotName) : undefined;
 }
 
 function mergeParsedNeedIntoConstraints(

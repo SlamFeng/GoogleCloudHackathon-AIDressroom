@@ -14,7 +14,7 @@ export type AgentSessionStatus =
   | "staff_takeover"
   | "ended";
 export type RecommendationType = "explicit_need" | "similar" | "style" | "seasonal";
-export type FeedbackType = "reject_all" | "partial_adjust" | "positive_keep" | "confirm";
+export type FeedbackType = "reject_all" | "partial_adjust" | "positive_keep" | "confirm" | "swap_slot";
 export type FeedbackDimension = "color" | "fit" | "style" | "price" | "overall";
 export type OutfitSlotName = "outerwear" | "top" | "bottom" | "dress" | "shoes" | "accessory";
 export type LucyPreviewStatus = "previewing" | "stopped" | "failed";

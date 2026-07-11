@@ -116,6 +116,57 @@ const feedbackActions: Array<{
   }
 ];
 
+// --- Per-slot swap: hear "不喜欢上衣，其余都不错" and replace just that one piece.
+//     Slot names match RecProduct.category (the OutfitSlotName set). ---
+const SLOT_LABEL: Record<string, string> = {
+  outerwear: "外套",
+  top: "上衣",
+  bottom: "下装",
+  dress: "连衣裙",
+  shoes: "鞋子",
+  accessory: "配饰"
+};
+
+// Chinese phrasing → outfit slot. Multi-char words (连衣裙) listed before their
+// substrings so they win.
+const SLOT_PATTERNS: Array<{ slot: string; re: RegExp }> = [
+  { slot: "outerwear", re: /(外套|大衣|夹克|风衣|羽绒服)/ },
+  { slot: "dress", re: /(连衣裙|连身裙|长裙|裙装)/ },
+  { slot: "top", re: /(上衣|上装|衬衫|衬衣|t恤|体恤|毛衣|卫衣|针织|上半身|上身)/i },
+  { slot: "bottom", re: /(裤子|裤|下装|下半身|下身|短裤|长裤|牛仔裤|半身裙)/ },
+  { slot: "shoes", re: /(鞋子|鞋|靴子|靴|高跟|运动鞋)/ },
+  { slot: "accessory", re: /(配饰|饰品|包包|包|帽子|帽|项链|围巾|腰带|首饰)/ }
+];
+
+// "换掉/不喜欢/不合适…" — a dislike or replace intent (NOT 不错, which is positive).
+const SWAP_VERB = /(换|不喜欢|不太喜欢|不想要|不要|不满意|不行|不合适|不好看|重新|重挑|再换|难看|丑)/g;
+
+/**
+ * Does the customer want ONE slot swapped ("不喜欢上衣，其余都不错")? Returns the
+ * slot whose keyword sits CLOSEST to a dislike/replace verb — so "上衣不错，鞋子
+ * 换一下" swaps the shoes, not the top. Only returns slots the current look
+ * actually has (`availableSlots`). Null when it reads as a fresh request.
+ */
+function detectSlotSwap(text: string, availableSlots: string[]): string | null {
+  const verbs = [...text.matchAll(SWAP_VERB)].map((m) => m.index ?? 0);
+  if (verbs.length === 0) return null;
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const { slot, re } of SLOT_PATTERNS) {
+    if (!availableSlots.includes(slot)) continue;
+    const match = re.exec(text);
+    if (!match || match.index === undefined) continue;
+    for (const v of verbs) {
+      const dist = Math.abs(v - match.index);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = slot;
+      }
+    }
+  }
+  return best;
+}
+
 // --- ToolStep — a single designed ReAct step: spinner while running, check
 //     when done, with a human label. Several stack as the agent "works". ---
 function ToolStep({ label, done }: { label: string; done: boolean }) {
@@ -457,6 +508,39 @@ export function StylingScreen({
     });
   }
 
+  // Swap a single slot in the selected look ("换掉上衣，其余保留"), keeping the
+  // rest untouched. The disliked slot comes from the customer's own words.
+  function handleSwapSlot(category: string, saidText: string) {
+    void execute(`swap_${category}`, async () => {
+      if (!agentSessionId || !selectedSet) return;
+      const label = SLOT_LABEL[category] ?? "单品";
+      runTools(["记下你的偏好…", `重新挑一件${label}…`, "保留其余搭配…"]);
+      setPetMessage(`好的，其余保留，我给你换一件${label}…`);
+      let line: string | undefined;
+      try {
+        const response = await sendAgentFeedback(agentSessionId, {
+          set_id: selectedSet.set_id,
+          feedback_type: "swap_slot",
+          dimension_value: category,
+          raw_voice_text: saidText
+        });
+        applyRun(response);
+        const swapped = (response.output as { type?: string }).type === "recommendations_refined";
+        if (swapped) line = `换好啦，这件${label}更配～其余保持不变。`;
+      } finally {
+        const spoken = line;
+        finishTools(
+          spoken
+            ? () => {
+                setPetMessage(spoken);
+                speech.speakSoon(spoken);
+              }
+            : undefined
+        );
+      }
+    });
+  }
+
   function handleConfirm() {
     void execute("confirm_selection", async () => {
       if (!agentSessionId || !selectedSet) return;
@@ -515,10 +599,16 @@ export function StylingScreen({
       // Wait for the recognizer to flush — the last words often finalize AFTER
       // stop() returns, so a synchronous transcript read drops the tail.
       void stt.stopAndFlush().then((said) => {
-        if (said) {
-          setCustomerNeed(said);
-          handleStyleMe(said);
-        }
+        if (!said) return;
+        setCustomerNeed(said);
+        // "不喜欢上衣，其余都不错" → swap just that slot in the current look,
+        // rather than starting a whole new recommendation.
+        const slot =
+          !tryonActive && selectedSet
+            ? detectSlotSwap(said, selectedSet.products.map((product) => product.category))
+            : null;
+        if (slot) handleSwapSlot(slot, said);
+        else handleStyleMe(said);
       });
     } else {
       speech.warm();
