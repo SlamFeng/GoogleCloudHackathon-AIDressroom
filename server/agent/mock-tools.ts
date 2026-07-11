@@ -554,6 +554,7 @@ function toRecProduct(pa: ProductAvailability): Product {
     sku: pa.product.sku,
     name: pa.product.name,
     category: SLOT_BY_CATEGORY[pa.product.category],
+    audience: pa.product.audience,
     price_yen: pa.product.price_yen,
     colors: pa.product.colors,
     style_tags: pa.product.style_tags,
@@ -641,10 +642,20 @@ function scoreProduct(product: Product, anchorStyle?: string, preferences?: RecP
 // (dress + one_piece) plus name hints for skirts, heels, blouses, etc.
 const WOMENS_NAME_HINTS = /(dress|skirt|blouse|camisole|\bcami\b|heels|gown|romper|jumpsuit|tunic|maxi)/i;
 
+// Prefer the explicit audience tag; fall back to category/name hints for older
+// products that predate it. male → hide women's; female → hide men's; neutral → all.
 function isGenderAppropriate(product: Product, gender?: string): boolean {
-  if (gender !== "male") return true;
-  if (product.category === "dress") return false;
-  return !WOMENS_NAME_HINTS.test(product.name);
+  const audience = product.audience ?? "unisex";
+  if (gender === "male") {
+    if (audience === "women") return false;
+    if (audience === "men" || audience === "unisex") {
+      return product.category !== "dress" && !WOMENS_NAME_HINTS.test(product.name);
+    }
+  }
+  if (gender === "female") {
+    return audience !== "men";
+  }
+  return true;
 }
 
 /** Slots the stylist composes from (accessory/bag/headwear stay out of the shortlist). */

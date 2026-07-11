@@ -77,6 +77,7 @@ export interface Product {
   sku: string;
   name: string;
   category: OutfitSlotName;
+  audience?: string;
   price_yen: number;
   colors: string[];
   style_tags: string[];

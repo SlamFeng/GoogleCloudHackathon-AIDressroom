@@ -22,6 +22,7 @@ interface SeedSpec {
   sku: string;
   name: string;
   category: ProductCategory;
+  audience?: "women" | "men" | "unisex";
   price: number;
   colors: StandardColor[];
   styles: StyleTag[];
@@ -45,6 +46,7 @@ function entry(spec: SeedSpec): SeedEntry {
       sku: spec.sku,
       name: spec.name,
       category: spec.category,
+      audience: spec.audience ?? "unisex",
       price_yen: spec.price,
       colors: spec.colors,
       style_tags: spec.styles,
@@ -126,6 +128,113 @@ const specs: SeedSpec[] = [
   { id: "p_acc_002", sku: "SC-001", name: "Cream wool scarf", category: "accessory", price: 4200, colors: ["cream", "beige"], styles: ["classic", "romantic", "minimal"], seasonal: 3, area: "H", shelf: "H-02", stock: { FREE: 7 } },
   { id: "p_acc_003", sku: "SG-001", name: "Black round sunglasses", category: "accessory", price: 5600, colors: ["black"], styles: ["streetwear", "vintage", "minimal"], seasonal: 8, area: "H", shelf: "H-03", stock: { FREE: 6 } },
   { id: "p_acc_004", sku: "WT-001", name: "Silver minimal watch", category: "accessory", price: 15800, colors: ["silver"], styles: ["minimal", "business", "classic"], seasonal: 6, area: "H", shelf: "H-04", stock: { FREE: 3 }, threshold: 1 },
+
+  // ===== expanded catalog: 5 men's + 5 women's per category (dress/one_piece women only) =====
+
+  // --- outerwear · men ---
+  { id: "p_outer_007", sku: "VS-001", name: "Navy quilted vest", category: "outerwear", audience: "men", price: 8900, colors: ["navy"], styles: ["casual", "sporty", "outdoor"], seasonal: 7, area: "A", shelf: "A-11", stock: { M: 4, L: 3 } },
+  { id: "p_outer_008", sku: "BM-001", name: "Charcoal bomber jacket", category: "outerwear", audience: "men", price: 11200, colors: ["gray", "black"], styles: ["streetwear", "casual", "smart_casual"], seasonal: 7, area: "A", shelf: "A-12", stock: { M: 3, L: 3 } },
+  { id: "p_outer_009", sku: "TR-001", name: "Beige trench coat", category: "outerwear", audience: "men", price: 16800, colors: ["beige"], styles: ["classic", "business", "smart_casual"], seasonal: 5, area: "A", shelf: "A-13", stock: { M: 2, L: 2 } },
+  { id: "p_outer_010", sku: "FJ-001", name: "Olive field jacket", category: "outerwear", audience: "men", price: 12400, colors: ["olive", "green"], styles: ["outdoor", "casual", "workwear"], seasonal: 6, area: "A", shelf: "A-14", stock: { M: 3, L: 2 } },
+  { id: "p_outer_011", sku: "DC-001", name: "Navy double-breasted coat", category: "outerwear", audience: "men", price: 19800, colors: ["navy"], styles: ["classic", "formal", "business"], seasonal: 5, area: "A", shelf: "A-15", stock: { S: 1, M: 2 } },
+  // --- outerwear · women ---
+  { id: "p_outer_012", sku: "WC-001", name: "Cream wrap coat", category: "outerwear", audience: "women", price: 15800, colors: ["cream", "beige"], styles: ["classic", "minimal", "romantic"], seasonal: 6, area: "A", shelf: "A-16", stock: { S: 2, M: 3 } },
+  { id: "p_outer_013", sku: "PF-001", name: "Pink cropped puffer", category: "outerwear", audience: "women", price: 9800, colors: ["pink"], styles: ["casual", "sporty", "streetwear"], seasonal: 8, area: "A", shelf: "A-17", stock: { S: 3, M: 4 } },
+  { id: "p_outer_014", sku: "BT-101", name: "Black belted trench", category: "outerwear", audience: "women", price: 17200, colors: ["black"], styles: ["classic", "smart_casual", "minimal"], seasonal: 6, area: "A", shelf: "A-18", stock: { S: 2, M: 2 } },
+  { id: "p_outer_015", sku: "TJ-001", name: "Beige teddy jacket", category: "outerwear", audience: "women", price: 10800, colors: ["beige", "cream"], styles: ["casual", "romantic", "minimal"], seasonal: 7, area: "A", shelf: "A-19", stock: { S: 3, M: 3 } },
+  { id: "p_outer_016", sku: "CP-001", name: "Burgundy wool cape", category: "outerwear", audience: "women", price: 14200, colors: ["red", "purple"], styles: ["vintage", "classic", "bohemian"], seasonal: 5, area: "A", shelf: "A-20", stock: { S: 2, M: 2 } },
+
+  // --- top · men ---
+  { id: "p_top_009", sku: "OX-001", name: "Navy oxford shirt", category: "top", audience: "men", price: 5400, colors: ["navy"], styles: ["preppy", "smart_casual", "classic"], seasonal: 7, area: "B", shelf: "B-09", stock: { M: 6, L: 4 } },
+  { id: "p_top_010", sku: "LN-001", name: "White linen shirt", category: "top", audience: "men", price: 5200, colors: ["white"], styles: ["minimal", "smart_casual", "casual"], seasonal: 8, area: "B", shelf: "B-10", stock: { M: 5, L: 5 } },
+  { id: "p_top_011", sku: "TE-101", name: "Gray marl crew tee", category: "top", audience: "men", price: 2900, colors: ["gray"], styles: ["casual", "minimal"], seasonal: 6, area: "B", shelf: "B-11", stock: { M: 8, L: 6 } },
+  { id: "p_top_012", sku: "HN-001", name: "Black henley long-sleeve", category: "top", audience: "men", price: 3800, colors: ["black"], styles: ["casual", "minimal", "streetwear"], seasonal: 6, area: "B", shelf: "B-12", stock: { M: 6, L: 4 } },
+  { id: "p_top_013", sku: "FL-001", name: "Olive flannel overshirt", category: "top", audience: "men", price: 6200, colors: ["olive", "green"], styles: ["casual", "outdoor", "workwear"], seasonal: 6, area: "B", shelf: "B-13", stock: { M: 4, L: 3 } },
+  // --- top · women ---
+  { id: "p_top_014", sku: "SB-001", name: "Cream satin blouse", category: "top", audience: "women", price: 5600, colors: ["cream", "white"], styles: ["romantic", "smart_casual", "classic"], seasonal: 8, area: "B", shelf: "B-14", stock: { S: 3, M: 4 } },
+  { id: "p_top_015", sku: "OS-101", name: "Black off-shoulder top", category: "top", audience: "women", price: 4900, colors: ["black"], styles: ["romantic", "smart_casual"], seasonal: 8, area: "B", shelf: "B-15", stock: { S: 3, M: 3 } },
+  { id: "p_top_016", sku: "RT-001", name: "Pink ribbed knit tee", category: "top", audience: "women", price: 3600, colors: ["pink"], styles: ["casual", "minimal", "romantic"], seasonal: 8, area: "B", shelf: "B-16", stock: { S: 4, M: 5 } },
+  { id: "p_top_017", sku: "TF-001", name: "Navy tie-front blouse", category: "top", audience: "women", price: 5400, colors: ["navy"], styles: ["smart_casual", "preppy", "classic"], seasonal: 7, area: "B", shelf: "B-17", stock: { S: 2, M: 4 } },
+  { id: "p_top_018", sku: "EC-001", name: "White eyelet camisole", category: "top", audience: "women", price: 4200, colors: ["white"], styles: ["romantic", "casual", "bohemian"], seasonal: 9, area: "B", shelf: "B-18", stock: { S: 3, M: 3 } },
+
+  // --- bottom · men ---
+  { id: "p_bottom_007", sku: "CH-001", name: "Navy slim chinos", category: "bottom", audience: "men", price: 7200, colors: ["navy"], styles: ["smart_casual", "classic", "minimal"], seasonal: 6, area: "C", shelf: "C-07", stock: { M: 4, L: 4 } },
+  { id: "p_bottom_008", sku: "WT-101", name: "Gray wool trousers", category: "bottom", audience: "men", price: 9400, colors: ["gray"], styles: ["business", "classic", "formal"], seasonal: 5, area: "C", shelf: "C-08", stock: { M: 3, L: 2 } },
+  { id: "p_bottom_009", sku: "CG-001", name: "Olive cargo pants", category: "bottom", audience: "men", price: 7800, colors: ["olive", "green"], styles: ["streetwear", "outdoor", "casual"], seasonal: 7, area: "C", shelf: "C-09", stock: { M: 5, L: 3 } },
+  { id: "p_bottom_010", sku: "RD-001", name: "Black raw denim", category: "bottom", audience: "men", price: 8600, colors: ["black"], styles: ["casual", "minimal", "streetwear"], seasonal: 6, area: "C", shelf: "C-10", stock: { M: 4, L: 4 } },
+  { id: "p_bottom_011", sku: "SH-001", name: "Beige pleated shorts", category: "bottom", audience: "men", price: 5200, colors: ["beige"], styles: ["casual", "smart_casual"], seasonal: 9, area: "C", shelf: "C-11", stock: { M: 5, L: 4 } },
+  // --- bottom · women ---
+  { id: "p_bottom_012", sku: "SK-101", name: "Black pleated midi skirt", category: "bottom", audience: "women", price: 6800, colors: ["black"], styles: ["smart_casual", "classic", "minimal"], seasonal: 6, area: "C", shelf: "C-12", stock: { S: 3, M: 4 } },
+  { id: "p_bottom_013", sku: "SK-102", name: "Beige A-line skirt", category: "bottom", audience: "women", price: 6200, colors: ["beige"], styles: ["minimal", "romantic", "smart_casual"], seasonal: 7, area: "C", shelf: "C-13", stock: { S: 3, M: 3 } },
+  { id: "p_bottom_014", sku: "WL-001", name: "Navy wide-leg trousers", category: "bottom", audience: "women", price: 7600, colors: ["navy"], styles: ["minimal", "smart_casual", "business"], seasonal: 6, area: "C", shelf: "C-14", stock: { S: 2, M: 4 } },
+  { id: "p_bottom_015", sku: "SK-103", name: "Denim mini skirt", category: "bottom", audience: "women", price: 5800, colors: ["blue", "navy"], styles: ["casual", "streetwear"], seasonal: 8, area: "C", shelf: "C-15", stock: { S: 4, M: 4 } },
+  { id: "p_bottom_016", sku: "TS-001", name: "Cream tailored shorts", category: "bottom", audience: "women", price: 5400, colors: ["cream", "beige"], styles: ["smart_casual", "minimal"], seasonal: 8, area: "C", shelf: "C-16", stock: { S: 3, M: 3 } },
+
+  // --- shoes · men ---
+  { id: "p_shoes_007", sku: "DB-001", name: "Brown leather derby", category: "shoes", audience: "men", price: 12800, colors: ["brown"], styles: ["business", "classic", "smart_casual"], seasonal: 5, area: "E", shelf: "E-07", stock: { "40": 2, "41": 3, "42": 3 } },
+  { id: "p_shoes_008", sku: "SN-101", name: "White low-top sneakers", category: "shoes", audience: "men", price: 8900, colors: ["white"], styles: ["casual", "minimal", "streetwear"], seasonal: 8, area: "E", shelf: "E-08", stock: { "41": 4, "42": 5, "43": 3 } },
+  { id: "p_shoes_009", sku: "CB-101", name: "Black chelsea boots", category: "shoes", audience: "men", price: 14200, colors: ["black"], styles: ["classic", "smart_casual", "minimal"], seasonal: 5, area: "E", shelf: "E-09", stock: { "41": 2, "42": 3 } },
+  { id: "p_shoes_010", sku: "SO-001", name: "Navy canvas slip-ons", category: "shoes", audience: "men", price: 5600, colors: ["navy"], styles: ["casual", "sporty"], seasonal: 7, area: "E", shelf: "E-10", stock: { "41": 4, "42": 4 } },
+  { id: "p_shoes_011", sku: "TR-101", name: "Olive trail runners", category: "shoes", audience: "men", price: 9800, colors: ["olive", "green"], styles: ["sporty", "outdoor", "athleisure"], seasonal: 7, area: "E", shelf: "E-11", stock: { "41": 3, "42": 4, "43": 2 } },
+  // --- shoes · women ---
+  { id: "p_shoes_012", sku: "BH-001", name: "Beige block heels", category: "shoes", audience: "women", price: 9800, colors: ["beige"], styles: ["smart_casual", "romantic", "classic"], seasonal: 7, area: "E", shelf: "E-12", stock: { "36": 3, "37": 4, "38": 2 } },
+  { id: "p_shoes_013", sku: "SN-102", name: "White leather sneakers", category: "shoes", audience: "women", price: 8600, colors: ["white"], styles: ["minimal", "casual", "smart_casual"], seasonal: 8, area: "E", shelf: "E-13", stock: { "36": 4, "37": 5, "38": 3 } },
+  { id: "p_shoes_014", sku: "AH-001", name: "Black ankle-strap heels", category: "shoes", audience: "women", price: 11200, colors: ["black"], styles: ["formal", "romantic", "classic"], seasonal: 6, area: "E", shelf: "E-14", stock: { "36": 2, "37": 3 } },
+  { id: "p_shoes_015", sku: "BF-001", name: "Nude ballet flats", category: "shoes", audience: "women", price: 6800, colors: ["beige", "cream"], styles: ["minimal", "romantic", "classic"], seasonal: 7, area: "E", shelf: "E-15", stock: { "36": 4, "37": 4 } },
+  { id: "p_shoes_016", sku: "KB-001", name: "Tan knee-high boots", category: "shoes", audience: "women", price: 15800, colors: ["brown", "beige"], styles: ["classic", "vintage", "smart_casual"], seasonal: 5, area: "E", shelf: "E-16", stock: { "36": 2, "37": 3 } },
+
+  // --- headwear · men ---
+  { id: "p_head_004", sku: "CAP-001", name: "Navy baseball cap", category: "headwear", audience: "men", price: 2800, colors: ["navy"], styles: ["casual", "sporty", "streetwear"], seasonal: 7, area: "F", shelf: "F-04", stock: { FREE: 8 } },
+  { id: "p_head_005", sku: "BN-001", name: "Charcoal beanie", category: "headwear", audience: "men", price: 2400, colors: ["gray", "black"], styles: ["casual", "streetwear", "minimal"], seasonal: 5, area: "F", shelf: "F-05", stock: { FREE: 10 } },
+  { id: "p_head_006", sku: "BK-001", name: "Beige bucket hat", category: "headwear", audience: "men", price: 3200, colors: ["beige"], styles: ["streetwear", "casual", "outdoor"], seasonal: 8, area: "F", shelf: "F-06", stock: { FREE: 6 } },
+  { id: "p_head_007", sku: "FC-001", name: "Black flat cap", category: "headwear", audience: "men", price: 3600, colors: ["black"], styles: ["classic", "vintage", "smart_casual"], seasonal: 5, area: "F", shelf: "F-07", stock: { FREE: 5 } },
+  { id: "p_head_008", sku: "DC-101", name: "Olive dad cap", category: "headwear", audience: "men", price: 2600, colors: ["olive", "green"], styles: ["casual", "sporty"], seasonal: 7, area: "F", shelf: "F-08", stock: { FREE: 7 } },
+  // --- headwear · women ---
+  { id: "p_head_009", sku: "WB-001", name: "Cream wide-brim hat", category: "headwear", audience: "women", price: 4800, colors: ["cream", "beige"], styles: ["romantic", "bohemian", "classic"], seasonal: 8, area: "F", shelf: "F-09", stock: { FREE: 4 } },
+  { id: "p_head_010", sku: "BR-001", name: "Black beret", category: "headwear", audience: "women", price: 2900, colors: ["black"], styles: ["vintage", "romantic", "classic"], seasonal: 6, area: "F", shelf: "F-10", stock: { FREE: 6 } },
+  { id: "p_head_011", sku: "KB-101", name: "Pink knit beanie", category: "headwear", audience: "women", price: 2600, colors: ["pink"], styles: ["casual", "minimal"], seasonal: 6, area: "F", shelf: "F-11", stock: { FREE: 7 } },
+  { id: "p_head_012", sku: "SU-001", name: "Straw sun hat", category: "headwear", audience: "women", price: 3800, colors: ["beige", "yellow"], styles: ["bohemian", "casual", "outdoor"], seasonal: 9, area: "F", shelf: "F-12", stock: { FREE: 5 } },
+  { id: "p_head_013", sku: "HS-001", name: "Navy headscarf", category: "headwear", audience: "women", price: 2200, colors: ["navy"], styles: ["romantic", "vintage", "bohemian"], seasonal: 7, area: "F", shelf: "F-13", stock: { FREE: 8 } },
+
+  // --- bag · men ---
+  { id: "p_bag_004", sku: "MS-001", name: "Black leather messenger bag", category: "bag", audience: "men", price: 12800, colors: ["black"], styles: ["business", "classic", "smart_casual"], seasonal: 5, area: "G", shelf: "G-04", stock: { FREE: 4 } },
+  { id: "p_bag_005", sku: "BP-101", name: "Olive canvas backpack", category: "bag", audience: "men", price: 8600, colors: ["olive", "green"], styles: ["casual", "outdoor", "streetwear"], seasonal: 7, area: "G", shelf: "G-05", stock: { FREE: 5 } },
+  { id: "p_bag_006", sku: "BC-001", name: "Brown leather briefcase", category: "bag", audience: "men", price: 16800, colors: ["brown"], styles: ["business", "classic", "formal"], seasonal: 4, area: "G", shelf: "G-06", stock: { FREE: 2 } },
+  { id: "p_bag_007", sku: "SL-001", name: "Navy nylon sling bag", category: "bag", audience: "men", price: 4800, colors: ["navy"], styles: ["casual", "sporty", "streetwear"], seasonal: 8, area: "G", shelf: "G-07", stock: { FREE: 8 } },
+  { id: "p_bag_008", sku: "DF-001", name: "Gray weekender duffel", category: "bag", audience: "men", price: 11200, colors: ["gray"], styles: ["casual", "outdoor", "minimal"], seasonal: 6, area: "G", shelf: "G-08", stock: { FREE: 3 } },
+  // --- bag · women ---
+  { id: "p_bag_009", sku: "TT-001", name: "Beige leather tote", category: "bag", audience: "women", price: 13800, colors: ["beige"], styles: ["minimal", "classic", "smart_casual"], seasonal: 7, area: "G", shelf: "G-09", stock: { FREE: 4 } },
+  { id: "p_bag_010", sku: "QS-001", name: "Black quilted shoulder bag", category: "bag", audience: "women", price: 15200, colors: ["black"], styles: ["classic", "romantic", "smart_casual"], seasonal: 6, area: "G", shelf: "G-10", stock: { FREE: 3 } },
+  { id: "p_bag_011", sku: "CB-201", name: "Pink mini crossbody", category: "bag", audience: "women", price: 6800, colors: ["pink"], styles: ["casual", "romantic", "minimal"], seasonal: 8, area: "G", shelf: "G-11", stock: { FREE: 6 } },
+  { id: "p_bag_012", sku: "BB-001", name: "Cream woven basket bag", category: "bag", audience: "women", price: 7200, colors: ["cream", "beige"], styles: ["bohemian", "casual", "romantic"], seasonal: 9, area: "G", shelf: "G-12", stock: { FREE: 4 } },
+  { id: "p_bag_013", sku: "HB-001", name: "Navy structured handbag", category: "bag", audience: "women", price: 12400, colors: ["navy"], styles: ["business", "classic", "minimal"], seasonal: 6, area: "G", shelf: "G-13", stock: { FREE: 3 } },
+
+  // --- accessory · men ---
+  { id: "p_acc_005", sku: "TI-001", name: "Navy silk tie", category: "accessory", audience: "men", price: 4200, colors: ["navy"], styles: ["business", "classic", "formal"], seasonal: 5, area: "H", shelf: "H-05", stock: { FREE: 8 } },
+  { id: "p_acc_006", sku: "BL-101", name: "Brown woven leather belt", category: "accessory", audience: "men", price: 3800, colors: ["brown"], styles: ["classic", "casual", "business"], seasonal: 5, area: "H", shelf: "H-06", stock: { FREE: 10 } },
+  { id: "p_acc_007", sku: "WT-201", name: "Black field watch", category: "accessory", audience: "men", price: 14800, colors: ["black"], styles: ["minimal", "classic", "business"], seasonal: 5, area: "H", shelf: "H-07", stock: { FREE: 4 } },
+  { id: "p_acc_008", sku: "SC-101", name: "Gray wool scarf", category: "accessory", audience: "men", price: 3400, colors: ["gray"], styles: ["casual", "classic", "minimal"], seasonal: 5, area: "H", shelf: "H-08", stock: { FREE: 7 } },
+  { id: "p_acc_009", sku: "TC-001", name: "Silver tie clip", category: "accessory", audience: "men", price: 2600, colors: ["silver"], styles: ["business", "formal", "classic"], seasonal: 4, area: "H", shelf: "H-09", stock: { FREE: 6 } },
+  // --- accessory · women ---
+  { id: "p_acc_010", sku: "HE-001", name: "Gold hoop earrings", category: "accessory", audience: "women", price: 3200, colors: ["gold"], styles: ["minimal", "romantic", "classic"], seasonal: 7, area: "H", shelf: "H-10", stock: { FREE: 8 } },
+  { id: "p_acc_011", sku: "SS-001", name: "Cream silk scarf", category: "accessory", audience: "women", price: 3600, colors: ["cream", "white"], styles: ["romantic", "classic", "vintage"], seasonal: 7, area: "H", shelf: "H-11", stock: { FREE: 6 } },
+  { id: "p_acc_012", sku: "NK-001", name: "Pearl statement necklace", category: "accessory", audience: "women", price: 5800, colors: ["white", "silver"], styles: ["romantic", "classic", "formal"], seasonal: 6, area: "H", shelf: "H-12", stock: { FREE: 4 } },
+  { id: "p_acc_013", sku: "BL-201", name: "Beige slim leather belt", category: "accessory", audience: "women", price: 3400, colors: ["beige"], styles: ["minimal", "smart_casual", "classic"], seasonal: 6, area: "H", shelf: "H-13", stock: { FREE: 7 } },
+  { id: "p_acc_014", sku: "BC-101", name: "Gold delicate bracelet", category: "accessory", audience: "women", price: 4200, colors: ["gold"], styles: ["minimal", "romantic"], seasonal: 7, area: "H", shelf: "H-14", stock: { FREE: 6 } },
+
+  // --- dress · women ---
+  { id: "p_dress_004", sku: "WD-001", name: "Navy wrap midi dress", category: "dress", audience: "women", price: 9800, colors: ["navy"], styles: ["smart_casual", "romantic", "classic"], seasonal: 7, area: "D", shelf: "D-04", stock: { S: 3, M: 4 } },
+  { id: "p_dress_005", sku: "SD-001", name: "Black slip dress", category: "dress", audience: "women", price: 8600, colors: ["black"], styles: ["formal", "minimal", "romantic"], seasonal: 6, area: "D", shelf: "D-05", stock: { S: 2, M: 3 } },
+  { id: "p_dress_006", sku: "FD-001", name: "Floral tea dress", category: "dress", audience: "women", price: 8900, colors: ["multicolor", "pink"], styles: ["romantic", "vintage", "bohemian"], seasonal: 9, area: "D", shelf: "D-06", stock: { S: 3, M: 4 } },
+  { id: "p_dress_007", sku: "SD-101", name: "Beige shirt dress", category: "dress", audience: "women", price: 7800, colors: ["beige"], styles: ["smart_casual", "minimal", "casual"], seasonal: 7, area: "D", shelf: "D-07", stock: { S: 3, M: 3 } },
+  { id: "p_dress_008", sku: "MD-001", name: "Red halter maxi dress", category: "dress", audience: "women", price: 11200, colors: ["red"], styles: ["romantic", "formal", "bohemian"], seasonal: 8, area: "D", shelf: "D-08", stock: { S: 2, M: 3 } },
+
+  // --- one_piece · women ---
+  { id: "p_onepiece_003", sku: "JS-001", name: "Black tailored jumpsuit", category: "one_piece", audience: "women", price: 10800, colors: ["black"], styles: ["formal", "smart_casual", "minimal"], seasonal: 6, area: "D", shelf: "D-09", stock: { S: 2, M: 3 } },
+  { id: "p_onepiece_004", sku: "JS-101", name: "Beige linen jumpsuit", category: "one_piece", audience: "women", price: 9600, colors: ["beige"], styles: ["casual", "minimal", "outdoor"], seasonal: 8, area: "D", shelf: "D-10", stock: { S: 3, M: 3 } },
+  { id: "p_onepiece_005", sku: "JS-102", name: "Navy wide-leg jumpsuit", category: "one_piece", audience: "women", price: 10200, colors: ["navy"], styles: ["smart_casual", "minimal", "classic"], seasonal: 6, area: "D", shelf: "D-11", stock: { S: 2, M: 3 } },
+  { id: "p_onepiece_006", sku: "RP-001", name: "Denim utility romper", category: "one_piece", audience: "women", price: 7600, colors: ["blue", "navy"], styles: ["casual", "streetwear", "outdoor"], seasonal: 8, area: "D", shelf: "D-12", stock: { S: 3, M: 4 } },
+  { id: "p_onepiece_007", sku: "PS-001", name: "Cream ruffle playsuit", category: "one_piece", audience: "women", price: 7200, colors: ["cream", "white"], styles: ["romantic", "bohemian", "casual"], seasonal: 8, area: "D", shelf: "D-13", stock: { S: 3, M: 3 } },
 
   // --- demo edge cases (DEMO_SCRIPT §5): sold-out + over-budget to prove the
   // agent re-plans instead of failing ---

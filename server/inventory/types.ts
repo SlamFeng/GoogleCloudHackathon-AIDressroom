@@ -88,11 +88,15 @@ export type StoreLocation = z.infer<typeof storeLocationSchema>;
  * not on every purchase. Includes the try-on (`vton_*`) fields so this record
  * can fully replace the legacy hard-coded `catalog` in mock-tools.
  */
+export const audienceSchema = z.enum(["women", "men", "unisex"]);
+export type Audience = z.infer<typeof audienceSchema>;
+
 export const productSchema = z.object({
   product_id: z.string().min(1),
   sku: z.string().min(1),
   name: z.string().min(1),
   category: productCategorySchema,
+  audience: audienceSchema.default("unisex"),
   price_yen: z.number().int().nonnegative(),
   colors: z.array(standardColorSchema).min(1),
   style_tags: z.array(styleTagSchema),
