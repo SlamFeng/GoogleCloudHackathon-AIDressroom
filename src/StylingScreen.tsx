@@ -492,12 +492,14 @@ export function StylingScreen({
   // submits what was heard. No big form — just the mirror and your voice.
   function toggleVoice() {
     if (stt.listening) {
-      stt.stop();
-      const said = stt.transcript.trim();
-      if (said) {
-        setCustomerNeed(said);
-        handleStyleMe(said);
-      }
+      // Wait for the recognizer to flush — the last words often finalize AFTER
+      // stop() returns, so a synchronous transcript read drops the tail.
+      void stt.stopAndFlush().then((said) => {
+        if (said) {
+          setCustomerNeed(said);
+          handleStyleMe(said);
+        }
+      });
     } else {
       speech.warm();
       setPetMessage("我在听，请说～");
@@ -548,9 +550,13 @@ export function StylingScreen({
   // sustained smile triggers a spoken compliment (MediaPipe Face Landmarker ->
   // existing Gemini TTS). Only active during the try-on so it reacts to the
   // outfit, not to the browsing UI.
+  // During a REAL Lucy preview the ambient mirror releases the camera and Lucy
+  // captures its own local feed — read the smile from that feed instead, so the
+  // compliment doesn't silently die at the flashiest moment of the demo.
+  const expressionVideoRef = lucyHoldsCamera ? lucy.localVideoRef : mirror.videoRef;
   useExpression({
-    videoRef: mirror.videoRef,
-    enabled: mirror.state === "live" && tryonActive,
+    videoRef: expressionVideoRef,
+    enabled: tryonActive && (lucyHoldsCamera || mirror.state === "live"),
     onSatisfied: () => {
       if (busyAction !== null) return;
       setPetMessage(LINE_COMPLIMENT);

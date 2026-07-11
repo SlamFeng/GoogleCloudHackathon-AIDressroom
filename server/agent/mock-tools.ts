@@ -27,7 +27,13 @@ import {
   type StyleTag
 } from "../inventory/types.js";
 import { composeOutfitSets, type StylistCandidate } from "./stylist.js";
-import { readTrends, currentSeason, type TrendResult } from "./trends.js";
+import { readTrends, warmTrends, currentSeason, type TrendResult } from "./trends.js";
+
+// This log is a per-process singleton shared by EVERY session for the server's
+// lifetime, so it must be bounded — recent turns are all the demo (and the
+// /tool-calls debug route) ever needs.
+const MAX_TOOL_CALLS = 1000;
+const MAX_FEEDBACK_RECORDS = 500;
 
 export class ToolCallLog {
   readonly calls: ToolCallRecord[] = [];
@@ -39,12 +45,16 @@ export class ToolCallLog {
       output,
       called_at: new Date().toISOString()
     });
+    if (this.calls.length > MAX_TOOL_CALLS) {
+      this.calls.splice(0, this.calls.length - MAX_TOOL_CALLS);
+    }
   }
 }
 
 export class MockAgentTools {
   readonly log = new ToolCallLog();
   readonly feedbackStore: Array<Record<string, unknown>> = [];
+  private feedbackSeq = 0;
 
   constructor(private readonly inventoryProvider: () => Promise<InventoryService> = getInventoryService) {}
 
@@ -244,12 +254,25 @@ export class MockAgentTools {
       region: process.env.STORE_REGION ?? "Japan",
       season: currentSeason(now.getMonth() + 1)
     };
-    const result = readTrends({ ...base, occasion: input.occasion }, now) ?? readTrends(base, now);
+    // Prefer the occasion-specific bucket; on a miss, serve the base bucket now
+    // and warm the occasion bucket in the background so the NEXT turn (a refine,
+    // or the next customer with the same occasion today) gets it — the live
+    // conversation itself never waits on a search.
+    let occasionHit = false;
+    let result: TrendResult | null = null;
+    if (input.occasion) {
+      const occasionCtx = { ...base, occasion: input.occasion };
+      result = readTrends(occasionCtx, now);
+      if (result) occasionHit = true;
+      else void warmTrends(occasionCtx, now).catch(() => {});
+    }
+    result ??= readTrends(base, now);
     this.log.append(
       "get_trending_styles",
       {
         session_id: input.session_id,
         source: "cache",
+        occasion_specific: occasionHit,
         region: base.region,
         season: base.season,
         occasion: input.occasion ?? null,
@@ -319,11 +342,17 @@ export class MockAgentTools {
     feedback: Record<string, unknown>;
     constraint_delta: ConstraintDelta;
   }) {
+    this.feedbackSeq += 1;
     const output = {
-      feedback_id: `feedback_${String(this.feedbackStore.length + 1).padStart(3, "0")}`,
+      // A counter, not array length — the store is capped, so length would
+      // repeat ids once eviction starts.
+      feedback_id: `feedback_${String(this.feedbackSeq).padStart(3, "0")}`,
       status: "recorded"
     };
     this.feedbackStore.push({ ...input, ...output });
+    if (this.feedbackStore.length > MAX_FEEDBACK_RECORDS) {
+      this.feedbackStore.splice(0, this.feedbackStore.length - MAX_FEEDBACK_RECORDS);
+    }
     this.log.append("record_feedback", input, output);
     return output;
   }
