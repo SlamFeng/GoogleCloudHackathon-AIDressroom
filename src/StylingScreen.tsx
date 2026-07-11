@@ -1003,20 +1003,15 @@ export function StylingScreen({
             </div>
             <LiveTranscript text={stt.transcript} listening={stt.listening} />
             <div className="mirror-talk-wrap">
-              <SiriOrb
-                state={auraState}
-                amplitude={micLevel}
-                size={200}
-                style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
-              />
+              {/* The orb IS the talk button — no separate cobalt mic disc. */}
               <button
-                className={`mirror-talk ${stt.listening ? "on" : ""}`}
+                className={`mirror-talk mirror-talk-orb ${stt.listening ? "on" : ""}`}
                 type="button"
                 onClick={stt.supported ? toggleVoice : () => handleStyleMe(defaultCustomerNeed)}
                 aria-pressed={stt.listening}
                 aria-label={stt.listening ? "Stop and send" : "Tap to talk"}
               >
-                🎤
+                <SiriOrb state={auraState} amplitude={micLevel} size={76} />
               </button>
             </div>
             <div className="mirror-voice-hint">

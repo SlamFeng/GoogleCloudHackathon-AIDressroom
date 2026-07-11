@@ -977,6 +977,20 @@ img.mirror-tryon-remote {
   z-index: 0;
 }
 
+/* The Siri orb IS the talk button — strip the cobalt disc, keep the 76px hit
+   area and the recording pulse ring. The orb breathes past the button edge on
+   loud input, so no overflow clipping here. */
+.mirror-talk.mirror-talk-orb {
+  padding: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  font-size: 0;
+}
+.mirror-talk.mirror-talk-orb.on {
+  background: transparent;
+}
+
 /* Try-on reveal scan — a light scan-line that sweeps the reflection back and
    forth twice as the try-on opens (down · up · down · up). Steady ease-in-out so
    it reads as a deliberate scan, not a quick flash. */
