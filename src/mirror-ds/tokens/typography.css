@@ -1,0 +1,83 @@
+/* ============================================================
+   Fashini Mirror — Typography
+   ------------------------------------------------------------
+   Neo-grotesque, engineered. Tight tracking on display
+   (-0.02 to -0.03em). Uppercase micro-labels 0.14–0.18em.
+   Prices / data / timestamps use mono with tabular-nums.
+
+   Two operating registers:
+     · KIOSK — glanceable at arm's length on a portrait mirror.
+       Screens stay compact so the reflection dominates, so the
+       hero here is smaller than a marketing headline would be.
+     · MICRO — mono labels + ¥ prices, the quiet structural voice.
+   ============================================================ */
+
+:root {
+  /* — Families — */
+  --font-sans: "Archivo", "Noto Sans SC", "Noto Sans JP", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* — Weights — */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+  --weight-ultra: 900;
+
+  /* — Type scale (px) — tuned for a portrait kiosk at arm's length — */
+  --text-hero: 64px;      /* attract / welcome headline */
+  --text-display: 44px;   /* stage title, count-up total */
+  --text-title-xl: 34px;
+  --text-title: 26px;     /* panel headings on the mirror */
+  --text-subtitle: 20px;
+  --text-body-l: 18px;
+  --text-body: 15px;      /* default */
+  --text-body-s: 13px;
+  --text-caption: 12px;
+  --text-micro: 11px;     /* uppercase micro-labels */
+
+  /* — Line heights — */
+  --leading-tight: 1.04;  /* display / headlines */
+  --leading-snug: 1.18;
+  --leading-body: 1.55;
+  --leading-relaxed: 1.7;
+
+  /* — Tracking — */
+  --tracking-display: -0.03em;
+  --tracking-heading: -0.02em;
+  --tracking-normal: 0;
+  --tracking-label: 0.14em;      /* uppercase micro-labels */
+  --tracking-label-wide: 0.18em;
+  --tracking-brand: 0.06em;      /* the FASHINI wordmark */
+
+  /* — Numeric — */
+  --nums-tabular: "tnum" 1, "lnum" 1; /* @kind other */
+}
+
+/* Utility: uppercase micro-label */
+.fashini-micro {
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Utility: the FASHINI wordmark — no logo file exists, so the name
+   is always set as type (Archivo 800, +0.06em). */
+.fashini-wordmark {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-brand);
+  text-transform: none;
+  color: var(--text-primary);
+}
+
+/* Utility: monospace data / price / timestamp */
+.fashini-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--nums-tabular);
+  font-variant-numeric: tabular-nums;
+}

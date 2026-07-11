@@ -1,0 +1,65 @@
+/* ============================================================
+   Fashini Mirror — Glass
+   ------------------------------------------------------------
+   The signature surface. Every panel floats as frosted DARK
+   glass over the live reflection: a low-alpha ink fill, a heavy
+   backdrop blur + slight saturation lift, one bright top
+   hairline (light catching the edge), and a soft downward
+   shadow that lifts it off the reflection.
+
+   Three depths only:
+     · --glass-sheet   bottom-anchored content sheets (looks, profile)
+     · --glass-pill    floating pills (top controls, chips, tabs)
+     · --glass-raised  the one focused card (consent, confirm)
+
+   Reduced-transparency / reduced-motion fallbacks solidify the
+   fill (see base.css) so text never loses contrast.
+   ============================================================ */
+
+:root {
+  /* — Fills — */
+  --glass-sheet-fill: rgba(12, 13, 18, 0.55);
+  --glass-pill-fill: rgba(16, 17, 23, 0.5);
+  --glass-raised-fill: rgba(14, 15, 21, 0.68);
+  --glass-inset-fill: rgba(255, 255, 255, 0.06); /* a well inside glass */
+
+  /* — Blur / saturation — */
+  --glass-blur: 26px;
+  --glass-blur-strong: 40px;
+  --glass-saturate: 1.35; /* @kind other */
+
+  /* — Edges — light catches the top edge, hairline elsewhere — */
+  --glass-edge: rgba(255, 255, 255, 0.18);   /* top highlight */
+  --glass-hairline: var(--on-dark-line);
+
+  /* — Depth (soft, downward, never harsh) — */
+  --glass-shadow-sheet: 0 -18px 48px -24px rgba(0, 0, 0, 0.66);
+  --glass-shadow-pill: 0 8px 24px -12px rgba(0, 0, 0, 0.55);
+  --glass-shadow-raised: 0 24px 70px -28px rgba(0, 0, 0, 0.72);
+
+  /* — Radius family — echoes the brand's two-radius rule, softened
+       for glass so panels read as pebbles floating on the mirror — */
+  --radius-sheet: 26px;   /* bottom sheets (top corners only) */
+  --radius-card: 20px;    /* focused cards / look card */
+  --radius-control: 12px; /* buttons, fields, segmented */
+  --radius-pill: 999px;   /* chips, tabs, control pills */
+}
+
+/* Composable glass utility (used by cards; components inline the same
+   tokens). Kept minimal so it degrades cleanly without backdrop-filter. */
+.fsh-glass {
+  background: var(--glass-sheet-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-hairline);
+  border-top-color: var(--glass-edge);
+  box-shadow: var(--glass-shadow-raised);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-sheet-fill: rgba(12, 13, 18, 0.92);
+    --glass-pill-fill: rgba(16, 17, 23, 0.9);
+    --glass-raised-fill: rgba(14, 15, 21, 0.95);
+  }
+}

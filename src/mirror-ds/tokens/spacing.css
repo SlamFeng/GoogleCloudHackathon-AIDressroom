@@ -1,0 +1,43 @@
+/* ============================================================
+   Fashini Mirror — Spacing & layout
+   ------------------------------------------------------------
+   4px base grid. Portrait kiosk (3:4 / 9:16). Generous negative
+   space; panels stay compact and bottom-anchored so the live
+   reflection is revealed as much as possible at every stage.
+   (Radii live in glass.css alongside the glass system.)
+   ============================================================ */
+
+:root {
+  /* — Spacing (4px base grid) — */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* — Hairline — */
+  --border-width: 1px;
+
+  /* — Kiosk frame — the portrait mirror the whole system lives in — */
+  --kiosk-w: 1080px;    /* reference portrait width  (9:16 → 1080×1920) */
+  --kiosk-h: 1920px;    /* reference portrait height */
+  --kiosk-ratio: 3 / 4; /* @kind other */
+
+  /* — Safe insets for bottom-anchored sheets — */
+  --sheet-gutter: 24px;              /* side padding of floating panels */
+  --sheet-max-h: 58%;                /* a sheet never eats more than this */
+  --sheet-radius: var(--radius-sheet);
+
+  /* — Touch — self-service, standing, at arm's length — */
+  --touch-target: 44px;      /* absolute minimum hit target */
+  --touch-target-lg: 64px;   /* mirror primary actions */
+  --touch-target-xl: 76px;   /* the voice affordance */
+}

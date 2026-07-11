@@ -1,0 +1,65 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Core — glass, buttons, icons, price" subtitle="GlassPanel · Button · Icon set · PriceTag · MicroLabel · Hairline" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; }
+  /* a dim, cool "reflection" stand-in so the glass reads honestly */
+  body {
+    padding: 24px;
+    background:
+      radial-gradient(120% 80% at 30% 20%, #23262f 0%, #0d0e13 60%, #060608 100%),
+      radial-gradient(90% 70% at 80% 90%, rgba(61,82,255,0.10), transparent 60%);
+    min-height: 252px;
+  }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .row + .row { margin-top: 16px; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--on-dark-3); width: 66px; letter-spacing: 0.04em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { GlassPanel, Button, PriceTag, MicroLabel, Hairline, Icon } = window.FashiniMirrorDesignSystem_c521b8;
+    const ICONS = ["arrow-left","camera","hand","thumbs-up","fist","expand","volume","volume-x","mic","check","ruler","scale","user","calendar"];
+    function Demo() {
+      return (
+        <div>
+          <div className="row">
+            <span className="cap">buttons</span>
+            <Button variant="primary" iconRight={<span>→</span>}>Reserve</Button>
+            <Button variant="glass">Try it on</Button>
+            <Button variant="ghost">Retake</Button>
+            <Button variant="text">← Back</Button>
+          </div>
+          <div className="row">
+            <span className="cap">glass</span>
+            <GlassPanel variant="pill" style={{ padding: "9px 15px", fontSize: 13 }}>Floating pill</GlassPanel>
+            <GlassPanel variant="card" style={{ padding: "12px 18px" }}>
+              <MicroLabel tone="accent">Explicit need</MicroLabel>
+              <div style={{ marginTop: 6 }}><PriceTag amount={40700} size="lg" /></div>
+            </GlassPanel>
+          </div>
+          <div className="row">
+            <span className="cap">price · label</span>
+            <PriceTag amount={8900} size="md" />
+            <Hairline vertical style={{ height: 22 }} />
+            <MicroLabel>Set total</MicroLabel>
+          </div>
+          <div className="row" style={{ gap: 14 }}>
+            <span className="cap">icons</span>
+            {ICONS.map((n) => <span key={n} style={{ color: "var(--on-dark-2)" }}><Icon name={n} size={20} /></span>)}
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

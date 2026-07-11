@@ -944,3 +944,17 @@ img.mirror-tryon-remote {
   .mirror-talk.on { animation: none; }
   .mirror-looks-arm { animation: none; clip-path: inset(0 0 0 0); opacity: 0.4; }
 }
+
+/* Voice aura sits behind the mic button in the idle voice state. */
+.mirror-talk-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.mirror-talk-wrap .mirror-talk {
+  position: relative;
+  z-index: 1;
+}
+.mirror-talk-wrap .voice-aura {
+  z-index: 0;
+}

@@ -1,0 +1,58 @@
+<!-- @dsCard group="Components" viewport="700x260" name="Chrome — controls & status" subtitle="ControlPill (top controls) · CameraChip · ToolStep working pills" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 24px;
+    background:
+      radial-gradient(120% 80% at 30% 15%, #23262f 0%, #0d0e13 60%, #060608 100%),
+      radial-gradient(80% 70% at 85% 95%, rgba(61,82,255,0.10), transparent 60%);
+    min-height: 212px;
+  }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row + .row { margin-top: 18px; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--on-dark-3); width: 74px; letter-spacing: 0.04em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { ControlPill, CameraChip, ToolStep } = window.FashiniMirrorDesignSystem_c521b8;
+    function Demo() {
+      return (
+        <div>
+          <div className="row">
+            <span className="cap">controls</span>
+            <ControlPill icon="←" label="Back" />
+            <ControlPill icon="📷" />
+            <ControlPill icon="✋" active />
+            <ControlPill icon="⤢" />
+            <ControlPill icon="🔊" />
+          </div>
+          <div className="row">
+            <span className="cap">status</span>
+            <CameraChip>Camera on · nothing is saved</CameraChip>
+          </div>
+          <div className="row">
+            <span className="cap">working</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <ToolStep label="正在读取身型模板…" done index={0} />
+              <ToolStep label="搜索店内现货…" done index={1} />
+              <ToolStep label="为你搭配三套…" index={2} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

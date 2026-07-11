@@ -21,6 +21,8 @@ import { useSpeechRecognition } from "./useSpeechRecognition";
 import { useGestureControl } from "./useGestureControl";
 import { useExpression } from "./useExpression";
 import { GuidePet, type PetMood } from "./GuidePet";
+import { VoiceAura, type VoiceAuraState } from "./VoiceAura";
+import { useAudioLevel } from "./useAudioLevel";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -487,6 +489,12 @@ export function StylingScreen({
   }
   const speech = useSpeech("zh-CN");
   const stt = useSpeechRecognition({ lang: "zh-CN", continuous: true });
+  const micLevel = useAudioLevel(stt.listening);
+  const auraState: VoiceAuraState = stt.listening
+    ? "listening"
+    : speech.speaking
+      ? "speaking"
+      : "idle";
 
   // Voice-first: a tap (or gesture) starts listening; the next one stops and
   // submits what was heard. No big form — just the mirror and your voice.
@@ -758,15 +766,23 @@ export function StylingScreen({
         {voiceMode && (
           <div className="mirror-voice">
             {stt.listening && <div className="mirror-caption">{stt.transcript || "…"}</div>}
-            <button
-              className={`mirror-talk ${stt.listening ? "on" : ""}`}
-              type="button"
-              onClick={stt.supported ? toggleVoice : () => handleStyleMe(defaultCustomerNeed)}
-              aria-pressed={stt.listening}
-              aria-label={stt.listening ? "Stop and send" : "Tap to talk"}
-            >
-              🎤
-            </button>
+            <div className="mirror-talk-wrap">
+              <VoiceAura
+                state={auraState}
+                amplitude={micLevel}
+                size={240}
+                style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+              />
+              <button
+                className={`mirror-talk ${stt.listening ? "on" : ""}`}
+                type="button"
+                onClick={stt.supported ? toggleVoice : () => handleStyleMe(defaultCustomerNeed)}
+                aria-pressed={stt.listening}
+                aria-label={stt.listening ? "Stop and send" : "Tap to talk"}
+              >
+                🎤
+              </button>
+            </div>
             <div className="mirror-voice-hint">
               {stt.listening
                 ? "Listening… tap to send"

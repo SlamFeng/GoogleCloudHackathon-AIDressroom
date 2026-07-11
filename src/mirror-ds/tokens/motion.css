@@ -1,0 +1,52 @@
+/* ============================================================
+   Fashini Mirror — Motion
+   ------------------------------------------------------------
+   "Elegant and quiet, but with lavishly choreographed motion."
+   ONE signature easing (the brand's) drives almost everything.
+   Fewer, more intentional animations over many. Every motion
+   has a prefers-reduced-motion fallback (see base.css).
+
+   The four SIGNATURE pieces read their timings from here so the
+   spec and the code never drift:
+     A · Voice / agent aura      (--aura-*)
+     B · Gesture hint bubbles    (--gesture-*)
+     C · Live STT transcript     (--stt-*)
+     D · Try-on / Lucy reveal    (--reveal-*)
+   ============================================================ */
+
+:root {
+  /* — Easing — the signature curve drives almost everything — */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1); /* @kind other */
+  --ease-aura: cubic-bezier(0.45, 0, 0.55, 1); /* @kind other */
+
+  /* — Durations — fast taps → slow choreo climax — */
+  --dur-fast: 0.18s; /* @kind other */
+  --dur-base: 0.4s; /* @kind other */
+  --dur-slow: 0.6s; /* @kind other */
+  --dur-choreo: 0.9s; /* @kind other */
+  --stagger: 80ms; /* @kind other */
+
+  /* — A · Voice aura — enter / breathe / speak-pulse / talk-react — */
+  --aura-enter: 0.6s; /* @kind other */
+  --aura-breathe: 6s; /* @kind other */
+  --aura-pulse-tts: 1.1s; /* @kind other */
+  --aura-react: 0.12s; /* @kind other */
+
+  /* — B · Gesture bubbles — entrance / idle bob / detect flash — */
+  --gesture-in: 0.5s; /* @kind other */
+  --gesture-bob: 3.2s; /* @kind other */
+  --gesture-detect: 0.24s; /* @kind other */
+
+  /* — C · Live transcript — word in / older words fade back — */
+  --stt-word-in: 0.34s; /* @kind other */
+  --stt-word-out: 0.5s; /* @kind other */
+
+  /* — D · Try-on reveal (0.8–1.2s, magical but calm) — */
+  --reveal-recede: 0.42s; /* @kind other */
+  --reveal-bloom: 0.9s; /* @kind other */
+  --reveal-crossfade: 0.5s; /* @kind other */
+  --reveal-total: 1.1s; /* @kind other */
+  --tryon-window: 15s; /* @kind other */
+}

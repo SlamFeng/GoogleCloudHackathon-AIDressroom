@@ -1,0 +1,62 @@
+<!-- @dsCard group="Components" viewport="700x420" name="LookStrip — three looks" subtitle="Number tabs 1·2·3 · active look · ¥ total · thumbnails · feedback chips" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 24px;
+    display: grid; place-items: start center;
+    background:
+      radial-gradient(110% 70% at 40% 10%, #262932 0%, #0d0e13 62%, #060608 100%),
+      radial-gradient(80% 60% at 80% 95%, rgba(61,82,255,0.12), transparent 60%);
+    min-height: 372px;
+  }
+  .sheet {
+    width: 380px;
+    padding: 20px;
+    border-radius: var(--radius-sheet);
+    border: 1px solid var(--glass-hairline);
+    border-top-color: var(--glass-edge);
+    background: var(--glass-sheet-fill);
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    box-shadow: var(--glass-shadow-raised);
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { LookStrip } = window.FashiniMirrorDesignSystem_c521b8;
+    const looks = [
+      { id: "1", recType: "explicit_need", totalYen: 40700, items: [
+        { name: "Structured wool blazer", colorHex: "#2b2f3a" },
+        { name: "Merino turtleneck", colorHex: "#e7e3da" },
+        { name: "Slim tapered trouser", colorHex: "#3a3d47" } ] },
+      { id: "2", recType: "style", totalYen: 27800, items: [
+        { name: "Relaxed overshirt", colorHex: "#4a5240" },
+        { name: "Cotton tee", colorHex: "#d9d5cc" } ] },
+      { id: "3", recType: "seasonal", totalYen: 33600, items: [
+        { name: "Quilted liner", colorHex: "#1f2430" },
+        { name: "Flannel shirt", colorHex: "#6b3f3a" },
+        { name: "Tapered cord", colorHex: "#5a4a36" } ] }
+    ];
+    function Demo() {
+      const [active, setActive] = React.useState(0);
+      return (
+        <div className="sheet">
+          <LookStrip looks={looks} activeIndex={active} onSelect={setActive} armedIndex={1} />
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

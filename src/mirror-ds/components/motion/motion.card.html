@@ -1,0 +1,65 @@
+<!-- @dsCard group="Signature Motion" viewport="700x470" name="Voice aura · gesture bubbles · transcript · try-on" subtitle="The four signature pieces — VoiceAura, GestureHint, LiveTranscript, TryOnReveal" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 22px;
+    background:
+      radial-gradient(120% 80% at 30% 10%, #23262f 0%, #0d0e13 60%, #060608 100%);
+    min-height: 426px;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: stretch; }
+  .panel { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--on-dark-3); letter-spacing: 0.06em; text-transform: uppercase; }
+  /* a portrait "reflection" stand-in for the try-on frame */
+  .frame {
+    position: relative; height: 426px; border-radius: 22px; overflow: hidden;
+    border: 1px solid var(--glass-hairline);
+    background:
+      radial-gradient(70% 55% at 50% 32%, #4a4f5e 0%, #23262f 45%, #0c0d12 100%);
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { VoiceAura, GestureHint, LiveTranscript, TryOnReveal } = window.FashiniMirrorDesignSystem_c521b8;
+    function Demo() {
+      const [amp, setAmp] = React.useState(0.3);
+      React.useEffect(() => {
+        let raf, t0 = performance.now();
+        const tick = (t) => { setAmp(0.3 + 0.35 * (0.5 + 0.5 * Math.sin((t - t0) / 420))); raf = requestAnimationFrame(tick); };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+      }, []);
+      return (
+        <div className="grid">
+          <div className="panel">
+            <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+              <VoiceAura state="listening" amplitude={amp} size={200} style={{ position: "absolute" }} />
+              <div style={{ position: "relative", width: 74, height: 74, borderRadius: "50%", background: "var(--accent)", color: "#fff", display: "grid", placeItems: "center", fontSize: 30, boxShadow: "0 10px 30px -8px var(--accent-glow)" }}>🎤</div>
+            </div>
+            <LiveTranscript listening text="明天要参加朋友的婚礼" interim="想要优雅一点" />
+            <GestureHint active="confirm" />
+            <span className="cap">A voice aura · C transcript · B gesture bubbles</span>
+          </div>
+          <div className="frame">
+            <TryOnReveal phase="revealing" imageUrl={null} windowMs={15000}
+              recLabel="Explicit need" totalYen={40700}
+              headline="正在把这套穿到你身上…" />
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

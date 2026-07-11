@@ -1,0 +1,15 @@
+/* ============================================================
+   Fashini Mirror — Design System entry point
+   ------------------------------------------------------------
+   Consumers link THIS one file. It is an @import manifest only;
+   every token, font-face, and the base reset live in the files
+   below. Order matters: fonts → foundations → glass → base.
+   ============================================================ */
+
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/motion.css";
+@import "./tokens/glass.css";
+@import "./tokens/base.css";

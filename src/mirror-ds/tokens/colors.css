@@ -1,0 +1,60 @@
+/* ============================================================
+   Fashini Mirror — Color
+   ------------------------------------------------------------
+   The magic-mirror surface is DARK: a live camera reflection is
+   the hero at every stage, and all UI floats as glass over it.
+   So the palette inverts the brand's pure-white operate screens
+   onto ink, keeping the exact same discipline:
+     · ONE cobalt accent (#1B2BD8), rationed per view
+     · cool-grey, cobalt-biased neutrals — never warm greys
+     · semantics kept SEPARATE from the accent
+   The single warm tone (--aura-warm) exists ONLY inside the
+   voice aura's diffuse gradient — never as UI chrome.
+   ============================================================ */
+
+:root {
+  /* — Ink canvas (behind / around the reflection) — */
+  --ink-void: #050507;   /* letterbox / deepest */
+  --ink-900: #0a0a0c;    /* mirror shell background */
+  --ink-800: #101116;    /* raised ink surface */
+  --ink-700: #171922;    /* control ink */
+
+  /* — Text on the dark glass surface — */
+  --on-dark: #f5f6f8;              /* primary text on glass */
+  --on-dark-2: rgba(245, 246, 248, 0.66); /* secondary */
+  --on-dark-3: rgba(245, 246, 248, 0.42); /* tertiary / faint */
+  --on-dark-line: rgba(245, 246, 248, 0.14); /* hairline on glass */
+
+  /* — Cobalt accent — the one saturated colour, rationed — */
+  --accent: #1b2bd8;        /* the brand cobalt */
+  --accent-bright: #3d52ff; /* lifts on dark: rings, focus, live edges */
+  --accent-ink: #ffffff;    /* text on a cobalt fill */
+  --accent-glow: rgba(61, 82, 255, 0.55);  /* diffuse cobalt light */
+  --accent-tint: rgba(61, 82, 255, 0.16);  /* faint cobalt wash on glass */
+
+  /* — Aura warm secondary — voice-aura gradient ONLY — */
+  --aura-warm: #ff7a66;
+  --aura-warm-glow: rgba(255, 122, 102, 0.5);
+
+  /* — Semantics (independent of the accent) — */
+  --live: #ff4d4f;          /* the honest "recording/live" dot */
+  --ok: rgba(245, 246, 248, 0.7); /* success is quiet, not green */
+  --failed: #ff6b72;
+  --failed-soft: rgba(255, 107, 114, 0.14);
+
+  /* — Semantic aliases — author against THESE — */
+  --text-primary: var(--on-dark);
+  --text-secondary: var(--on-dark-2);
+  --text-tertiary: var(--on-dark-3);
+  --text-on-accent: var(--accent-ink);
+  --text-link: var(--accent-bright);
+
+  --surface-shell: var(--ink-900);
+  --border-hairline: var(--on-dark-line);
+  --border-accent: var(--accent-bright);
+  --focus-ring: var(--accent-bright);
+
+  /* — Reflection scrims (legibility over a live camera feed) — */
+  --scrim-top: rgba(5, 5, 7, 0.34);
+  --scrim-bottom: rgba(5, 5, 7, 0.55);
+}

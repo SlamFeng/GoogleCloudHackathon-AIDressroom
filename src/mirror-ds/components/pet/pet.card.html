@@ -1,0 +1,43 @@
+<!-- @dsCard group="Signature Motion" viewport="700x240" name="GuidePet — moods" subtitle="Geometric companion: idle · listening · working · talking · happy" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 24px;
+    background: radial-gradient(120% 80% at 40% 10%, #23262f 0%, #0d0e13 60%, #060608 100%);
+    min-height: 192px;
+  }
+  .row { display: flex; gap: 34px; align-items: flex-end; flex-wrap: wrap; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--on-dark-3); letter-spacing: 0.06em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { GuidePet } = window.FashiniMirrorDesignSystem_c521b8;
+    const moods = ["idle", "listening", "working", "talking", "happy"];
+    function Demo() {
+      return (
+        <div className="row">
+          {moods.map((m) => (
+            <div className="item" key={m}>
+              <GuidePet visible mood={m} />
+              <span className="cap">{m}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Forms — profile & feedback" subtitle="SegmentedControl · Stepper · LanguageSwitch · ConsentCheck · FeedbackTags" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="../../styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; }
+  body {
+    padding: 24px;
+    background:
+      radial-gradient(120% 80% at 30% 15%, #23262f 0%, #0d0e13 60%, #060608 100%),
+      radial-gradient(90% 70% at 85% 95%, rgba(61,82,255,0.10), transparent 60%);
+    min-height: 312px;
+  }
+  .col { display: grid; gap: 18px; max-width: 560px; }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--on-dark-3); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { SegmentedControl, Stepper, LanguageSwitch, ConsentCheck, FeedbackTags } = window.FashiniMirrorDesignSystem_c521b8;
+    function Demo() {
+      const [g, setG] = React.useState("female");
+      const [h, setH] = React.useState(168);
+      const [lang, setLang] = React.useState("zh");
+      const [agreed, setAgreed] = React.useState(true);
+      return (
+        <div className="col">
+          <div style={{ display: "flex", gap: 24, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <div className="cap">segmented · stepper</div>
+              <SegmentedControl size="md" value={g} onChange={setG}
+                options={[{value:"female",label:"女性"},{value:"male",label:"男性"},{value:"neutral",label:"不限定"}]} />
+              <div style={{ height: 12 }} />
+              <Stepper value={h} onChange={setH} unit="cm" min={100} max={230} />
+            </div>
+            <LanguageSwitch value={lang} onChange={setLang} />
+          </div>
+          <div>
+            <div className="cap">consent</div>
+            <ConsentCheck checked={agreed} onChange={setAgreed}>
+              我同意启用摄像头用于本次搭配。镜面画面不会录制或保存。
+            </ConsentCheck>
+          </div>
+          <div>
+            <div className="cap">feedback</div>
+            <FeedbackTags onSelect={() => {}} />
+          </div>
+        </div>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+  </script>
+</body>
+</html>
