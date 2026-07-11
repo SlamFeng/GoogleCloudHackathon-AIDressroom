@@ -647,6 +647,8 @@ export function StylingScreen({
           data-mock={showMockPreview ? "true" : undefined}
           style={{ ["--tryon-ms" as string]: `${TRYON_WINDOW_MS}ms` }}
         >
+          {/* Reveal bloom — a light sweep down the reflection as the try-on opens. */}
+          <div className="mirror-bloom" aria-hidden="true" />
           {!showMockPreview && (
             <video
               className="mirror-tryon-remote"

@@ -958,3 +958,25 @@ img.mirror-tryon-remote {
 .mirror-talk-wrap .voice-aura {
   z-index: 0;
 }
+
+/* Try-on reveal bloom — a light sweep down the reflection when try-on opens. */
+.mirror-bloom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 45%;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.4) 55%, transparent);
+  mix-blend-mode: screen;
+  animation: mirror-bloom-sweep 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mirror-bloom-sweep {
+  from { transform: translateY(-100%); opacity: 0; }
+  40% { opacity: 1; }
+  to { transform: translateY(230%); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mirror-bloom { animation: none; opacity: 0; }
+}
