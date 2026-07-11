@@ -1,0 +1,104 @@
+/* SiriOrb — ported from SmoothUI siri-orb (MIT). Six rotating conic gradients
+   blurred+contrast-crushed into a fluid ball, with an overlay dot grid for the
+   glassy texture. Amplitude uses the standalone `scale` property so the inline
+   centering `transform` at call sites is never overridden. */
+
+@property --so-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.siri-orb {
+  display: grid;
+  grid-template-areas: "stack";
+  overflow: hidden;
+  border-radius: 50%;
+  position: relative;
+  scale: calc(1 + var(--so-amp, 0) * 0.16);
+  transition: scale 90ms linear;
+}
+
+.siri-orb::before,
+.siri-orb::after {
+  content: "";
+  display: block;
+  grid-area: stack;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.siri-orb::before {
+  background:
+    conic-gradient(
+      from calc(var(--so-angle) * 2) at 25% 70%,
+      var(--so-c3),
+      transparent 20% 80%,
+      var(--so-c3)
+    ),
+    conic-gradient(
+      from calc(var(--so-angle) * 2) at 45% 75%,
+      var(--so-c2),
+      transparent 30% 60%,
+      var(--so-c2)
+    ),
+    conic-gradient(
+      from calc(var(--so-angle) * -3) at 80% 20%,
+      var(--so-c1),
+      transparent 40% 60%,
+      var(--so-c1)
+    ),
+    conic-gradient(
+      from calc(var(--so-angle) * 2) at 15% 5%,
+      var(--so-c2),
+      transparent 10% 90%,
+      var(--so-c2)
+    ),
+    conic-gradient(
+      from calc(var(--so-angle) * 1) at 20% 80%,
+      var(--so-c1),
+      transparent 10% 90%,
+      var(--so-c1)
+    ),
+    conic-gradient(
+      from calc(var(--so-angle) * -2) at 85% 10%,
+      var(--so-c3),
+      transparent 20% 80%,
+      var(--so-c3)
+    );
+  box-shadow: inset var(--so-bg) 0 0 var(--so-shadow) calc(var(--so-shadow) * 0.2);
+  filter: blur(var(--so-blur)) contrast(var(--so-contrast))
+    saturate(calc(1 + var(--so-amp, 0) * 0.6));
+  animation: so-rotate var(--so-duration, 20s) linear infinite;
+}
+
+.siri-orb::after {
+  background-image: radial-gradient(
+    circle at center,
+    var(--so-bg) var(--so-dot),
+    transparent var(--so-dot)
+  );
+  background-size: calc(var(--so-dot) * 2) calc(var(--so-dot) * 2);
+  backdrop-filter: blur(calc(var(--so-blur) * 2)) contrast(calc(var(--so-contrast) * 2));
+  mix-blend-mode: overlay;
+  mask-image: radial-gradient(black var(--so-mask), transparent 75%);
+  -webkit-mask-image: radial-gradient(black var(--so-mask), transparent 75%);
+}
+
+.siri-orb[data-mask="none"]::after {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+@keyframes so-rotate {
+  to {
+    --so-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .siri-orb::before {
+    animation: none;
+  }
+}

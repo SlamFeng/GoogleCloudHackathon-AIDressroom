@@ -21,7 +21,7 @@ import { useSpeechRecognition } from "./useSpeechRecognition";
 import { useGestureControl } from "./useGestureControl";
 import { useExpression } from "./useExpression";
 import { GuidePet, type PetMood } from "./GuidePet";
-import { VoiceAura, type VoiceAuraState } from "./VoiceAura";
+import { SiriOrb, type SiriOrbState } from "./SiriOrb";
 import { useAudioLevel } from "./useAudioLevel";
 import { LiveTranscript } from "./LiveTranscript";
 import { GestureHint } from "./GestureHint";
@@ -238,6 +238,10 @@ export function StylingScreen({
   const [tryonOpen, setTryonOpen] = useState(false);
   const [tryonImage, setTryonImage] = useState<string | null>(null);
   const [tryonGenerating, setTryonGenerating] = useState(false);
+  // Last live camera frame, frozen under the scan-line while Lucy connects, and
+  // whether Lucy's real stream has painted its first frame yet.
+  const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
+  const [lucyPainted, setLucyPainted] = useState(false);
   const [petMessage, setPetMessage] = useState<string | undefined>(
     "你好呀～跟我说说你想去的场合或想要的风格！"
   );
@@ -419,7 +423,13 @@ export function StylingScreen({
     setTryonOpen(true);
     tryonTimerRef.current = window.setTimeout(() => handleStop(), TRYON_WINDOW_MS);
 
-    const personImage = captureMirrorFrame() ?? captureDataUrl;
+    // Freeze the last live camera frame so there's a still of the customer to
+    // hold under the scan-line while Lucy's stream connects — no black gap.
+    const frame = captureMirrorFrame();
+    setFrozenFrame(frame);
+    setLucyPainted(false);
+
+    const personImage = frame ?? captureDataUrl;
     if (personImage) {
       setTryonGenerating(true);
       generateTryonImage(
@@ -469,6 +479,8 @@ export function StylingScreen({
     setTryonOpen(false);
     setTryonImage(null);
     setTryonGenerating(false);
+    setFrozenFrame(null);
+    setLucyPainted(false);
     setLastPreviewPayload(null);
     void execute("stop_lucy_preview", async () => {
       const reason = lucy.stop("manual_stop");
@@ -589,7 +601,7 @@ export function StylingScreen({
   const speech = useSpeech("zh-CN");
   const stt = useSpeechRecognition({ lang: "zh-CN", continuous: true });
   const micLevel = useAudioLevel(stt.listening);
-  const auraState: VoiceAuraState = stt.listening
+  const auraState: SiriOrbState = stt.listening
     ? "listening"
     : speech.speaking
       ? "speaking"
@@ -600,6 +612,38 @@ export function StylingScreen({
   // conversation, not a cluttered overlay. Not during a full-bleed try-on.
   const talking = stt.listening;
   const showVoice = (voiceMode || talking) && !tryonActive;
+
+  // Reveal the live Lucy stream only once it has actually painted a frame — until
+  // then the frozen camera still (with the scan-line) stays on top. Prefer the
+  // exact first painted frame (requestVideoFrameCallback); fall back to media
+  // events, and a hard timeout so a stalled stream never traps the freeze.
+  useEffect(() => {
+    if (!tryonActive || showMockPreview || !frozenFrame || lucyPainted) return;
+    const video = lucy.remoteVideoRef.current;
+    if (!video) return;
+    let done = false;
+    const reveal = () => {
+      if (done) return;
+      done = true;
+      setLucyPainted(true);
+    };
+    const onFrame = () => window.setTimeout(reveal, 120);
+    type RVFCVideo = HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+    const rvfc = video as RVFCVideo;
+    if (typeof rvfc.requestVideoFrameCallback === "function") {
+      rvfc.requestVideoFrameCallback(onFrame);
+    } else {
+      video.addEventListener("loadeddata", onFrame, { once: true });
+      video.addEventListener("playing", onFrame, { once: true });
+    }
+    const fallback = window.setTimeout(reveal, 6000); // never trap the freeze
+    return () => {
+      done = true;
+      window.clearTimeout(fallback);
+      video.removeEventListener("loadeddata", onFrame);
+      video.removeEventListener("playing", onFrame);
+    };
+  }, [tryonActive, showMockPreview, frozenFrame, lucyPainted, lucy.remoteVideoRef]);
 
   // Voice-first: a tap (or gesture) starts listening; the next one stops and
   // submits what was heard. No big form — just the mirror and your voice.
@@ -792,6 +836,18 @@ export function StylingScreen({
               style={{ objectFit: feedFit }}
             />
           )}
+          {/* Frozen last camera frame held under the scan-line until Lucy paints;
+              fades out the moment the real stream has its first frame. */}
+          {!showMockPreview && frozenFrame && (
+            <img
+              className="mirror-freeze"
+              src={frozenFrame}
+              alt=""
+              aria-hidden="true"
+              data-revealed={lucyPainted ? "true" : undefined}
+              style={{ objectFit: feedFit }}
+            />
+          )}
           <video className="mirror-local-hidden" ref={lucy.localVideoRef} autoPlay playsInline muted />
           {showMockPreview &&
             (tryonImage ? (
@@ -947,10 +1003,10 @@ export function StylingScreen({
             </div>
             <LiveTranscript text={stt.transcript} listening={stt.listening} />
             <div className="mirror-talk-wrap">
-              <VoiceAura
+              <SiriOrb
                 state={auraState}
                 amplitude={micLevel}
-                size={240}
+                size={200}
                 style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
               />
               <button
