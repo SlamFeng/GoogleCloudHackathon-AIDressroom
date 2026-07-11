@@ -7,13 +7,18 @@ import { synthesizeSpeech } from "./api";
 //     browser voice and fetch the Gemini audio in the background for next time.
 // So the voice upgrades to Gemini once cached, and is never slow.
 
+// Per-language "nice voice" preferences for the on-device fallback.
+const NICE_VOICE: Record<string, RegExp> = {
+  en: /(enhanced|premium|natural|neural|siri|samantha|ava|allison|karen|daniel|google us english)/i,
+  ja: /(enhanced|premium|natural|neural|siri|kyoko|o-?ren|google 日本語)/i,
+  zh: /(enhanced|premium|natural|neural|siri|ting-?ting|mei-?jia|google|yue|hui)/i
+};
+
 function pickVoice(voices: SpeechSynthesisVoice[], lang: string): SpeechSynthesisVoice | null {
   const base = lang.slice(0, 2).toLowerCase();
   const byLang = voices.filter((v) => v.lang.slice(0, 2).toLowerCase() === base);
   const pool = byLang.length > 0 ? byLang : voices;
-  const nice = pool.find((v) =>
-    /(enhanced|premium|natural|neural|siri|ting-?ting|mei-?jia|google|yue|hui)/i.test(v.name)
-  );
+  const nice = pool.find((v) => (NICE_VOICE[base] ?? NICE_VOICE.zh).test(v.name));
   return nice ?? pool.find((v) => v.default) ?? pool[0] ?? null;
 }
 

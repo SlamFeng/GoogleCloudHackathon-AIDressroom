@@ -6,6 +6,8 @@
 // invalid, so tests / CI / offline demos stay reproducible.
 
 import { GoogleGenAI } from "@google/genai";
+import type { AgentLanguage } from "./contracts.js";
+import { languageName } from "./i18n.js";
 import { logAgentTurn } from "./logger.js";
 
 export interface StylistCandidate {
@@ -20,6 +22,8 @@ export interface StylistCandidate {
 }
 
 export interface StylistContext {
+  // Session language — the customer-facing `reason` is written in it.
+  language?: AgentLanguage;
   requestedTypes: string[];
   matchedBodyTemplateId: string;
   currentStyle: string[];
@@ -96,7 +100,7 @@ function buildPrompt(candidates: StylistCandidate[], ctx: StylistContext) {
     "Requested types (produce one outfit each, in this order):",
     types,
     "",
-    "Rules: use only product_id values from the list; never repeat a product_id within one outfit; 2–4 items per outfit; give a one-sentence reason that names the coordination logic (why these pieces work together). Return only JSON.",
+    `Rules: use only product_id values from the list; never repeat a product_id within one outfit; 2–4 items per outfit; give a one-sentence reason that names the coordination logic (why these pieces work together). Write each reason in natural ${languageName(ctx.language)} — it is spoken aloud to the customer. Return only JSON.`,
     "",
     "In-stock products:",
     JSON.stringify(

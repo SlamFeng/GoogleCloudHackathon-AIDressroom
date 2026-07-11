@@ -208,7 +208,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error ?? `请求失败（${response.status}）`);
+    throw new Error(payload?.error ?? `Request failed (${response.status})`);
   }
 
   return response.json() as Promise<T>;
@@ -261,25 +261,28 @@ export async function confirmAnalysis(
 export async function createAgentSession(
   analysis: AnalysisHandoff,
   sceneType: SceneType = "mirror",
-  storeId = "store_001"
+  storeId = "store_001",
+  language?: "en" | "zh" | "ja"
 ): Promise<AgentRunResponse> {
   return request("/api/agent/sessions", {
     method: "POST",
     body: JSON.stringify({
       scene_type: sceneType,
       store_id: storeId,
-      analysis
+      analysis,
+      ...(language ? { language } : {})
     })
   });
 }
 
 export async function sendAgentChat(
   agentSessionId: string,
-  text: string
+  text: string,
+  language?: "en" | "zh" | "ja"
 ): Promise<AgentRunResponse> {
   return request(`/api/agent/sessions/${agentSessionId}/chat`, {
     method: "POST",
-    body: JSON.stringify({ text })
+    body: JSON.stringify({ text, ...(language ? { language } : {}) })
   });
 }
 
@@ -301,12 +304,12 @@ export async function requestRealtimePreview(
 
 // Gemini TTS for a line of agent speech → a playable audio data URL, or null
 // when unavailable (client falls back to on-device speechSynthesis).
-export async function synthesizeSpeech(text: string): Promise<string | null> {
+export async function synthesizeSpeech(text: string, language?: string): Promise<string | null> {
   try {
     const response = await fetch(`${API_BASE}/api/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, ...(language ? { language } : {}) })
     });
     if (!response.ok) return null;
     const data = (await response.json()) as { audio_data_url: string | null };

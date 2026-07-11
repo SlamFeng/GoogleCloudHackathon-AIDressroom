@@ -57,7 +57,7 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
 
   if (!parsedInput.success) {
     response.status(400).json({
-      error: parsedInput.error.issues[0]?.message ?? "分析参数不完整或超出允许范围。"
+      error: parsedInput.error.issues[0]?.message ?? "分析参数不完整或超出允许范围。 / Analysis input is incomplete or out of range."
     });
     return;
   }
@@ -69,8 +69,8 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
     response.status(501).json({
       error:
         result.error_code === "AI_ANALYZER_NOT_CONFIGURED"
-          ? "Gemini API key 未配置。请设置 GEMINI_API_KEY 或 GOOGLE_API_KEY，重启服务后再使用 AI 分析，或使用 auto/mock 分析模式。"
-          : "Gemini AI 分析失败。请检查 key、模型权限、图片大小和结构化输出 schema。",
+          ? "Gemini API key 未配置。请设置 GEMINI_API_KEY 或 GOOGLE_API_KEY。 / Gemini API key not configured — set GEMINI_API_KEY or GOOGLE_API_KEY and restart, or use the auto/mock analysis mode."
+          : "Gemini AI 分析失败。 / Gemini analysis failed — check the key, model access, image size, and structured-output schema.",
       details: result
     });
     return;
@@ -83,13 +83,13 @@ app.post("/api/sessions/:sessionId/analyses", async (request, response) => {
 app.post("/api/analyses/:analysisId/confirm", (request, response) => {
   const analysis = analyses.get(request.params.analysisId);
   if (!analysis) {
-    response.status(404).json({ error: "找不到该分析结果，可能会话已经结束。" });
+    response.status(404).json({ error: "找不到该分析结果，可能会话已经结束。 / Analysis not found — the session may have ended." });
     return;
   }
 
   const bodyProfile = request.body?.body_profile;
   if (!bodyProfile || bodyProfile.schema_version !== "1.2") {
-    response.status(400).json({ error: "body_profile 必须符合 v1.2 契约。" });
+    response.status(400).json({ error: "body_profile 必须符合 v1.2 契约。 / body_profile must match the v1.2 contract." });
     return;
   }
 

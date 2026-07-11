@@ -12,6 +12,8 @@ import { GestureReadBar } from "./GestureReadBar";
 // height step (speak it — a progress bar tracks listening — or tap +/-).
 // 👍 advances, ✊ goes back; touch works throughout.
 
+type Language = "en" | "zh" | "ja";
+
 type OptionStep = {
   key: "gender" | "age" | "weight";
   kind: "option";
@@ -21,54 +23,132 @@ type OptionStep = {
 type HeightStep = { key: "height"; kind: "height"; title: string };
 type Step = OptionStep | HeightStep;
 
-const STEPS: Step[] = [
+// UI copy only — the option values sent to the backend never change.
+const COPY: Record<
+  Language,
   {
-    key: "gender",
-    kind: "option",
-    title: "你的性别?",
-    options: [
-      { value: "female", label: "女" },
-      { value: "male", label: "男" },
-      { value: "neutral", label: "中性" }
-    ]
-  },
-  {
-    key: "age",
-    kind: "option",
-    title: "年龄段?",
-    options: [
-      { value: "18-25", label: "18–25" },
-      { value: "26-35", label: "26–35" },
-      { value: "36-45", label: "36–45" }
-    ]
-  },
-  { key: "height", kind: "height", title: "身高?说出来或点 +/−" },
-  {
-    key: "weight",
-    kind: "option",
-    title: "体型?",
-    options: [
-      { value: "55", label: "偏瘦" },
-      { value: "65", label: "标准" },
-      { value: "78", label: "偏壮" }
-    ]
+    genderTitle: string;
+    gender: [string, string, string]; // female / male / neutral
+    ageTitle: string;
+    heightTitle: string;
+    weightTitle: string;
+    weight: [string, string, string]; // slim / average / broad
+    minus: string;
+    plus: string;
+    stop: string;
+    speakHeight: string;
+    confirm: string;
+    back: string;
+    next: string;
+    start: string;
   }
-];
+> = {
+  en: {
+    genderTitle: "Your gender?",
+    gender: ["Female", "Male", "Neutral"],
+    ageTitle: "Age range?",
+    heightTitle: "Height? Say it or tap +/−",
+    weightTitle: "Body type?",
+    weight: ["Slim", "Average", "Broad"],
+    minus: "Decrease",
+    plus: "Increase",
+    stop: "Stop",
+    speakHeight: "Say your height",
+    confirm: "Confirm",
+    back: "← Back",
+    next: "Next →",
+    start: "Start styling →"
+  },
+  zh: {
+    genderTitle: "你的性别?",
+    gender: ["女", "男", "中性"],
+    ageTitle: "年龄段?",
+    heightTitle: "身高?说出来或点 +/−",
+    weightTitle: "体型?",
+    weight: ["偏瘦", "标准", "偏壮"],
+    minus: "减",
+    plus: "加",
+    stop: "停止",
+    speakHeight: "说出身高",
+    confirm: "确定",
+    back: "← 返回",
+    next: "下一步 →",
+    start: "开始搭配 →"
+  },
+  ja: {
+    genderTitle: "性別は?",
+    gender: ["女性", "男性", "中性"],
+    ageTitle: "年齢層は?",
+    heightTitle: "身長は?声で言うか +/− をタップ",
+    weightTitle: "体型は?",
+    weight: ["細め", "標準", "がっしり"],
+    minus: "減らす",
+    plus: "増やす",
+    stop: "停止",
+    speakHeight: "身長を話す",
+    confirm: "確定",
+    back: "← 戻る",
+    next: "次へ →",
+    start: "スタイリング開始 →"
+  }
+};
+
+const STT_LANG: Record<Language, string> = { en: "en-US", zh: "zh-CN", ja: "ja-JP" };
+
+function buildSteps(c: (typeof COPY)[Language]): Step[] {
+  return [
+    {
+      key: "gender",
+      kind: "option",
+      title: c.genderTitle,
+      options: [
+        { value: "female", label: c.gender[0] },
+        { value: "male", label: c.gender[1] },
+        { value: "neutral", label: c.gender[2] }
+      ]
+    },
+    {
+      key: "age",
+      kind: "option",
+      title: c.ageTitle,
+      options: [
+        { value: "18-25", label: "18–25" },
+        { value: "26-35", label: "26–35" },
+        { value: "36-45", label: "36–45" }
+      ]
+    },
+    { key: "height", kind: "height", title: c.heightTitle },
+    {
+      key: "weight",
+      kind: "option",
+      title: c.weightTitle,
+      options: [
+        { value: "55", label: c.weight[0] },
+        { value: "65", label: c.weight[1] },
+        { value: "78", label: c.weight[2] }
+      ]
+    }
+  ];
+}
 
 export function MirrorProfile({
   onDone,
-  onBack
+  onBack,
+  language
 }: {
   onDone: (profile: ManualProfile) => void;
   onBack: () => void;
+  language: Language;
 }) {
+  const c = COPY[language];
+  const steps = useMemo(() => buildSteps(c), [c]);
   const [stepIndex, setStepIndex] = useState(0);
   const [gender, setGender] = useState<ManualProfile["gender_presentation"]>("neutral");
   const [ageRange, setAgeRange] = useState<ManualProfile["age_range"]>("26-35");
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(65);
 
-  const step = STEPS[stepIndex];
+  const step = steps[stepIndex];
   const mirror = useMirrorCamera(true);
 
   function commit() {
@@ -76,7 +156,7 @@ export function MirrorProfile({
   }
 
   function next() {
-    if (stepIndex >= STEPS.length - 1) commit();
+    if (stepIndex >= steps.length - 1) commit();
     else setStepIndex((s) => s + 1);
   }
   function back() {
@@ -95,7 +175,7 @@ export function MirrorProfile({
 
   // Height by voice: pull a plausible cm value out of the transcript.
   const stt = useSpeechRecognition({
-    lang: "zh-CN",
+    lang: STT_LANG[language],
     continuous: true,
     onFinal: (text) => {
       const digits = text.replace(/[^\d]/g, "");
@@ -137,7 +217,7 @@ export function MirrorProfile({
 
       <div className="mprofile-sheet">
         <div className="mprofile-dots" aria-hidden="true">
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <span key={s.key} data-on={i <= stepIndex ? "true" : undefined} />
           ))}
         </div>
@@ -167,7 +247,7 @@ export function MirrorProfile({
           </div>
         ) : (
           <div className="mprofile-height">
-            <button type="button" className="mprofile-step" onClick={() => setHeight((h) => Math.max(120, h - 1))} aria-label="减">
+            <button type="button" className="mprofile-step" onClick={() => setHeight((h) => Math.max(120, h - 1))} aria-label={c.minus}>
               −
             </button>
             <div className="mprofile-height-val">
@@ -178,7 +258,7 @@ export function MirrorProfile({
                   type="button"
                   className={`mprofile-mic ${stt.listening ? "on" : ""}`}
                   onClick={toggleHeightVoice}
-                  aria-label={stt.listening ? "停止" : "说出身高"}
+                  aria-label={stt.listening ? c.stop : c.speakHeight}
                 >
                   🎤
                 </button>
@@ -188,7 +268,7 @@ export function MirrorProfile({
                 <span />
               </div>
             </div>
-            <button type="button" className="mprofile-step" onClick={() => setHeight((h) => Math.min(210, h + 1))} aria-label="加">
+            <button type="button" className="mprofile-step" onClick={() => setHeight((h) => Math.min(210, h + 1))} aria-label={c.plus}>
               +
             </button>
           </div>
@@ -198,11 +278,13 @@ export function MirrorProfile({
           <GestureReadBar
             action={gesture.armedGesture}
             dwellMs={gesture.dwellMs}
-            labelOverrides={{ confirm: "确定" }}
+            labelOverrides={{ confirm: c.confirm }}
+            language={language}
           />
         </div>
         <GestureHint
-          labelOverrides={{ confirm: "确定" }}
+          language={language}
+          labelOverrides={{ confirm: c.confirm }}
           only={step.kind === "height" ? ["talk", "confirm", "back"] : ["pick", "confirm", "back"]}
           active={
             stt.listening
@@ -215,10 +297,10 @@ export function MirrorProfile({
 
         <div className="mprofile-actions">
           <button type="button" className="mprofile-btn ghost" onClick={back}>
-            ← 返回
+            {c.back}
           </button>
           <button type="button" className="mprofile-btn primary" onClick={next}>
-            {stepIndex >= STEPS.length - 1 ? "开始搭配 →" : "下一步 →"}
+            {stepIndex >= steps.length - 1 ? c.start : c.next}
           </button>
         </div>
       </div>

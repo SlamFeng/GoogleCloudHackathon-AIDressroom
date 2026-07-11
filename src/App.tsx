@@ -26,6 +26,7 @@ const translations = {
     brandHome: "Fashini home",
     progress: "Flow progress",
     privacyChip: "Photos deleted after this session",
+    debugSkip: "Skip OOTD — straight to recommendation / try-on (debug)",
     errors: {
       createSession: "Unable to create a session.",
       analyze: "Analysis failed.",
@@ -59,7 +60,8 @@ const translations = {
       cameraConsent: "I agree to enable the camera and capture one front-facing full-body photo.",
       processingConsent:
         "I agree that AI may analyze the photo in this session and understand results may be approximate.",
-      continue: "Agree and continue"
+      continue: "Agree and continue",
+      fineprint: "By agreeing you confirm you have read the privacy notice."
     },
     profile: {
       step: "STEP 02 · PROFILE",
@@ -192,6 +194,7 @@ const translations = {
     brandHome: "Fashini 首页",
     progress: "流程进度",
     privacyChip: "本次会话后删除照片",
+    debugSkip: "跳过 OOTD，直接推荐 / 试穿（调试）",
     errors: {
       createSession: "无法创建会话",
       analyze: "分析失败",
@@ -223,7 +226,8 @@ const translations = {
       ],
       cameraConsent: "我同意启用摄像头并拍摄一张正面全身照。",
       processingConsent: "我同意 AI 在本次会话中分析照片，并理解结果可能是近似估算。",
-      continue: "同意并继续"
+      continue: "同意并继续",
+      fineprint: "同意即代表你已阅读隐私说明"
     },
     profile: {
       step: "STEP 02 · PROFILE",
@@ -348,6 +352,7 @@ const translations = {
     brandHome: "Fashini ホーム",
     progress: "進行状況",
     privacyChip: "写真はこのセッション後に削除",
+    debugSkip: "OOTD をスキップして推薦 / 試着へ（デバッグ）",
     errors: {
       createSession: "セッションを作成できませんでした。",
       analyze: "分析に失敗しました。",
@@ -379,7 +384,8 @@ const translations = {
       ],
       cameraConsent: "カメラを有効にし、正面の全身写真を1枚撮影することに同意します。",
       processingConsent: "このセッションで AI が写真を分析し、結果が概算であることを理解します。",
-      continue: "同意して続ける"
+      continue: "同意して続ける",
+      fineprint: "同意することで、プライバシー説明を読んだものとみなされます。"
     },
     profile: {
       step: "STEP 02 · PROFILE",
@@ -649,7 +655,7 @@ function App() {
       {step === "analyzing" && (
         <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
           <Button variant="ghost" size="md" onClick={() => void skipToStyling()}>
-            跳过 OOTD，直接推荐 / 试穿（调试）
+            {copy.debugSkip}
           </Button>
         </div>
       )}
@@ -667,7 +673,11 @@ function App() {
           />
         )}
         {step === "profile" && (
-          <MirrorProfile onBack={() => setStep("consent")} onDone={(profile) => void skipToStyling(profile)} />
+          <MirrorProfile
+            language={language}
+            onBack={() => setStep("consent")}
+            onDone={(profile) => void skipToStyling(profile)}
+          />
         )}
         {step === "capture" && (
           <CameraStage
@@ -698,6 +708,7 @@ function App() {
           <StylingScreen
             analysis={analysis}
             copy={copy}
+            language={language}
             captureDataUrl={captureDataUrl}
             onBack={() => setStep("profile")}
             onComplete={reset}
@@ -822,7 +833,7 @@ function Consent({
         <button className="mgate-btn" type="button" onClick={onContinue}>
           {copy.consent.continue} <span aria-hidden="true">→</span>
         </button>
-        <p className="mgate-fineprint">同意即代表你已阅读隐私说明</p>
+        <p className="mgate-fineprint">{copy.consent.fineprint}</p>
       </div>
     </section>
   );

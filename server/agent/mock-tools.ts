@@ -1,5 +1,6 @@
 import type {
   AgentConstraints,
+  AgentLanguage,
   BodyProfile,
   BodyTemplateResult,
   ConstraintDelta,
@@ -26,6 +27,7 @@ import {
   type StandardColor,
   type StyleTag
 } from "../inventory/types.js";
+import { pick } from "./i18n.js";
 import { composeOutfitSets, type StylistCandidate } from "./stylist.js";
 import { readTrends, warmTrends, currentSeason, type TrendResult } from "./trends.js";
 
@@ -76,6 +78,7 @@ export class MockAgentTools {
 
   async getRecommendations(input: {
     session_id: string;
+    language?: AgentLanguage;
     route: Route;
     requested_types: RecommendationType[];
     matched_body_template_id: string;
@@ -111,6 +114,7 @@ export class MockAgentTools {
     // there's no key / it times out / the result is invalid.
     const shortlist = buildStylistShortlist(candidates, trendedPreferences, input.current_style);
     const composed = await composeOutfitSets(shortlist.map(toStylistCandidate), {
+      language: input.language,
       requestedTypes: input.requested_types,
       matchedBodyTemplateId: input.matched_body_template_id,
       currentStyle: input.current_style,
@@ -141,7 +145,7 @@ export class MockAgentTools {
           outfit: buildOutfitPayload(products),
           reason:
             picked.reason ||
-            reasonForSet(type, input.matched_body_template_id, preferences, input.constraints.budget_yen)
+            reasonForSet(type, input.matched_body_template_id, preferences, input.constraints.budget_yen, input.language)
         };
       });
       styledBy = "llm";
@@ -155,7 +159,8 @@ export class MockAgentTools {
           currentStyle: input.current_style,
           matchedBodyTemplateId: input.matched_body_template_id,
           preferences,
-          budgetYen: input.constraints.budget_yen
+          budgetYen: input.constraints.budget_yen,
+          language: input.language
         })
       );
     }
@@ -177,6 +182,7 @@ export class MockAgentTools {
 
   async refineRecommendations(input: {
     session_id: string;
+    language?: AgentLanguage;
     route: Route;
     previous_set_id: string;
     delta: ConstraintDelta;
@@ -196,6 +202,7 @@ export class MockAgentTools {
 
     const response = await this.getRecommendations({
       session_id: input.session_id,
+      language: input.language,
       route: input.route,
       requested_types: requestedTypes,
       matched_body_template_id: input.matched_body_template_id,
@@ -223,6 +230,7 @@ export class MockAgentTools {
    */
   async swapSlot(input: {
     session_id: string;
+    language?: AgentLanguage;
     route: Route;
     previous_set: RecommendationSet;
     category: OutfitSlotName;
@@ -260,7 +268,11 @@ export class MockAgentTools {
       products,
       outfit: buildOutfitPayload(products),
       reason: replacement
-        ? `保留了其余单品，只为你换了一件更搭的${input.category}。`
+        ? pick(input.language, {
+            zh: `保留了其余单品，只为你换了一件更搭的${input.category}。`,
+            en: `Kept the rest of the look and swapped in a ${input.category} that matches better.`,
+            ja: `他のアイテムはそのままに、より相性のいい${input.category}だけを交換しました。`
+          })
         : input.previous_set.reason
     };
 
@@ -508,6 +520,7 @@ export class MockAgentTools {
     matchedBodyTemplateId: string;
     preferences: RecPreferences;
     budgetYen?: number;
+    language?: AgentLanguage;
   }): RecommendationSet {
     const anchorStyle = input.type === "similar" ? input.currentStyle[0] : styleForType(input.type);
     const baseScore = (product: Product) => scoreProduct(product, anchorStyle, input.preferences);
@@ -520,7 +533,7 @@ export class MockAgentTools {
       rec_type: input.type,
       products,
       outfit: buildOutfitPayload(products),
-      reason: reasonForSet(input.type, input.matchedBodyTemplateId, input.preferences, input.budgetYen)
+      reason: reasonForSet(input.type, input.matchedBodyTemplateId, input.preferences, input.budgetYen, input.language)
     };
   }
 }
@@ -915,11 +928,30 @@ function buildOutfitPayload(products: Product[]): OutfitPayload {
   };
 }
 
-function reasonForType(type: RecommendationType, templateId: string) {
-  if (type === "similar") return `Keeps the customer's current style while fitting ${templateId}.`;
-  if (type === "style") return `Uses the store's main styling direction for ${templateId}.`;
-  if (type === "seasonal") return `Prioritizes seasonal and high-stock items for ${templateId}.`;
-  return `Matches the explicit customer request and current stock for ${templateId}.`;
+function reasonForType(type: RecommendationType, templateId: string, language?: AgentLanguage) {
+  if (type === "similar")
+    return pick(language, {
+      zh: `延续你现在的穿搭风格，同时贴合${templateId}。`,
+      en: `Keeps the customer's current style while fitting ${templateId}.`,
+      ja: `今のスタイルを活かしつつ、${templateId}に合わせました。`
+    });
+  if (type === "style")
+    return pick(language, {
+      zh: `按门店主打的造型方向为${templateId}挑选。`,
+      en: `Uses the store's main styling direction for ${templateId}.`,
+      ja: `店舗のメインスタイリング方針で${templateId}向けに選びました。`
+    });
+  if (type === "seasonal")
+    return pick(language, {
+      zh: `优先应季、库存充足的单品，适配${templateId}。`,
+      en: `Prioritizes seasonal and high-stock items for ${templateId}.`,
+      ja: `季節感と在庫の豊富さを優先し、${templateId}に合わせました。`
+    });
+  return pick(language, {
+    zh: `按你的明确需求结合现货为${templateId}挑选。`,
+    en: `Matches the explicit customer request and current stock for ${templateId}.`,
+    ja: `ご要望と現在の在庫をもとに${templateId}向けに選びました。`
+  });
 }
 
 /** Reason text that reflects the actual customer signals used to rank this set. */
@@ -927,13 +959,34 @@ function reasonForSet(
   type: RecommendationType,
   templateId: string,
   preferences: RecPreferences,
-  budgetYen?: number
+  budgetYen?: number,
+  language?: AgentLanguage
 ) {
+  const occasion = preferences.occasion;
+  const styles = preferences.styles.slice(0, 2).join(" / ");
+  const colors = preferences.colors.slice(0, 2).join(" / ");
+  if (!occasion && !styles && !colors) return reasonForType(type, templateId, language);
+
   const bits: string[] = [];
-  if (preferences.occasion) bits.push(`for ${preferences.occasion}`);
-  if (preferences.styles.length) bits.push(`leaning ${preferences.styles.slice(0, 2).join(" / ")}`);
-  if (preferences.colors.length) bits.push(`in ${preferences.colors.slice(0, 2).join(" / ")}`);
-  if (bits.length === 0) return reasonForType(type, templateId);
+  if (language === "zh" || language === undefined) {
+    if (occasion) bits.push(`适合${occasion}`);
+    if (styles) bits.push(`偏${styles}`);
+    if (colors) bits.push(`以${colors}为主`);
+    const lead = type === "seasonal" ? "应季搭配" : type === "style" ? "风格搭配" : "为你搭配";
+    const budget = budgetYen ? `，预算¥${budgetYen.toLocaleString("en-US")}以内` : "";
+    return `${lead}：${bits.join("，")}${budget}——有你的尺码且是现货。`;
+  }
+  if (language === "ja") {
+    if (occasion) bits.push(`${occasion}向け`);
+    if (styles) bits.push(`${styles}寄り`);
+    if (colors) bits.push(`${colors}系`);
+    const lead = type === "seasonal" ? "季節のコーデ" : type === "style" ? "スタイル提案" : "コーデ提案";
+    const budget = budgetYen ? `、予算¥${budgetYen.toLocaleString("en-US")}以内` : "";
+    return `${lead}：${bits.join("、")}${budget}。サイズも在庫もあります。`;
+  }
+  if (occasion) bits.push(`for ${occasion}`);
+  if (styles) bits.push(`leaning ${styles}`);
+  if (colors) bits.push(`in ${colors}`);
   const lead = type === "seasonal" ? "A seasonal take" : type === "style" ? "A styled option" : "Styled";
   const budget = budgetYen ? `, within ¥${budgetYen.toLocaleString("en-US")}` : "";
   return `${lead} ${bits.join(", ")}${budget} — in your size and in stock.`;

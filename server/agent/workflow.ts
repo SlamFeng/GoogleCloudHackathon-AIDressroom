@@ -10,6 +10,7 @@ import type {
   RecommendationType,
   TryonHandoffPayload
 } from "./contracts.js";
+import { pick } from "./i18n.js";
 import { MockAgentTools } from "./mock-tools.js";
 import { parseFeedback } from "./parsers.js";
 import { classifyIntent, extractNeed, extractSwapSlot } from "./reasoning.js";
@@ -40,6 +41,7 @@ export class AgentWorkflow {
       session_id: `agent_${randomUUID().slice(0, 12)}`,
       scene_type: input.scene_type,
       store_id: input.store_id,
+      language: input.language,
       analysis: input.analysis
     });
   }
@@ -83,7 +85,11 @@ export class AgentWorkflow {
         state,
         output: {
           type: "clarification",
-          message: "请选一个方向：具体单品、使用场景，或者让我根据你当前穿搭推荐。"
+          message: pick(state.language, {
+            zh: "请选一个方向：具体单品、使用场景，或者让我根据你当前穿搭推荐。",
+            en: "Pick a direction: a specific item, an occasion, or let me style you from what you're wearing.",
+            ja: "方向を選んでください。具体的なアイテム、着ていくシーン、または今の服装からのおすすめです。"
+          })
         }
       };
     }
@@ -438,6 +444,7 @@ export class AgentWorkflow {
     state.recommendation_round += 1;
     const response = await this.tools.getRecommendations({
       session_id: state.session_id,
+      language: state.language,
       route: state.route,
       requested_types: requestedTypes,
       matched_body_template_id: state.matched_body_template_id ?? "body_template_unknown_unknown",
@@ -461,6 +468,7 @@ export class AgentWorkflow {
     state.recommendation_round += 1;
     const response = await this.tools.refineRecommendations({
       session_id: state.session_id,
+      language: state.language,
       route: state.route === "unclear" ? "recommendation" : state.route,
       previous_set_id: previousSetId,
       delta,
@@ -527,6 +535,7 @@ export class AgentWorkflow {
     state.recommendation_round += 1;
     const response = await this.tools.swapSlot({
       session_id: state.session_id,
+      language: state.language,
       route: state.route === "unclear" ? "recommendation" : state.route,
       previous_set: previous,
       category,
@@ -603,8 +612,16 @@ function buildRecoMessage(state: AgentState, response: RecommendationResponse): 
   const trendUsed = state.tool_calls.some(
     (call) => call.tool === "get_trending_styles" && (call.output as { used_google_search?: boolean }).used_google_search
   );
-  const trend = trendUsed ? "结合当季流行趋势，" : "";
-  return `已经挑选好了！${trend}这${response.sets.length}套都是现货，选一套试穿吧。`;
+  const n = response.sets.length;
+  const trendZh = trendUsed ? "结合当季流行趋势，" : "";
+  const trendJa = trendUsed ? "今季のトレンドも取り入れて、" : "";
+  return pick(state.language, {
+    zh: `已经挑选好了！${trendZh}这${n}套都是现货，选一套试穿吧。`,
+    en: trendUsed
+      ? `All picked! Factoring in this season's trends, these ${n} looks are all in stock — choose one to try on.`
+      : `All picked! These ${n} looks are all in stock — choose one to try on.`,
+    ja: `お選びしました！${trendJa}この${n}セットはすべて在庫あり。1つ選んで試着してみてください。`
+  });
 }
 
 function addRecommendationResponse(state: AgentState, response: RecommendationResponse) {

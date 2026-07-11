@@ -1,11 +1,19 @@
 import "./gesture-readbar.css";
 import type { GestureAction } from "./useGestureControl";
 
-const LABEL: Record<GestureAction, { glyph: string; text: string }> = {
-  confirm: { glyph: "👍", text: "试穿" },
-  proceed: { glyph: "👌", text: "确定" },
-  talk: { glyph: "✋", text: "说话" },
-  back: { glyph: "✊", text: "返回" }
+type BarLanguage = "en" | "zh" | "ja";
+
+const GLYPH: Record<GestureAction, string> = {
+  confirm: "👍",
+  proceed: "👌",
+  talk: "✋",
+  back: "✊"
+};
+
+const TEXT: Record<BarLanguage, Record<GestureAction, string>> = {
+  en: { confirm: "Try on", proceed: "Confirm", talk: "Talk", back: "Back" },
+  zh: { confirm: "试穿", proceed: "确定", talk: "说话", back: "返回" },
+  ja: { confirm: "試着", proceed: "確定", talk: "話す", back: "戻る" }
 };
 
 /**
@@ -16,20 +24,21 @@ const LABEL: Record<GestureAction, { glyph: string; text: string }> = {
 export function GestureReadBar({
   action,
   dwellMs = 700,
-  labelOverrides
+  labelOverrides,
+  language = "zh"
 }: {
   action: GestureAction | null;
   dwellMs?: number;
   // Relabel a gesture for this context — e.g. in onboarding 👍 means "确定".
   labelOverrides?: Partial<Record<GestureAction, string>>;
+  language?: BarLanguage;
 }) {
   if (!action) return null;
-  const label = LABEL[action];
-  const text = labelOverrides?.[action] ?? label.text;
+  const text = labelOverrides?.[action] ?? TEXT[language][action];
   return (
     <div className="gesture-readbar" role="status">
       <span className="grb-glyph" aria-hidden="true">
-        {label.glyph}
+        {GLYPH[action]}
       </span>
       <span className="grb-label">{text}</span>
       <span className="grb-track">

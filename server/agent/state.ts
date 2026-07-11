@@ -1,5 +1,6 @@
 import type {
   AgentConstraints,
+  AgentLanguage,
   AhaDemoState,
   AnalysisHandoff,
   ConstraintDelta,
@@ -32,6 +33,9 @@ export interface AgentState {
   session_id: string;
   scene_type: SceneType;
   store_id: string;
+  // Customer-facing output language. Optional because sessions persisted before
+  // this field existed restore without it; readers must fall back to "zh".
+  language?: AgentLanguage;
   status: SessionStatus;
   route: Route;
   analysis?: AnalysisHandoff;
@@ -58,12 +62,14 @@ export function createInitialAgentState(input: {
   session_id: string;
   scene_type: SceneType;
   store_id: string;
+  language?: AgentLanguage;
   analysis?: AnalysisHandoff;
 }): AgentState {
   return {
     session_id: input.session_id,
     scene_type: input.scene_type,
     store_id: input.store_id,
+    language: input.language ?? "zh",
     status: "communicating",
     route: "unclear",
     analysis: input.analysis,

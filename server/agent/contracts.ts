@@ -6,6 +6,9 @@ export type BodyProfile = AnalysisHandoff["body_profile"];
 export type OutfitProfile = AnalysisHandoff["outfit_profile"];
 
 export const sceneTypeSchema = z.enum(["mirror", "entrance_screen", "staff_ipad"]);
+// Customer-facing language for everything the agent SAYS (recommendations,
+// clarifications, reasons). NLU accepts zh/en input regardless of this setting.
+export const agentLanguageSchema = z.enum(["zh", "en", "ja"]);
 export const routeSchema = z.enum(["explicit", "recommendation", "unclear"]);
 export const sessionStatusSchema = z.enum([
   "communicating",
@@ -31,6 +34,7 @@ export const faceModeSchema = z.enum(["real_face", "default_face"]);
 export const outfitSlotSchema = z.enum(["outerwear", "top", "bottom", "dress", "shoes", "accessory"]);
 
 export type SceneType = z.infer<typeof sceneTypeSchema>;
+export type AgentLanguage = z.infer<typeof agentLanguageSchema>;
 export type Route = z.infer<typeof routeSchema>;
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;
 export type RecommendationType = z.infer<typeof recommendationTypeSchema>;
@@ -194,11 +198,15 @@ export interface ToolCallRecord {
 export const startAgentSessionSchema = z.object({
   scene_type: sceneTypeSchema.default("mirror"),
   store_id: z.string().min(1).default("store_001"),
+  language: agentLanguageSchema.default("zh"),
   analysis: z.custom<AnalysisHandoff>().optional()
 });
 
 export const agentChatSchema = z.object({
-  text: z.string().min(1)
+  text: z.string().min(1),
+  // Optional per-turn override; when present it updates the session language.
+  // No default here — an absent field must NOT reset an en/ja session to zh.
+  language: agentLanguageSchema.optional()
 });
 
 export const previewTryonSchema = z.object({

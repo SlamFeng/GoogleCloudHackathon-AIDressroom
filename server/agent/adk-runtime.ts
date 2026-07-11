@@ -10,6 +10,7 @@ import {
 import type { Content } from "@google/genai";
 import type { AgentState } from "./state.js";
 import { AgentWorkflow, type WorkflowResult } from "./workflow.js";
+import { detectLanguage } from "./i18n.js";
 import {
   agentChatSchema,
   confirmPayloadSchema,
@@ -104,6 +105,12 @@ class DressroomWorkflowAgent extends BaseAgent {
 
     if (command.action === "chat") {
       const parsed = agentChatSchema.parse(command.payload ?? {});
+      // A per-turn language override sticks for the rest of the session — and
+      // the language the customer actually speaks wins over the client hint,
+      // so answering in Japanese on an English mirror flips the reply language.
+      if (parsed.language) state.language = parsed.language;
+      const detected = detectLanguage(parsed.text);
+      if (detected && detected !== state.language) state.language = detected;
       return this.workflow.handleCustomerInput(state, parsed.text);
     }
     if (command.action === "preview") {

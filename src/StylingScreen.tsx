@@ -31,115 +31,103 @@ import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
 import { RecTypeLabel } from "./design/components/agent/RecTypeLabel";
+import { STYLING_COPY } from "./styling-copy";
 
 // The App's Copy type is a large translation record; we only ever read from it
 // loosely here (headings come from the mirror type scale), so accept it broadly.
 type Copy = Record<string, unknown>;
 
-const defaultCustomerNeed = "没什么想法，请根据我当前穿搭推荐三套适合我的衣服。";
+// Mirror language — matches App.tsx's selector (defined locally per contract).
+type Language = "en" | "zh" | "ja";
+
+// BCP-47 locale for STT/TTS per mirror language.
+const SPEECH_LANG: Record<Language, string> = {
+  en: "en-US",
+  ja: "ja-JP",
+  zh: "zh-CN"
+};
 
 // How long the placeholder try-on window stays open before dropping back to the
 // mirror. Drives both the auto-dismiss timer and the progress-bar animation
 // (via the --tryon-ms CSS variable), so the two never drift apart.
 const TRYON_WINDOW_MS = 15000;
 
-// The agent's fixed spoken lines — prefetched (and cached) on mount so the
-// Gemini voice is ready and instant when each one is actually needed.
-const LINE_LOOKS_READY = "给你搭好了三套，都是现货。选一套试穿吧。";
-const LINE_ON_YOU = "看看你穿上的样子。";
-const LINE_RESTYLED = "换了一版，选一套试穿。";
-const LINE_RESERVED = "已预留，给你送到试衣间。";
-// Spoken when the customer smiles at their try-on reflection (expression → TTS).
-const LINE_COMPLIMENT = "哎呀，你好像很开心！看来这套很适合你～";
-const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED, LINE_COMPLIMENT];
-
-// Rec-type → a short Chinese label shown on the look strip.
-const REC_LABEL: Record<string, string> = {
-  explicit_need: "你的需求",
-  similar: "同款风格",
-  style: "造型推荐",
-  seasonal: "当季精选"
-};
-
 // Each "thinking" step stays on screen at least this long, so even a fast
 // (cache-hit) turn visibly walks step-by-step instead of snapping to done.
 const TOOL_STEP_MS = 850;
 
-// Pull the customer's own occasion phrase ("明天要参加朋友的婚礼") out of what they
-// just said, so the agent can acknowledge it in their words immediately — before
-// the backend even responds. Regex, not a lookup table.
-function echoRequest(text: string): string | undefined {
-  const m = text.match(
-    // The lookbehind keeps bare 上 as a verb ("上班") but not as the tail of a
-    // compound like 穿上/试上/配上 ("我想穿上这件外套" must not echo "上这件外套").
-    /((?:今天|明天|后天|这周末|周末|下周)?[要想]?(?:去|参加|(?<![穿试戴配加披套换])上))((?:[一-龥]{1,4}的)?[一-龥]{1,6}?)(?=[了，。！？、\s吗呢啊]|穿|想|要|能|有|帮|给|$)/
-  );
-  return m ? `${m[1]}${m[2]}` : undefined;
+// Pull the customer's own occasion phrase ("明天要参加朋友的婚礼" / "a friend's
+// wedding") out of what they just said, so the agent can acknowledge it in their
+// words immediately — before the backend even responds. Regex, not a lookup table.
+function echoRequest(text: string, language: Language): string | undefined {
+  if (language === "zh") {
+    const m = text.match(
+      // The lookbehind keeps bare 上 as a verb ("上班") but not as the tail of a
+      // compound like 穿上/试上/配上 ("我想穿上这件外套" must not echo "上这件外套").
+      /((?:今天|明天|后天|这周末|周末|下周)?[要想]?(?:去|参加|(?<![穿试戴配加披套换])上))((?:[一-龥]{1,4}的)?[一-龥]{1,6}?)(?=[了，。！？、\s吗呢啊]|穿|想|要|能|有|帮|给|$)/
+    );
+    return m ? `${m[1]}${m[2]}` : undefined;
+  }
+  if (language === "en") {
+    // "going to a friend's wedding tomorrow" → "a friend's wedding".
+    const m = text.match(
+      /\b(?:for|to|at|attend(?:ing)?|going to|have|got)\s+((?:a|an|my|the)\s+)?((?:[a-z]+(?:'s)?\s+){0,2}?(?:wedding|interview|date|party|trip|work|meeting|dinner|funeral|concert|graduation|prom|vacation|conference|presentation|birthday|anniversary|reunion|festival|gala|brunch|picnic|beach))\b/i
+    );
+    return m ? `${m[1] ?? ""}${m[2]}`.trim() : undefined;
+  }
+  // ja — just the occasion noun ("結婚式ですね！").
+  const m = text.match(/(結婚式|面接|デート|パーティー|旅行|出張|会議|飲み会|食事会|卒業式|発表会|お出かけ)/);
+  return m ? m[1] : undefined;
 }
 
-// --- Feedback action mapping (preserved verbatim from AgentRuntimePanel). ---
+// --- Feedback action mapping (payload preserved from AgentRuntimePanel; the
+//     synthetic voice line comes from STYLING_COPY[language].feedbackVoice). ---
 const feedbackActions: Array<{
   label: string;
   dimension: FeedbackDimension;
   dimensionValue: string;
-  voice: string;
 }> = [
+  { label: "Color", dimension: "color", dimensionValue: "red" },
+  { label: "Fit", dimension: "fit", dimensionValue: "too_loose" },
+  { label: "Style", dimension: "style", dimensionValue: "too_formal" },
+  { label: "Price", dimension: "price", dimensionValue: "lower_price" },
+  { label: "All", dimension: "overall", dimensionValue: "reject_all" }
+];
+
+// The outfit-slot key set (matches RecProduct.category / OutfitSlotName).
+const SLOT_KEYS = ["outerwear", "top", "bottom", "dress", "shoes", "accessory"];
+
+// Phrasing → outfit slot, merged across zh/en/ja so the NLU works in whatever
+// language the customer speaks. Multi-char zh words (连衣裙) listed before their
+// substrings so they win; English terms are word-bounded.
+const SLOT_PATTERNS: Array<{ slot: string; re: RegExp }> = [
   {
-    label: "Color",
-    dimension: "color",
-    dimensionValue: "red",
-    voice: "颜色不喜欢，避开这个颜色。"
+    slot: "outerwear",
+    re: /(外套|大衣|夹克|风衣|羽绒服|\bjackets?\b|\bcoats?\b|\bouterwear\b|\bblazers?\b|ジャケット|コート|アウター)/i
+  },
+  { slot: "dress", re: /(连衣裙|连身裙|长裙|裙装|\bdress(?:es)?\b|ワンピース|ドレス)/i },
+  {
+    slot: "top",
+    re: /(上衣|上装|衬衫|衬衣|t恤|体恤|毛衣|卫衣|针织|上半身|上身|\btops?\b|\bshirts?\b|\btees?\b|\bt-shirts?\b|\bsweaters?\b|\bblouses?\b|\bhoodies?\b|トップス|シャツ|セーター|ニット)/i
   },
   {
-    label: "Fit",
-    dimension: "fit",
-    dimensionValue: "too_loose",
-    voice: "版型太宽松了，换更利落一点。"
+    slot: "bottom",
+    re: /(裤子|裤|下装|下半身|下身|短裤|长裤|牛仔裤|半身裙|\bpants\b|\btrousers\b|\bjeans\b|\bskirts?\b|\bshorts\b|\bbottoms?\b|パンツ|ズボン|スカート|ジーンズ)/i
   },
   {
-    label: "Style",
-    dimension: "style",
-    dimensionValue: "too_formal",
-    voice: "这套太正式了，换休闲一点。"
+    slot: "shoes",
+    re: /(鞋子|鞋|靴子|高跟|运动鞋|\bshoes?\b|\bsneakers?\b|\bboots?\b|\bheels?\b|\bloafers?\b|シューズ|スニーカー|ブーツ|ヒール|靴)/i
   },
   {
-    label: "Price",
-    dimension: "price",
-    dimensionValue: "lower_price",
-    voice: "价格有点高，换预算更低的。"
-  },
-  {
-    label: "All",
-    dimension: "overall",
-    dimensionValue: "reject_all",
-    voice: "都不喜欢，换一组。"
+    slot: "accessory",
+    re: /(配饰|饰品|包包|包|帽子|帽|项链|围巾|腰带|首饰|\bbags?\b|\baccessor\w*\b|\bhats?\b|\bscar(?:f|ves)\b|\bbelts?\b|\bnecklaces?\b|\bjewelry\b|バッグ|かばん|アクセサリー|ネックレス|マフラー|ベルト)/i
   }
 ];
 
-// --- Per-slot swap: hear "不喜欢上衣，其余都不错" and replace just that one piece.
-//     Slot names match RecProduct.category (the OutfitSlotName set). ---
-const SLOT_LABEL: Record<string, string> = {
-  outerwear: "外套",
-  top: "上衣",
-  bottom: "下装",
-  dress: "连衣裙",
-  shoes: "鞋子",
-  accessory: "配饰"
-};
-
-// Chinese phrasing → outfit slot. Multi-char words (连衣裙) listed before their
-// substrings so they win.
-const SLOT_PATTERNS: Array<{ slot: string; re: RegExp }> = [
-  { slot: "outerwear", re: /(外套|大衣|夹克|风衣|羽绒服)/ },
-  { slot: "dress", re: /(连衣裙|连身裙|长裙|裙装)/ },
-  { slot: "top", re: /(上衣|上装|衬衫|衬衣|t恤|体恤|毛衣|卫衣|针织|上半身|上身)/i },
-  { slot: "bottom", re: /(裤子|裤|下装|下半身|下身|短裤|长裤|牛仔裤|半身裙)/ },
-  { slot: "shoes", re: /(鞋子|鞋|靴子|靴|高跟|运动鞋)/ },
-  { slot: "accessory", re: /(配饰|饰品|包包|包|帽子|帽|项链|围巾|腰带|首饰)/ }
-];
-
-// "换掉/不喜欢/不合适…" — a dislike or replace intent (NOT 不错, which is positive).
-const SWAP_VERB = /(换|不喜欢|不太喜欢|不想要|不要|不满意|不行|不合适|不好看|重新|重挑|再换|难看|丑)/g;
+// "换掉/不喜欢/don't like/替えて…" — a dislike or replace intent (NOT 不错, which
+// is positive). English verbs are word-bounded so "exchange" noise doesn't misfire.
+const SWAP_VERB =
+  /(换|不喜欢|不太喜欢|不想要|不要|不满意|不行|不合适|不好看|重新|重挑|再换|难看|丑|\bswap\b|\bchange\b|\breplace\b|\bdon'?t\s+(?:like|want)\b|\bnot\s+a\s+fan\b|\bdifferent\b|\banother\b|\bugly\b|\bhate\b|変え|替え|好きじゃない|嫌い|ダサい|イマイチ)/gi;
 
 /**
  * Does the customer want ONE slot swapped ("不喜欢上衣，其余都不错")? Returns the
@@ -197,18 +185,22 @@ type ToolPhase = { labels: string[]; runningIndex: number } | null;
 export function StylingScreen({
   analysis,
   copy: _copy,
+  language,
   captureDataUrl,
   onComplete,
   onBack
 }: {
   analysis: AnalysisHandoff;
   copy: Copy;
+  language: Language;
   captureDataUrl: string | null;
   onComplete: () => void;
   onBack: () => void;
 }) {
+  // All customer-facing copy (text + spoken lines) for the selected language.
+  const T = STYLING_COPY[language];
   const [run, setRun] = useState<AgentRunResponse | null>(null);
-  const [customerNeed, setCustomerNeed] = useState(defaultCustomerNeed);
+  const [customerNeed, setCustomerNeed] = useState(T.defaultCustomerNeed);
   // What the customer has said this session — kept only in memory, shown top-right
   // as conversation context (most-recent first). Not persisted.
   const [utterances, setUtterances] = useState<string[]>([]);
@@ -242,9 +234,7 @@ export function StylingScreen({
   // whether Lucy's real stream has painted its first frame yet.
   const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
   const [lucyPainted, setLucyPainted] = useState(false);
-  const [petMessage, setPetMessage] = useState<string | undefined>(
-    "你好呀～跟我说说你想去的场合或想要的风格！"
-  );
+  const [petMessage, setPetMessage] = useState<string | undefined>(T.petGreeting);
   const [petMood, setPetMood] = useState<PetMood>("idle");
   const [petLeaving, setPetLeaving] = useState(false);
   const tryonTimerRef = useRef<number | null>(null);
@@ -322,7 +312,7 @@ export function StylingScreen({
 
   async function ensureAgentSession() {
     if (agentSessionId) return agentSessionId;
-    const response = await createAgentSession(analysis);
+    const response = await createAgentSession(analysis, "mirror", "store_001", language);
     applyRun(response);
     return response.state.session_id;
   }
@@ -352,26 +342,21 @@ export function StylingScreen({
     if (!text) return;
     speech.warm();
     void execute("recommend", async () => {
-      runTools([
-        "正在听取你的需求…",
-        "🔎 正在用 Google 搜索当季流行…",
-        "匹配店内现货…",
-        "为你搭配三套…"
-      ]);
+      runTools(T.toolsRecommend);
       // Phase 1 — acknowledge in the customer's own words the moment they finish
       // speaking, while the steps run: "啊，明天要参加朋友的婚礼是吗？…"
-      const echo = echoRequest(text);
-      const ack = echo ? `啊，${echo}是吗？正在为你挑选合适的搭配…` : "好的，正在为你挑选合适的搭配…";
+      const echo = echoRequest(text, language);
+      const ack = echo ? T.ackEcho(echo) : T.ackPlain;
       setPetMessage(ack);
       speech.speak(ack);
       let line: string | undefined;
       try {
         const sessionId = await ensureAgentSession();
-        const response = await sendAgentChat(sessionId, text);
+        const response = await sendAgentChat(sessionId, text, language);
         applyRun(response);
         setShowConfirm(false);
         if (response.state.recommendation_sets.length > 0) {
-          line = (response.output as { message?: string }).message ?? LINE_LOOKS_READY;
+          line = (response.output as { message?: string }).message ?? T.lineLooksReady;
         }
       } finally {
         // The pet announces the result only after the steps finish animating.
@@ -462,7 +447,7 @@ export function StylingScreen({
         return;
       }
       setLastPreviewPayload(response.output.payload);
-      speech.speak(LINE_ON_YOU);
+      speech.speak(T.lineOnYou);
       startTryonGeneration(set);
       await lucy.start({
         payload: response.output.payload,
@@ -496,8 +481,8 @@ export function StylingScreen({
   function handleFeedback(action: (typeof feedbackActions)[number]) {
     void execute(`feedback_${action.dimension}`, async () => {
       if (!agentSessionId || !selectedSet) return;
-      runTools(["更新你的偏好…", "重新检查现货…", "调整搭配…"]);
-      setPetMessage("明白，我再调整一下…");
+      runTools(T.toolsFeedback);
+      setPetMessage(T.petAdjusting);
       let line: string | undefined;
       try {
         const response = await sendAgentFeedback(agentSessionId, {
@@ -505,10 +490,10 @@ export function StylingScreen({
           feedback_type: action.dimension === "overall" ? "reject_all" : "partial_adjust",
           dimension: action.dimension,
           dimension_value: action.dimensionValue,
-          raw_voice_text: action.voice
+          raw_voice_text: T.feedbackVoice[action.dimension]
         });
         applyRun(response);
-        if (response.state.recommendation_sets.length > 0) line = LINE_RESTYLED;
+        if (response.state.recommendation_sets.length > 0) line = T.lineRestyled;
       } finally {
         const spoken = line;
         finishTools(
@@ -528,9 +513,9 @@ export function StylingScreen({
   function handleSwapSlot(category: string, saidText: string) {
     void execute(`swap_${category}`, async () => {
       if (!agentSessionId || !selectedSet) return;
-      const label = SLOT_LABEL[category] ?? "单品";
-      runTools(["记下你的偏好…", `重新挑一件${label}…`, "保留其余搭配…"]);
-      setPetMessage(`好的，其余保留，我给你换一件${label}…`);
+      const label = T.slotLabel[category] ?? T.slotFallback;
+      runTools(T.toolsSwap(label));
+      setPetMessage(T.petSwapping(label));
       let line: string | undefined;
       try {
         const response = await sendAgentFeedback(agentSessionId, {
@@ -541,7 +526,7 @@ export function StylingScreen({
         });
         applyRun(response);
         const swapped = (response.output as { type?: string }).type === "recommendations_refined";
-        if (swapped) line = `换好啦，这件${label}更配～其余保持不变。`;
+        if (swapped) line = T.petSwapped(label);
       } finally {
         const spoken = line;
         finishTools(
@@ -565,8 +550,8 @@ export function StylingScreen({
         face_profile_consent: false
       });
       applyRun(response);
-      speech.speak(LINE_RESERVED);
-      setPetMessage(LINE_RESERVED);
+      speech.speak(T.lineReserved);
+      setPetMessage(T.lineReserved);
       setPetLeaving(true);
       // Show the dark-glass checkout (not the old light handoff screen).
       setReservedSet(selectedSet);
@@ -598,8 +583,8 @@ export function StylingScreen({
       /* storage unavailable — selection still applies for this session */
     }
   }
-  const speech = useSpeech("zh-CN");
-  const stt = useSpeechRecognition({ lang: "zh-CN", continuous: true });
+  const speech = useSpeech(SPEECH_LANG[language]);
+  const stt = useSpeechRecognition({ lang: SPEECH_LANG[language], continuous: true });
   const micLevel = useAudioLevel(stt.listening);
   const auraState: SiriOrbState = stt.listening
     ? "listening"
@@ -659,14 +644,13 @@ export function StylingScreen({
         // rather than starting a whole new recommendation.
         // Consider every slot (not just the ones in this look) — the server
         // re-resolves the exact slot with the model and can add-or-replace.
-        const slot =
-          !tryonActive && selectedSet ? detectSlotSwap(said, Object.keys(SLOT_LABEL)) : null;
+        const slot = !tryonActive && selectedSet ? detectSlotSwap(said, SLOT_KEYS) : null;
         if (slot) handleSwapSlot(slot, said);
         else handleStyleMe(said);
       });
     } else {
       speech.warm();
-      setPetMessage("我在听，请说～");
+      setPetMessage(T.petListening);
       stt.start();
     }
   }
@@ -731,17 +715,17 @@ export function StylingScreen({
     enabled: tryonActive && (lucyHoldsCamera || mirror.state === "live"),
     onSatisfied: () => {
       if (busyAction !== null) return;
-      setPetMessage(LINE_COMPLIMENT);
+      setPetMessage(T.lineCompliment);
       setPetMood("happy");
-      speech.speak(LINE_COMPLIMENT);
+      speech.speak(T.lineCompliment);
       window.setTimeout(() => setPetMood("idle"), 2600);
     }
   });
 
   // The pet greets when the try-on opens.
   useEffect(() => {
-    if (tryonActive) setPetMessage("来，看看你穿上这套的样子～");
-  }, [tryonActive]);
+    if (tryonActive) setPetMessage(T.petTryon);
+  }, [tryonActive, T.petTryon]);
 
   // Pet mood follows what's actually happening: a cheer wins, then "listening"
   // while the mic is open, "working" while the tool steps animate, "talking"
@@ -757,12 +741,13 @@ export function StylingScreen({
             ? "talking"
             : "idle";
 
-  // Warm the Gemini voice cache for the fixed lines — but a few seconds in, so
-  // the TTS calls don't contend with the customer's first styling request.
+  // Warm the Gemini voice cache for the fixed lines (current language only) — but
+  // a few seconds in, so the TTS calls don't contend with the first styling request.
   useEffect(() => {
-    const id = window.setTimeout(() => speech.prefetch(AGENT_LINES), 5000);
+    const lines = [T.lineLooksReady, T.lineOnYou, T.lineRestyled, T.lineReserved, T.lineCompliment];
+    const id = window.setTimeout(() => speech.prefetch(lines), 5000);
     return () => window.clearTimeout(id);
-  }, [speech.prefetch]);
+  }, [speech.prefetch, language]);
 
   return (
     <section className="mirror-shell" aria-label="Styling recommendations">
@@ -782,31 +767,27 @@ export function StylingScreen({
       {mirror.state === "live" && (
         <div className="mirror-live" role="status">
           <span className="mirror-live-dot" aria-hidden="true" />
-          Camera on · nothing is saved
+          {T.cameraOn}
         </div>
       )}
       {(mirror.state === "denied" || mirror.state === "error") && (
         <div className="mirror-cam-note">
-          {mirror.state === "denied"
-            ? "Enable the camera to see yourself in the mirror."
-            : "Camera unavailable on this device."}
+          {mirror.state === "denied" ? T.cameraDenied : T.cameraError}
         </div>
       )}
 
       {/* Hands-free finger-count selection (opt-in; touch always works). */}
       {gestureOn && (
         <div className="gesture-hint">
-          {gesture.handPresent
-            ? "Hold up 1 · 2 · 3 to pick a look · 👍 choose · ✋ back"
-            : "Raise 1, 2 or 3 fingers to pick a look"}
+          {gesture.handPresent ? T.gestureHintHand : T.gestureHintNoHand}
         </div>
       )}
 
       {/* Conversation context — what the customer has said, kept top-right so the
           mirror visibly "remembers" it while they talk. In-memory only. */}
       {showVoice && utterances.length > 0 && (
-        <aside className="mirror-context" aria-label="对话上下文">
-          <span className="mirror-context-label">刚才你说</span>
+        <aside className="mirror-context" aria-label={T.contextAria}>
+          <span className="mirror-context-label">{T.contextLabel}</span>
           <ul>
             {utterances.slice(0, 3).map((line, index) => (
               <li key={`${index}-${line}`} data-recent={index === 0 ? "true" : undefined}>
@@ -859,8 +840,8 @@ export function StylingScreen({
               />
             ) : (
               <div className="mirror-tryon-mock">
-                <strong>{tryonGenerating ? "正在把这套穿到你身上…" : "正在生成试穿效果…"}</strong>
-                <span>你正看着实时镜面，稍等就能看到自己穿上的样子。</span>
+                <strong>{tryonGenerating ? T.tryonApplying : T.tryonGenerating}</strong>
+                <span>{T.tryonWait}</span>
               </div>
             ))}
           {/* 15s window progress bar; on elapse the layer auto-dismisses. */}
@@ -878,7 +859,7 @@ export function StylingScreen({
             </div>
             <div className="mirror-tryon-actions">
               <Button variant="secondary" onClick={handleStop}>
-                Back to looks
+                {T.tryonBackToLooks}
               </Button>
               <Button
                 variant="primary"
@@ -889,7 +870,7 @@ export function StylingScreen({
                   handleStop();
                 }}
               >
-                Choose this
+                {T.tryonChoose}
               </Button>
             </div>
           </div>
@@ -901,8 +882,8 @@ export function StylingScreen({
         <div className="mirror-checkout">
           <div className="mirror-checkout-card">
             <div className="checkout-mark" aria-hidden="true">✓</div>
-            <MicroLabel>已预留</MicroLabel>
-            <h2 className="checkout-title">这套帮你留好了</h2>
+            <MicroLabel>{T.checkoutReserved}</MicroLabel>
+            <h2 className="checkout-title">{T.checkoutTitle}</h2>
             <div className="checkout-lines">
               {reservedSet.products.map((product) => (
                 <div className="checkout-line" key={product.product_id}>
@@ -912,16 +893,16 @@ export function StylingScreen({
               ))}
             </div>
             <div className="checkout-total">
-              <span>合计</span>
+              <span>{T.checkoutTotal}</span>
               <PriceTag
                 amount={reservedSet.products.reduce((sum, p) => sum + p.price_yen, 0)}
                 size="lg"
                 countUp
               />
             </div>
-            <p className="checkout-note">已送到你的试衣间，试好直接带走即可。</p>
+            <p className="checkout-note">{T.checkoutNote}</p>
             <Button variant="primary" size="lg" block onClick={onComplete}>
-              完成
+              {T.checkoutDone}
             </Button>
           </div>
         </div>
@@ -930,7 +911,7 @@ export function StylingScreen({
       {/* Read-bar for a held gesture — floats above the sheet. */}
       {gesture.armedGesture && (
         <div className="mirror-readbar">
-          <GestureReadBar action={gesture.armedGesture} dwellMs={gesture.dwellMs} />
+          <GestureReadBar action={gesture.armedGesture} dwellMs={gesture.dwellMs} language={language} />
         </div>
       )}
 
@@ -942,7 +923,7 @@ export function StylingScreen({
       >
         <div className="mirror-topbar">
           <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
-            ← Back
+            {T.back}
           </button>
           <div className="mirror-topbar-right">
             {mirror.devices.length > 1 && (
@@ -999,7 +980,7 @@ export function StylingScreen({
         {showVoice && (
           <div className="mirror-voice">
             <div className="mirror-voice-title">
-              {hasSets ? "想调整什么？说给我听～" : "想找点什么？和我说说～"}
+              {hasSets ? T.voiceTitleAdjust : T.voiceTitleIdle}
             </div>
             <LiveTranscript text={stt.transcript} listening={stt.listening} />
             <div className="mirror-talk-wrap">
@@ -1007,7 +988,7 @@ export function StylingScreen({
               <button
                 className={`mirror-talk mirror-talk-orb ${stt.listening ? "on" : ""}`}
                 type="button"
-                onClick={stt.supported ? toggleVoice : () => handleStyleMe(defaultCustomerNeed)}
+                onClick={stt.supported ? toggleVoice : () => handleStyleMe(T.defaultCustomerNeed)}
                 aria-pressed={stt.listening}
                 aria-label={stt.listening ? "Stop and send" : "Tap to talk"}
               >
@@ -1015,17 +996,19 @@ export function StylingScreen({
               </button>
             </div>
             <div className="mirror-voice-hint">
-              {stt.listening ? "我在听，说完点一下发送～" : "点麦克风，或做手势说话"}
+              {stt.listening ? T.voiceHintListening : T.voiceHintIdle}
             </div>
-            {gestureOn && <GestureHint only={["talk"]} active={stt.listening ? "talk" : null} />}
+            {gestureOn && (
+              <GestureHint only={["talk"]} active={stt.listening ? "talk" : null} language={language} />
+            )}
             {!hasSets && (
               <button
                 className="mirror-voice-skip"
                 type="button"
                 disabled={busyAction !== null}
-                onClick={() => handleStyleMe(defaultCustomerNeed)}
+                onClick={() => handleStyleMe(T.defaultCustomerNeed)}
               >
-                Just pick for me →
+                {T.voiceSkip}
               </button>
             )}
           </div>
@@ -1048,7 +1031,7 @@ export function StylingScreen({
               looks={recommendationSets.map((set) => ({
                 id: set.set_id,
                 recType: set.rec_type,
-                recLabel: REC_LABEL[set.rec_type] ?? set.rec_type,
+                recLabel: T.recLabel[set.rec_type] ?? set.rec_type,
                 totalYen: set.products.reduce((sum, p) => sum + p.price_yen, 0),
                 items: set.products.map((product) => ({
                   id: product.product_id,
@@ -1087,9 +1070,11 @@ export function StylingScreen({
                 const action = feedbackActions.find((item) => item.dimension === tag.dimension);
                 if (action) handleFeedback(action);
               }}
-              hint={gestureOn ? "1·2·3 切换 · 👍 试穿 · ✊ 返回" : "点数字切换套装"}
+              hint={gestureOn ? T.lookHintGesture : T.lookHintTouch}
             />
-            {gestureOn && <GestureHint active={gesture.armedChoice !== null ? "pick" : null} />}
+            {gestureOn && (
+              <GestureHint active={gesture.armedChoice !== null ? "pick" : null} language={language} />
+            )}
           </div>
         )}
 
@@ -1098,10 +1083,10 @@ export function StylingScreen({
           <div className="styling-confirm">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <RecTypeLabel recType={selectedSet.rec_type} />
-              <MicroLabel>Your pick</MicroLabel>
+              <MicroLabel>{T.yourPick}</MicroLabel>
             </div>
             <div className="styling-confirm-total">
-              <span>Total</span>
+              <span>{T.confirmTotal}</span>
               <PriceTag amount={selectedTotal} size="lg" countUp />
             </div>
             <Button
@@ -1112,7 +1097,7 @@ export function StylingScreen({
               disabled={!agentSessionId || busyAction !== null}
               onClick={handleConfirm}
             >
-              Reserve &amp; try on
+              {T.confirmReserve}
             </Button>
           </div>
         )}

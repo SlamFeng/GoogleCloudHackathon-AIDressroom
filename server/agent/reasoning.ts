@@ -88,8 +88,8 @@ export async function extractNeed(text: string): Promise<ParsedNeed> {
         "colors, style_tags: lowercase tags.",
         "occasion: e.g. date, work, beach; null if none.",
         "budget_yen: integer JPY budget ceiling, or null.",
-        "formality: how dressed-up they want to be — one of casual, smart_casual, formal — or null (正式/商务→formal, 商务休闲/轻正式→smart_casual, 休闲/日常→casual).",
-        "color_tone: overall darkness they want — dark or light — or null (深色/暗→dark, 浅色/淡→light). This is separate from a specific hue like blue, which goes in colors.",
+        "formality: how dressed-up they want to be — one of casual, smart_casual, formal — or null (正式/商务/formal/business/dressy→formal, 商务休闲/轻正式/smart casual→smart_casual, 休闲/日常/casual/everyday→casual).",
+        "color_tone: overall darkness they want — dark or light — or null (深色/暗/dark/darker→dark, 浅色/淡/light/pale→light). This is separate from a specific hue like blue, which goes in colors.",
         "Do not invent values that are not implied. Return only JSON.",
         `Customer message: ${text}`
       ].join("\n"),
@@ -147,8 +147,8 @@ export async function extractSwapSlot(text: string, availableSlots: string[]): P
       [
         "The customer is looking at ONE outfit and wants to replace exactly ONE garment, keeping the rest.",
         "Decide which single slot they want swapped OUT.",
-        "Slots: outerwear(外套/大衣/夹克/风衣), top(上衣/上装/衬衫/T恤/毛衣/卫衣), bottom(裤子/下装/短裤/半身裙), dress(连衣裙), shoes(鞋/靴), accessory(包/帽子/配饰/项链).",
-        "Handle negation and emphasis: '不是上衣' or '上衣不用换' means it is NOT the top; '外套颜色不好看' means the OUTERWEAR is the problem even if a top is also named.",
+        "Slots: outerwear(外套/大衣/夹克/风衣/jacket/coat/blazer), top(上衣/上装/衬衫/T恤/毛衣/卫衣/shirt/tee/t-shirt/sweater/blouse/hoodie), bottom(裤子/下装/短裤/半身裙/pants/jeans/shorts/skirt), dress(连衣裙/dress), shoes(鞋/靴/shoes/sneakers/boots), accessory(包/帽子/配饰/项链/bag/hat/necklace/scarf).",
+        "Handle negation and emphasis: '不是上衣' or '上衣不用换' means it is NOT the top; '外套颜色不好看' means the OUTERWEAR is the problem even if a top is also named. Likewise in English: 'not the top, the jacket' means the OUTERWEAR; 'keep the shoes, swap the shirt' means the TOP.",
         `The look currently includes these slots: ${availableSlots.join(", ") || "unknown"}.`,
         "If the customer is NOT asking to swap a single garment, return null for slot.",
         "Return only JSON.",
@@ -175,32 +175,41 @@ export async function extractSwapSlot(text: string, availableSlots: string[]): P
 }
 
 const SWAP_SLOT_PATTERNS: Array<{ slot: string; re: RegExp }> = [
-  { slot: "outerwear", re: /(外套|大衣|夹克|风衣|羽绒服)/ },
-  { slot: "dress", re: /(连衣裙|连身裙|长裙|裙装)/ },
-  { slot: "top", re: /(上衣|上装|衬衫|衬衣|t恤|体恤|毛衣|卫衣|针织|上半身|上身)/i },
-  { slot: "bottom", re: /(裤子|裤|下装|下半身|下身|短裤|长裤|牛仔裤|半身裙)/ },
-  { slot: "shoes", re: /(鞋子|鞋|靴子|靴|高跟|运动鞋)/ },
-  { slot: "accessory", re: /(配饰|饰品|包包|包|帽子|帽|项链|围巾|腰带|首饰)/ }
+  { slot: "outerwear", re: /(外套|大衣|夹克|风衣|羽绒服|\b(?:jacket|coat|blazer|parka|outerwear)\b)/i },
+  { slot: "dress", re: /(连衣裙|连身裙|长裙|裙装|\b(?:dress|gown)\b)/i },
+  { slot: "top", re: /(上衣|上装|衬衫|衬衣|t恤|体恤|毛衣|卫衣|针织|上半身|上身|\b(?:top|shirt|tee|t-?shirt|sweater|blouse|hoodie|knit)\b)/i },
+  { slot: "bottom", re: /(裤子|裤|下装|下半身|下身|短裤|长裤|牛仔裤|半身裙|\b(?:pants|jeans|trousers|shorts|skirt|bottoms?)\b)/i },
+  { slot: "shoes", re: /(鞋子|鞋|靴子|靴|高跟|运动鞋|\b(?:shoes?|sneakers?|boots?|heels?|footwear)\b)/i },
+  { slot: "accessory", re: /(配饰|饰品|包包|包|帽子|帽|项链|围巾|腰带|首饰|\b(?:bag|hat|cap|necklace|scarf|belt|accessor(?:y|ies))\b)/i }
 ];
 // A word that says "replace this" (weak signal) vs a complaint that says "THIS
 // one is the problem" (strong signal — points at the slot being complained about).
-const REPLACE_RE = /换/g;
-const COMPLAINT_RE = /(不好看|不太好看|不是很好看|不咋|不喜欢|难看|丑|不合适|不满意|不行|不太好|一般般|太.{0,2}了)/g;
-// Signals that a NAMED slot should be KEPT, not swapped: "不是上衣" / "别换上衣"
-// right before it, or "上衣不错 / 上衣挺好 / 上衣不用换" right after it.
-const KEEP_BEFORE_RE = /(不是|别换?|不用换)$/;
-const KEEP_AFTER_RE = /^(不错|挺好|可以|不用换|不换|保留|喜欢|满意|就行|留着|好看|不错)/;
+const REPLACE_RE = /(换|\b(?:swap|change|replace|switch|another|different)\b)/gi;
+const COMPLAINT_RE =
+  /(不好看|不太好看|不是很好看|不咋|不喜欢|难看|丑|不合适|不满意|不行|不太好|一般般|太.{0,2}了|don'?t like|not a fan|hate|ugly|hideous|awful|not feeling|doesn'?t (?:work|look))/gi;
+// Signals that a NAMED slot should be KEPT, not swapped: "不是上衣" / "别换上衣" /
+// "not the top" / "keep the shoes" right before it, or "上衣不错 / 上衣不用换" /
+// "the top is fine / stays" right after it ("the rest is fine" names no slot).
+const KEEP_BEFORE_RE = /(不是|别换?|不用换|not the|keep (?:the|my)|except (?:the|for the)?|don'?t (?:change|swap|replace|touch) (?:the|my))\s*$/;
+const KEEP_AFTER_RE = /^\s*(不错|挺好|可以|不用换|不换|保留|喜欢|满意|就行|留着|好看|(?:is |looks )?(?:fine|good|great|okay|ok)\b|stays\b|can stay\b)/;
 
 /**
  * No-key / timeout fallback. Scores each named slot by how strongly the sentence
- * marks it as the one to REPLACE — complaints ("外套颜色不好看") weigh more than a
- * bare "换", and an explicit keep ("不是上衣" / "上衣不错") knocks that slot out.
- * Handles the real speech patterns the plain nearest-verb version got wrong.
+ * marks it as the one to REPLACE — complaints ("外套颜色不好看" / "I don't like
+ * the jacket") weigh more than a bare replace verb ("换" / "swap"), and an
+ * explicit keep ("不是上衣" / "keep the shoes" / "the top is fine") knocks that
+ * slot out. Distances are measured between match spans (not start indexes) so
+ * multi-character English words score the same as single-character Chinese.
  */
-function heuristicSwapSlot(text: string): string | null {
-  const replaceAt = [...text.matchAll(REPLACE_RE)].map((m) => m.index ?? 0);
-  const complaintAt = [...text.matchAll(COMPLAINT_RE)].map((m) => m.index ?? 0);
-  if (replaceAt.length === 0 && complaintAt.length === 0) return null;
+function heuristicSwapSlot(rawText: string): string | null {
+  const text = rawText.toLowerCase();
+  const spansOf = (re: RegExp) =>
+    [...text.matchAll(re)].map((m) => ({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length }));
+  const gap = (a: { start: number; end: number }, b: { start: number; end: number }) =>
+    Math.max(0, Math.max(a.start, b.start) - Math.min(a.end, b.end));
+  const replaceSpans = spansOf(REPLACE_RE);
+  const complaintSpans = spansOf(COMPLAINT_RE);
+  if (replaceSpans.length === 0 && complaintSpans.length === 0) return null;
 
   const score = new Map<string, number>();
   for (const { slot, re } of SWAP_SLOT_PATTERNS) {
@@ -210,12 +219,11 @@ function heuristicSwapSlot(text: string): string | null {
     let slotScore = 0;
     while ((match = global.exec(text)) !== null) {
       seen = true;
-      const start = match.index;
-      const end = start + match[0].length;
-      if (KEEP_BEFORE_RE.test(text.slice(Math.max(0, start - 3), start))) slotScore -= 100;
-      if (KEEP_AFTER_RE.test(text.slice(end, end + 5))) slotScore -= 100;
-      for (const c of complaintAt) slotScore += Math.max(0, 20 - Math.abs(c - start));
-      for (const r of replaceAt) slotScore += Math.max(0, 8 - Math.abs(r - start));
+      const span = { start: match.index, end: match.index + match[0].length };
+      if (KEEP_BEFORE_RE.test(text.slice(Math.max(0, span.start - 18), span.start))) slotScore -= 100;
+      if (KEEP_AFTER_RE.test(text.slice(span.end, span.end + 12))) slotScore -= 100;
+      for (const c of complaintSpans) slotScore += Math.max(0, 20 - gap(c, span));
+      for (const r of replaceSpans) slotScore += Math.max(0, 8 - gap(r, span));
     }
     if (seen) score.set(slot, slotScore);
   }
