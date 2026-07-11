@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./design/screens/mirror.css";
+import "./mirror-gate.css";
 import { analyzeCapture, confirmAnalysis, createSession, prewarmTrends } from "./api";
 import { StylingScreen } from "./StylingScreen";
 import { MirrorProfile } from "./MirrorProfile";
@@ -13,7 +14,6 @@ import { useCameraCapture } from "./useCameraCapture";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PrivacyChip } from "./design/components/status/PrivacyChip";
-import { Checkbox } from "./design/components/forms/Checkbox";
 import { LanguageSwitch } from "./design/components/forms/LanguageSwitch";
 import { TryOnStage } from "./design/components/tryon/TryOnStage";
 
@@ -655,11 +655,14 @@ function App() {
       )}
 
       <div className="m-body">
-        {step === "welcome" && <Welcome copy={copy} onStart={() => void begin()} />}
+        {step === "welcome" && (
+          <Welcome copy={copy} language={language} onLang={setLanguage} onStart={() => void begin()} />
+        )}
         {step === "consent" && (
           <Consent
             copy={copy}
-            onBack={() => setStep("welcome")}
+            language={language}
+            onLang={setLanguage}
             onContinue={() => setStep("profile")}
           />
         )}
@@ -708,31 +711,90 @@ function App() {
   );
 }
 
-function Welcome({ copy, onStart }: { copy: Copy; onStart: () => void }) {
+// Dim reflection stand-in + brand/language chrome shared by the dark gate screens.
+function GateBackdrop() {
   return (
-    <section className="m-welcome">
-      <MicroLabel>{copy.welcome.eyebrow}</MicroLabel>
-      <h1 className="kinetic">
-        <span className="line">
-          <span>{copy.welcome.titleLine1}</span>
-        </span>
-        <span className="line">
-          <span>{copy.welcome.titleLine2}</span>
-        </span>
-        <span className="line">
-          <span>{copy.welcome.highlight}.</span>
-        </span>
-      </h1>
-      <p className="m-lede">{copy.welcome.lede}</p>
-      <div>
-        <Button variant="primary" size="lg" iconRight={<span aria-hidden="true">→</span>} onClick={onStart}>
-          {copy.welcome.start}
-        </Button>
+    <>
+      <div className="mgate-backdrop" aria-hidden="true">
+        <span className="mgate-figure-head" />
+        <span className="mgate-figure-body" />
       </div>
-      <div className="m-trust">
-        {copy.welcome.trust.map((item) => (
-          <span key={item}>{item}</span>
+      <div className="mgate-vignette" aria-hidden="true" />
+    </>
+  );
+}
+
+function GateTop({
+  copy,
+  language,
+  onLang
+}: {
+  copy: Copy;
+  language: Language;
+  onLang: (l: Language) => void;
+}) {
+  const langs: { code: Language; label: string }[] = [
+    { code: "en", label: "EN" },
+    { code: "zh", label: "中文" },
+    { code: "ja", label: "日本語" }
+  ];
+  return (
+    <div className="mgate-top">
+      <span className="mgate-wordmark">
+        {copy.appName}
+        <small>{copy.appSubtitle}</small>
+      </span>
+      <div className="mgate-lang">
+        {langs.map((l) => (
+          <button
+            key={l.code}
+            type="button"
+            data-on={language === l.code ? "true" : undefined}
+            onClick={() => onLang(l.code)}
+          >
+            {l.label}
+          </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function Welcome({
+  copy,
+  language,
+  onLang,
+  onStart
+}: {
+  copy: Copy;
+  language: Language;
+  onLang: (l: Language) => void;
+  onStart: () => void;
+}) {
+  return (
+    <section className="mgate">
+      <GateBackdrop />
+      <GateTop copy={copy} language={language} onLang={onLang} />
+      <div className="mgate-welcome">
+        <div className="mgate-eyebrow">{copy.welcome.eyebrow}</div>
+        <h1 className="mgate-title">
+          {[copy.welcome.titleLine1, copy.welcome.titleLine2, `${copy.welcome.highlight}.`].map(
+            (line, i) => (
+              <span key={i}>
+                <span style={{ animationDelay: `${i * 0.12}s` }}>{line}</span>
+              </span>
+            )
+          )}
+        </h1>
+        <p className="mgate-lede">{copy.welcome.lede}</p>
+        <button className="mgate-btn" type="button" onClick={onStart}>
+          {copy.welcome.start} <span aria-hidden="true">→</span>
+        </button>
+        <div className="mgate-trust">
+          {copy.welcome.trust.map((item) => (
+            <span key={item}>· {item}</span>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -740,50 +802,27 @@ function Welcome({ copy, onStart }: { copy: Copy; onStart: () => void }) {
 
 function Consent({
   copy,
-  onBack,
+  language,
+  onLang,
   onContinue
 }: {
   copy: Copy;
-  onBack: () => void;
+  language: Language;
+  onLang: (l: Language) => void;
   onContinue: () => void;
 }) {
-  const [cameraConsent, setCameraConsent] = useState(false);
-  const [processingConsent, setProcessingConsent] = useState(false);
   return (
-    <section className="m-panel">
-      <MicroLabel>{copy.consent.step}</MicroLabel>
-      <h2>{copy.consent.title}</h2>
-      <p className="m-intro">{copy.consent.intro}</p>
-      <div className="m-consent-cards">
-        {copy.consent.cards.map(([title, text], index) => (
-          <article key={title}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <h3>{title}</h3>
-            <p>{text}</p>
-          </article>
-        ))}
-      </div>
-      <div className="m-checks">
-        <Checkbox checked={cameraConsent} onChange={setCameraConsent}>
-          {copy.consent.cameraConsent}
-        </Checkbox>
-        <Checkbox checked={processingConsent} onChange={setProcessingConsent}>
-          {copy.consent.processingConsent}
-        </Checkbox>
-      </div>
-      <div className="m-actions">
-        <Button variant="text" onClick={onBack}>
-          {copy.common.back}
-        </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          disabled={!cameraConsent || !processingConsent}
-          iconRight={<span aria-hidden="true">→</span>}
-          onClick={onContinue}
-        >
-          {copy.consent.continue}
-        </Button>
+    <section className="mgate">
+      <GateBackdrop />
+      <GateTop copy={copy} language={language} onLang={onLang} />
+      <div className="mgate-sheet">
+        <div className="mgate-step">{copy.consent.step}</div>
+        <h2 className="mgate-h2">{copy.consent.title}</h2>
+        <p className="mgate-intro">{copy.consent.intro}</p>
+        <button className="mgate-btn" type="button" onClick={onContinue}>
+          {copy.consent.continue} <span aria-hidden="true">→</span>
+        </button>
+        <p className="mgate-fineprint">同意即代表你已阅读隐私说明</p>
       </div>
     </section>
   );
