@@ -21,5 +21,5 @@
     "noUnusedParameters": true
   },
   "include": ["src"],
-  "exclude": ["src/mirror-ds"]
+  "exclude": ["src/mirror-ds/ui_kits", "src/mirror-ds/_ds_bundle.js"]
 }

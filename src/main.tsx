@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 // styles.css so cobalt --accent / #111 --ink win over the cream/lime tokens.
 import "./styles.css";
 import "./design/fashini.css";
+import "./mirror-ds/tokens.css";
 import App from "./App";
 import { EntranceScreen } from "./EntranceScreen";
 import { StaffConsole } from "./StaffConsole";

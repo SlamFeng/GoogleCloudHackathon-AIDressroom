@@ -1,0 +1,7 @@
+/* Aggregated Fashini Mirror design-system tokens (fonts loaded by the app). */
+@import "./tokens/base.css";
+@import "./tokens/colors.css";
+@import "./tokens/glass.css";
+@import "./tokens/motion.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
