@@ -1,26 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
-// A small shopping-guide "pet" that appears in the corner during the realtime
-// try-on. It voices the agent's lines via a speech bubble and reacts with simple
-// emotion (idle bob / talking pulse / happy bounce). It animates in on entry and
-// out on exit (e.g. after purchase), and is purely presentational.
-
+// The business moods stay stable while the sprite rows own the visual motion.
 export type PetMood = "idle" | "listening" | "working" | "talking" | "happy";
 
-const FACE: Record<PetMood, string> = {
-  idle: "🐱",
-  listening: "😺",
-  working: "😼",
-  talking: "😺",
-  happy: "😻"
+const FRAME_WIDTH = 72;
+const FRAME_HEIGHT = 78;
+const ATLAS_COLUMNS = 8;
+const ATLAS_ROWS = 9;
+
+const MOOD_SPRITES: Record<PetMood, { row: number; frames: number; durationMs: number }> = {
+  idle: { row: 0, frames: 6, durationMs: 1800 },
+  listening: { row: 6, frames: 6, durationMs: 1000 },
+  working: { row: 8, frames: 6, durationMs: 900 },
+  talking: { row: 3, frames: 4, durationMs: 720 },
+  // The project atlas replaces the unused generic-running row with heart eyes.
+  happy: { row: 7, frames: 6, durationMs: 1000 }
 };
 
-const ANIM: Record<PetMood, string> = {
-  idle: "pet-bob 2.6s ease-in-out infinite",
-  listening: "pet-listen 1.1s ease-in-out infinite",
-  working: "pet-work .8s ease-in-out infinite",
-  talking: "pet-talk .5s ease-in-out infinite",
-  happy: "pet-bounce .6s ease"
+type SpriteStyle = CSSProperties & {
+  "--pet-end-x": string;
 };
 
 export function GuidePet({
@@ -43,17 +41,28 @@ export function GuidePet({
     }
     if (rendered) {
       setLeaving(true);
-      const timer = setTimeout(() => {
+      const timer = window.setTimeout(() => {
         setRendered(false);
         setLeaving(false);
       }, 420);
-      return () => clearTimeout(timer);
+      return () => window.clearTimeout(timer);
     }
   }, [visible, rendered]);
 
   if (!rendered) return null;
 
-  const faceAnim = ANIM[mood];
+  const sprite = MOOD_SPRITES[mood];
+  const spriteStyle: SpriteStyle = {
+    width: FRAME_WIDTH,
+    height: FRAME_HEIGHT,
+    backgroundImage: "url(/pets/mochi/spritesheet.webp)",
+    backgroundRepeat: "no-repeat",
+    backgroundSize: `${ATLAS_COLUMNS * FRAME_WIDTH}px ${ATLAS_ROWS * FRAME_HEIGHT}px`,
+    backgroundPositionY: -sprite.row * FRAME_HEIGHT,
+    imageRendering: "pixelated",
+    animation: `pet-sprite ${sprite.durationMs}ms steps(${sprite.frames}, end) infinite`,
+    "--pet-end-x": `${-sprite.frames * FRAME_WIDTH}px`
+  };
 
   return (
     <div
@@ -74,7 +83,8 @@ export function GuidePet({
       {message && (
         <div
           style={{
-            maxWidth: 280,
+            width: "max-content",
+            maxWidth: "min(280px, calc(100vw - 40px))",
             background: "rgba(18,18,22,.92)",
             color: "#fff",
             padding: "10px 14px",
@@ -88,9 +98,12 @@ export function GuidePet({
           {message}
         </div>
       )}
-      <div style={{ fontSize: 56, filter: "drop-shadow(0 6px 10px rgba(0,0,0,.28))", animation: faceAnim }}>
-        {FACE[mood]}
-      </div>
+      <div
+        key={mood}
+        className="guide-pet-sprite"
+        aria-hidden="true"
+        style={spriteStyle}
+      />
     </div>
   );
 }
@@ -98,9 +111,8 @@ export function GuidePet({
 const PET_CSS = `
 @keyframes pet-in { from { transform: translateY(48px) scale(.5); opacity: 0 } to { transform: none; opacity: 1 } }
 @keyframes pet-out { from { transform: none; opacity: 1 } to { transform: translateY(48px) scale(.5); opacity: 0 } }
-@keyframes pet-bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
-@keyframes pet-listen { 0%,100% { transform: rotate(-6deg) scale(1.02) } 50% { transform: rotate(6deg) scale(1.06) } }
-@keyframes pet-work { 0%,100% { transform: translateX(0) rotate(0) } 25% { transform: translateX(-3px) rotate(-8deg) } 75% { transform: translateX(3px) rotate(8deg) } }
-@keyframes pet-talk { 0%,100% { transform: scale(1) } 50% { transform: scale(1.13) } }
-@keyframes pet-bounce { 0% { transform: scale(1) } 30% { transform: scale(1.32) rotate(-7deg) } 60% { transform: scale(.94) rotate(5deg) } 100% { transform: scale(1) } }
+@keyframes pet-sprite { from { background-position-x: 0 } to { background-position-x: var(--pet-end-x) } }
+@media (prefers-reduced-motion: reduce) {
+  .guide-pet-sprite { animation: none !important; }
+}
 `;

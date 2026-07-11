@@ -23,3 +23,7 @@ venv/
 
 # image_tryon generation output
 image_tryon/_generated/
+
+# Pet-pack tooling artifacts / source exports (runtime asset lives in public/pets)
+output/
+exports/
