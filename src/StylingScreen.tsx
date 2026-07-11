@@ -26,11 +26,11 @@ import { useAudioLevel } from "./useAudioLevel";
 import { LiveTranscript } from "./LiveTranscript";
 import { GestureHint } from "./GestureHint";
 import { GestureReadBar } from "./GestureReadBar";
+import { LookStrip } from "./mirror-ds/components/looks/LookStrip";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
 import { RecTypeLabel } from "./design/components/agent/RecTypeLabel";
-import { FeedbackTags, type FeedbackTag } from "./design/components/forms/FeedbackTags";
 
 // The App's Copy type is a large translation record; we only ever read from it
 // loosely here (headings come from the mirror type scale), so accept it broadly.
@@ -52,6 +52,14 @@ const LINE_RESERVED = "已预留，给你送到试衣间。";
 // Spoken when the customer smiles at their try-on reflection (expression → TTS).
 const LINE_COMPLIMENT = "哎呀，你好像很开心！看来这套很适合你～";
 const AGENT_LINES = [LINE_LOOKS_READY, LINE_ON_YOU, LINE_RESTYLED, LINE_RESERVED, LINE_COMPLIMENT];
+
+// Rec-type → a short Chinese label shown on the look strip.
+const REC_LABEL: Record<string, string> = {
+  explicit_need: "你的需求",
+  similar: "同款风格",
+  style: "造型推荐",
+  seasonal: "当季精选"
+};
 
 // Each "thinking" step stays on screen at least this long, so even a fast
 // (cache-hit) turn visibly walks step-by-step instead of snapping to done.
@@ -822,74 +830,52 @@ export function StylingScreen({
         {/* Three looks as a compact strip — switch with fingers 1·2·3, still see yourself. */}
         {hasSets && !working && (
           <div className="mirror-looks">
-            <div className="mirror-looks-tabs" role="tablist">
-              {recommendationSets.map((set, index) => (
-                <button
-                  key={set.set_id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedSet?.set_id === set.set_id}
-                  className={`mirror-looks-tab ${selectedSet?.set_id === set.set_id ? "on" : ""} ${
-                    gesture.armedChoice === index ? "arming" : ""
-                  }`}
-                  style={{ ["--dwell-ms" as string]: "700ms" }}
-                  onClick={() => setSelectedSetId(set.set_id)}
-                >
-                  {gesture.armedChoice === index && (
-                    <span className="mirror-looks-arm" aria-hidden="true" />
-                  )}
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-
-            {selectedSet && (
-              <div className="mirror-look">
-                <div className="mirror-look-head">
-                  <RecTypeLabel recType={selectedSet.rec_type} />
-                  <PriceTag amount={selectedTotal} />
-                </div>
-                <div className="mirror-look-thumbs">
-                  {selectedSet.products.map((product) => (
-                    <span className="mirror-look-thumb" key={product.product_id} title={product.name}>
-                      {product.image_url && (
-                        <img src={product.image_url} alt={product.name} loading="lazy" />
-                      )}
-                    </span>
-                  ))}
-                </div>
-                <div className="mirror-look-actions">
-                  <Button
-                    variant="secondary"
-                    disabled={!agentSessionId || busyAction !== null}
-                    onClick={() => handlePreview(selectedSet)}
-                  >
-                    Try it on
-                  </Button>
-                  <Button
-                    variant="primary"
-                    iconRight={<span aria-hidden="true">→</span>}
-                    disabled={busyAction !== null}
-                    onClick={() => setShowConfirm(true)}
-                  >
-                    Choose
-                  </Button>
-                </div>
-                <FeedbackTags
-                  disabled={!agentSessionId || busyAction !== null}
-                  onSelect={(tag: FeedbackTag) => {
-                    const action = feedbackActions.find((item) => item.dimension === tag.dimension);
-                    if (action) handleFeedback(action);
-                  }}
-                />
-              </div>
-            )}
-
-            {gestureOn ? (
-              <GestureHint active={gesture.armedChoice !== null ? "pick" : null} />
-            ) : (
-              <div className="mirror-hint-line">点数字切换套装</div>
-            )}
+            <LookStrip
+              looks={recommendationSets.map((set) => ({
+                id: set.set_id,
+                recType: set.rec_type,
+                recLabel: REC_LABEL[set.rec_type] ?? set.rec_type,
+                totalYen: set.products.reduce((sum, p) => sum + p.price_yen, 0),
+                items: set.products.map((product) => ({
+                  id: product.product_id,
+                  name: product.name,
+                  category: product.category,
+                  imageUrl: product.image_url,
+                  price_yen: product.price_yen
+                }))
+              }))}
+              activeIndex={Math.max(
+                0,
+                recommendationSets.findIndex((s) => s.set_id === selectedSet?.set_id)
+              )}
+              onSelect={(index) => {
+                const s = recommendationSets[index];
+                if (s) setSelectedSetId(s.set_id);
+              }}
+              armedIndex={gesture.armedChoice}
+              dwellMs={gesture.dwellMs}
+              disabled={busyAction !== null}
+              onTryOn={(_look, index) => {
+                const s = recommendationSets[index];
+                if (s && agentSessionId && busyAction === null) {
+                  setSelectedSetId(s.set_id);
+                  handlePreview(s);
+                }
+              }}
+              onChoose={(_look, index) => {
+                const s = recommendationSets[index];
+                if (s) {
+                  setSelectedSetId(s.set_id);
+                  setShowConfirm(true);
+                }
+              }}
+              onFeedback={(tag) => {
+                const action = feedbackActions.find((item) => item.dimension === tag.dimension);
+                if (action) handleFeedback(action);
+              }}
+              hint={gestureOn ? "1·2·3 切换 · 👍 试穿 · ✊ 返回" : "点数字切换套装"}
+            />
+            {gestureOn && <GestureHint active={gesture.armedChoice !== null ? "pick" : null} />}
           </div>
         )}
 
