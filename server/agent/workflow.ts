@@ -11,7 +11,7 @@ import type {
 } from "./contracts.js";
 import { MockAgentTools } from "./mock-tools.js";
 import { parseFeedback } from "./parsers.js";
-import { classifyIntent, extractNeed } from "./reasoning.js";
+import { classifyIntent, extractNeed, extractSwapSlot } from "./reasoning.js";
 import { requestTryonGeneration } from "./tryon-adapter.js";
 import { createInitialAgentState, type AgentState } from "./state.js";
 import type {
@@ -78,8 +78,11 @@ export class AgentWorkflow {
     state.user_need = need;
     mergeParsedNeedIntoConstraints(state, state.user_need);
 
+    // Always offer three distinct looks. Even when the customer states an
+    // explicit need, anchor the first set to it and round out with style +
+    // seasonal variety rather than showing a single lonely card.
     const requestedTypes: RecommendationType[] =
-      route === "explicit" ? ["explicit_need"] : ["similar", "style", "seasonal"];
+      route === "explicit" ? ["explicit_need", "style", "seasonal"] : ["similar", "style", "seasonal"];
     const response = await this.callGetRecommendations(state, requestedTypes);
     return {
       state,
@@ -470,7 +473,14 @@ export class AgentWorkflow {
       state.errors.push("recommendation_set_not_found");
       return { state, output: { type: "failed", reason: "recommendation_set_not_found" } };
     }
-    const category = normalizeSlot(categoryRaw);
+    // Re-resolve the slot from the customer's own words with the model — it
+    // handles multi-slot + negation ("不是上衣换" → outerwear) that the client's
+    // keyword guess (carried in categoryRaw) gets wrong. Client guess is the
+    // fallback when the model is unavailable / declines.
+    const availableSlots = Array.from(new Set(previous.products.map((product) => product.category)));
+    const rawVoice = feedback.raw_voice_text ?? "";
+    const resolved = rawVoice ? await extractSwapSlot(rawVoice, availableSlots) : null;
+    const category = normalizeSlot(resolved ?? undefined) ?? normalizeSlot(categoryRaw);
     if (!category) {
       return { state, output: { type: "failed", reason: "swap_category_unknown" } };
     }

@@ -603,10 +603,10 @@ export function StylingScreen({
         setCustomerNeed(said);
         // "不喜欢上衣，其余都不错" → swap just that slot in the current look,
         // rather than starting a whole new recommendation.
+        // Consider every slot (not just the ones in this look) — the server
+        // re-resolves the exact slot with the model and can add-or-replace.
         const slot =
-          !tryonActive && selectedSet
-            ? detectSlotSwap(said, selectedSet.products.map((product) => product.category))
-            : null;
+          !tryonActive && selectedSet ? detectSlotSwap(said, Object.keys(SLOT_LABEL)) : null;
         if (slot) handleSwapSlot(slot, said);
         else handleStyleMe(said);
       });
