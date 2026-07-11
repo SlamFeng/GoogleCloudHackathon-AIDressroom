@@ -700,7 +700,7 @@ function App() {
             copy={copy}
             captureDataUrl={captureDataUrl}
             onBack={() => setStep("profile")}
-            onComplete={() => setStep("complete")}
+            onComplete={reset}
           />
         )}
         {step === "complete" && analysis && (

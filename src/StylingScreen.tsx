@@ -166,6 +166,7 @@ export function StylingScreen({
   const [error, setError] = useState<string | null>(null);
   const [toolPhase, setToolPhase] = useState<ToolPhase>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [reservedSet, setReservedSet] = useState<RecommendationSet | null>(null);
   // "cover" fills the frame (immersive, crops the sides); "contain" shows the
   // camera's whole wide frame (better on a narrow laptop webcam).
   const [feedFit, setFeedFit] = useState<"cover" | "contain">("cover");
@@ -466,11 +467,11 @@ export function StylingScreen({
       });
       applyRun(response);
       speech.speak(LINE_RESERVED);
-      // Farewell: the pet waves off with its exit animation before the screen
-      // moves on (purchase complete = the pet's cue to leave).
       setPetMessage(LINE_RESERVED);
       setPetLeaving(true);
-      window.setTimeout(onComplete, 520);
+      // Show the dark-glass checkout (not the old light handoff screen).
+      setReservedSet(selectedSet);
+      setShowConfirm(false);
     });
   }
 
@@ -720,6 +721,37 @@ export function StylingScreen({
                 Choose this
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout / settlement — dark glass, shown after the outfit is reserved. */}
+      {reservedSet && (
+        <div className="mirror-checkout">
+          <div className="mirror-checkout-card">
+            <div className="checkout-mark" aria-hidden="true">✓</div>
+            <MicroLabel>已预留</MicroLabel>
+            <h2 className="checkout-title">这套帮你留好了</h2>
+            <div className="checkout-lines">
+              {reservedSet.products.map((product) => (
+                <div className="checkout-line" key={product.product_id}>
+                  <span>{product.name}</span>
+                  <PriceTag amount={product.price_yen} size="md" />
+                </div>
+              ))}
+            </div>
+            <div className="checkout-total">
+              <span>合计</span>
+              <PriceTag
+                amount={reservedSet.products.reduce((sum, p) => sum + p.price_yen, 0)}
+                size="lg"
+                countUp
+              />
+            </div>
+            <p className="checkout-note">已送到你的试衣间，试好直接带走即可。</p>
+            <Button variant="primary" size="lg" block onClick={onComplete}>
+              完成
+            </Button>
           </div>
         </div>
       )}
