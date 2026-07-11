@@ -127,10 +127,15 @@ export function useGestureControl({
             : label === "Closed_Fist"
               ? "back"
               : null;
-      if (action && now > cooldownUntil) {
-        cooldownUntil = now + 1500;
+      // While a named gesture (👍/✋/✊) is shown, NEVER run finger-count
+      // selection — otherwise a stray extended finger during the 👍 pose would
+      // re-pick an option and clobber the choice just made. Fire only off cooldown.
+      if (action) {
         clearArm();
-        onGestureRef.current(action);
+        if (now > cooldownUntil) {
+          cooldownUntil = now + 1500;
+          onGestureRef.current(action);
+        }
         return;
       }
 
