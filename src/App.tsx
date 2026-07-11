@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./design/screens/mirror.css";
 import { analyzeCapture, confirmAnalysis, createSession, prewarmTrends } from "./api";
 import { StylingScreen } from "./StylingScreen";
+import { MirrorProfile } from "./MirrorProfile";
 import type {
   AnalysisHandoff,
   AppStep,
@@ -12,8 +13,6 @@ import { useCameraCapture } from "./useCameraCapture";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PrivacyChip } from "./design/components/status/PrivacyChip";
-import { SegmentedControl } from "./design/components/forms/SegmentedControl";
-import { NumberField } from "./design/components/forms/NumberField";
 import { Checkbox } from "./design/components/forms/Checkbox";
 import { LanguageSwitch } from "./design/components/forms/LanguageSwitch";
 import { TryOnStage } from "./design/components/tryon/TryOnStage";
@@ -581,12 +580,13 @@ function App() {
   // analysis turns the manual profile (gender/age/height/weight) into a
   // schema-valid `analysis` for the styling screen; the try-on later grabs a
   // live frame from the mirror instead of an OOTD capture.
-  async function skipToStyling() {
+  async function skipToStyling(profile: ManualProfile = manualProfile) {
     const PLACEHOLDER_IMAGE =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
     setError(null);
+    setManualProfile(profile);
     // Kick off the background trend search from the profile just entered.
-    void prewarmTrends(manualProfile.gender_presentation, manualProfile.age_range);
+    void prewarmTrends(profile.gender_presentation, profile.age_range);
     try {
       let sid = sessionId;
       if (!sid) {
@@ -594,7 +594,7 @@ function App() {
         sid = session.session_id;
         setSessionId(sid);
       }
-      const result = await analyzeCapture(sid, manualProfile, PLACEHOLDER_IMAGE, "mock");
+      const result = await analyzeCapture(sid, profile, PLACEHOLDER_IMAGE, "mock");
       setCaptureDataUrl(null); // no OOTD photo — the try-on uses a live mirror frame
       setAnalysis(result);
       setStep("styling");
@@ -664,13 +664,7 @@ function App() {
           />
         )}
         {step === "profile" && (
-          <ProfileForm
-            copy={copy}
-            value={manualProfile}
-            onChange={setManualProfile}
-            onBack={() => setStep("consent")}
-            onContinue={() => void skipToStyling()}
-          />
+          <MirrorProfile onBack={() => setStep("consent")} onDone={(profile) => void skipToStyling(profile)} />
         )}
         {step === "capture" && (
           <CameraStage
@@ -789,92 +783,6 @@ function Consent({
           onClick={onContinue}
         >
           {copy.consent.continue}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function ProfileForm({
-  copy,
-  value,
-  onChange,
-  onBack,
-  onContinue
-}: {
-  copy: Copy;
-  value: ManualProfile;
-  onChange: (value: ManualProfile) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  const valid =
-    value.height_cm >= 100 &&
-    value.height_cm <= 230 &&
-    value.weight_kg >= 25 &&
-    value.weight_kg <= 250;
-
-  return (
-    <section className="m-panel">
-      <MicroLabel>{copy.profile.step}</MicroLabel>
-      <h2>{copy.profile.title}</h2>
-      <p className="m-intro">{copy.profile.intro}</p>
-      <div className="m-form">
-        <label>
-          <span className="fl">{copy.profile.height}</span>
-          <NumberField
-            value={value.height_cm}
-            onChange={(height_cm) => onChange({ ...value, height_cm })}
-            unit="cm"
-            min={100}
-            max={230}
-          />
-        </label>
-        <label>
-          <span className="fl">{copy.profile.weight}</span>
-          <NumberField
-            value={value.weight_kg}
-            onChange={(weight_kg) => onChange({ ...value, weight_kg })}
-            unit="kg"
-            min={25}
-            max={250}
-          />
-        </label>
-      </div>
-      <div className="fl2">{copy.profile.gender}</div>
-      <SegmentedControl
-        size="lg"
-        value={value.gender_presentation}
-        onChange={(gender) =>
-          onChange({ ...value, gender_presentation: gender as ManualProfile["gender_presentation"] })
-        }
-        options={[
-          { value: "female", label: copy.profile.genderOptions.female },
-          { value: "male", label: copy.profile.genderOptions.male },
-          { value: "neutral", label: copy.profile.genderOptions.neutral }
-        ]}
-      />
-      <div className="fl2">{copy.profile.age}</div>
-      <SegmentedControl
-        size="lg"
-        value={value.age_range}
-        onChange={(age_range) =>
-          onChange({ ...value, age_range: age_range as ManualProfile["age_range"] })
-        }
-        options={["18-25", "26-35", "36-45", "46+"]}
-      />
-      <div className="m-actions">
-        <Button variant="text" onClick={onBack}>
-          {copy.common.back}
-        </Button>
-        <Button
-          variant="primary"
-          size="lg"
-          disabled={!valid}
-          iconRight={<span aria-hidden="true">→</span>}
-          onClick={onContinue}
-        >
-          {copy.profile.continue}
         </Button>
       </div>
     </section>
