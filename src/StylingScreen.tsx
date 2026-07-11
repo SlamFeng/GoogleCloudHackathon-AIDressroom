@@ -209,6 +209,9 @@ export function StylingScreen({
 }) {
   const [run, setRun] = useState<AgentRunResponse | null>(null);
   const [customerNeed, setCustomerNeed] = useState(defaultCustomerNeed);
+  // What the customer has said this session — kept only in memory, shown top-right
+  // as conversation context (most-recent first). Not persisted.
+  const [utterances, setUtterances] = useState<string[]>([]);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [lastPreviewPayload, setLastPreviewPayload] = useState<LucyRealtimeTryonPayload | null>(
     null
@@ -592,6 +595,12 @@ export function StylingScreen({
       ? "speaking"
       : "idle";
 
+  // While the customer is talking (✋ / mic), take over the whole screen with the
+  // same describe-your-need voice UI — hide the looks list so it's a focused
+  // conversation, not a cluttered overlay. Not during a full-bleed try-on.
+  const talking = stt.listening;
+  const showVoice = (voiceMode || talking) && !tryonActive;
+
   // Voice-first: a tap (or gesture) starts listening; the next one stops and
   // submits what was heard. No big form — just the mirror and your voice.
   function toggleVoice() {
@@ -601,6 +610,7 @@ export function StylingScreen({
       void stt.stopAndFlush().then((said) => {
         if (!said) return;
         setCustomerNeed(said);
+        setUtterances((prev) => [said, ...prev].slice(0, 4));
         // "不喜欢上衣，其余都不错" → swap just that slot in the current look,
         // rather than starting a whole new recommendation.
         // Consider every slot (not just the ones in this look) — the server
@@ -748,6 +758,21 @@ export function StylingScreen({
         </div>
       )}
 
+      {/* Conversation context — what the customer has said, kept top-right so the
+          mirror visibly "remembers" it while they talk. In-memory only. */}
+      {showVoice && utterances.length > 0 && (
+        <aside className="mirror-context" aria-label="对话上下文">
+          <span className="mirror-context-label">刚才你说</span>
+          <ul>
+            {utterances.slice(0, 3).map((line, index) => (
+              <li key={`${index}-${line}`} data-recent={index === 0 ? "true" : undefined}>
+                “{line}”
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
+
       {/* Full-bleed Lucy try-on: the customer sees themselves wearing the look. */}
       {tryonActive && (
         <div
@@ -857,7 +882,7 @@ export function StylingScreen({
       <div
         className="mirror-content"
         data-dim={tryonActive ? "true" : undefined}
-        data-mode={voiceMode ? "voice" : "sheet"}
+        data-mode={showVoice ? "voice" : "sheet"}
       >
         <div className="mirror-topbar">
           <button className="mirror-back" type="button" onClick={onBack} aria-label="Back">
@@ -912,9 +937,14 @@ export function StylingScreen({
 
         {error && <div className="styling-error">{error}</div>}
 
-        {/* Idle: just a floating mic (tap or ✋ to talk). */}
-        {voiceMode && (
+        {/* Voice-first panel — the describe-your-need UI. Shown when idle (no
+            looks yet) AND whenever the customer is talking, so ✋ over a look
+            list becomes a focused conversation instead of a cluttered overlay. */}
+        {showVoice && (
           <div className="mirror-voice">
+            <div className="mirror-voice-title">
+              {hasSets ? "想调整什么？说给我听～" : "想找点什么？和我说说～"}
+            </div>
             <LiveTranscript text={stt.transcript} listening={stt.listening} />
             <div className="mirror-talk-wrap">
               <VoiceAura
@@ -937,14 +967,16 @@ export function StylingScreen({
               {stt.listening ? "我在听，说完点一下发送～" : "点麦克风，或做手势说话"}
             </div>
             {gestureOn && <GestureHint only={["talk"]} active={stt.listening ? "talk" : null} />}
-            <button
-              className="mirror-voice-skip"
-              type="button"
-              disabled={busyAction !== null}
-              onClick={() => handleStyleMe(defaultCustomerNeed)}
-            >
-              Just pick for me →
-            </button>
+            {!hasSets && (
+              <button
+                className="mirror-voice-skip"
+                type="button"
+                disabled={busyAction !== null}
+                onClick={() => handleStyleMe(defaultCustomerNeed)}
+              >
+                Just pick for me →
+              </button>
+            )}
           </div>
         )}
 
@@ -957,8 +989,9 @@ export function StylingScreen({
           </div>
         )}
 
-        {/* Three looks as a compact strip — switch with fingers 1·2·3, still see yourself. */}
-        {hasSets && !working && (
+        {/* Three looks as a compact strip — switch with fingers 1·2·3, still see
+            yourself. Hidden while talking so the voice panel owns the screen. */}
+        {hasSets && !working && !talking && (
           <div className="mirror-looks">
             <LookStrip
               looks={recommendationSets.map((set) => ({
@@ -1010,7 +1043,7 @@ export function StylingScreen({
         )}
 
         {/* Confirm summary. */}
-        {showConfirm && selectedSet && (
+        {showConfirm && selectedSet && !talking && (
           <div className="styling-confirm">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <RecTypeLabel recType={selectedSet.rec_type} />

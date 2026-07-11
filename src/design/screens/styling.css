@@ -993,6 +993,70 @@ img.mirror-tryon-remote {
   pointer-events: none;
 }
 
+/* Voice panel heading — the "describe your need" prompt above the aura. */
+.mirror-voice-title {
+  text-align: center;
+  font-size: 19px;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.92);
+  margin-bottom: 6px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  animation: mirror-context-in 0.4s ease both;
+}
+
+/* Conversation context — floating top-right glass card of what was said. */
+.mirror-context {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  z-index: 8;
+  max-width: min(320px, 42vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(12, 14, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(16px) saturate(1.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: mirror-context-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mirror-context-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+.mirror-context-label {
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(61, 82, 255, 0.9);
+}
+.mirror-context ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mirror-context li {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.52);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.mirror-context li[data-recent="true"] {
+  color: rgba(255, 255, 255, 0.94);
+  font-weight: 500;
+}
+
 /* Checkout / settlement — dark-glass card over a dimmed reflection. */
 .mirror-checkout {
   position: absolute;
