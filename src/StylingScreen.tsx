@@ -23,6 +23,8 @@ import { useExpression } from "./useExpression";
 import { GuidePet, type PetMood } from "./GuidePet";
 import { VoiceAura, type VoiceAuraState } from "./VoiceAura";
 import { useAudioLevel } from "./useAudioLevel";
+import { LiveTranscript } from "./LiveTranscript";
+import { GestureHint } from "./GestureHint";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -765,7 +767,7 @@ export function StylingScreen({
         {/* Idle: just a floating mic (tap or ✋ to talk). */}
         {voiceMode && (
           <div className="mirror-voice">
-            {stt.listening && <div className="mirror-caption">{stt.transcript || "…"}</div>}
+            <LiveTranscript text={stt.transcript} listening={stt.listening} />
             <div className="mirror-talk-wrap">
               <VoiceAura
                 state={auraState}
@@ -784,14 +786,9 @@ export function StylingScreen({
               </button>
             </div>
             <div className="mirror-voice-hint">
-              {stt.listening
-                ? "Listening… tap to send"
-                : stt.supported
-                  ? gestureOn
-                    ? "Tap or ✋ to talk"
-                    : "Tap to tell me what you're after"
-                  : "Tap to get three looks"}
+              {stt.listening ? "我在听，说完点一下发送～" : "点麦克风，或做手势说话"}
             </div>
+            {gestureOn && <GestureHint only={["talk"]} active={stt.listening ? "talk" : null} />}
             <button
               className="mirror-voice-skip"
               type="button"
@@ -878,9 +875,11 @@ export function StylingScreen({
               </div>
             )}
 
-            <div className="mirror-hint-line">
-              {gestureOn ? "1·2·3 switch · 👍 try on · ✊ back · ✋ talk" : "Tap a number to switch looks"}
-            </div>
+            {gestureOn ? (
+              <GestureHint active={gesture.armedChoice !== null ? "pick" : null} />
+            ) : (
+              <div className="mirror-hint-line">点数字切换套装</div>
+            )}
           </div>
         )}
 

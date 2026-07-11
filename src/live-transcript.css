@@ -1,0 +1,38 @@
+.live-transcript {
+  max-width: 90%;
+  margin: 0 auto;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(5, 5, 7, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.lt-unit {
+  display: inline-block;
+  animation: lt-word-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.lt-dots {
+  color: rgba(255, 255, 255, 0.6);
+}
+@keyframes lt-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lt-unit {
+    animation: none;
+  }
+}
