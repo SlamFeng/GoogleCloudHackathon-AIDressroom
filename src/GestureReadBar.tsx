@@ -15,19 +15,23 @@ const LABEL: Record<GestureAction, { glyph: string; text: string }> = {
  */
 export function GestureReadBar({
   action,
-  dwellMs = 700
+  dwellMs = 700,
+  labelOverrides
 }: {
   action: GestureAction | null;
   dwellMs?: number;
+  // Relabel a gesture for this context — e.g. in onboarding 👍 means "确定".
+  labelOverrides?: Partial<Record<GestureAction, string>>;
 }) {
   if (!action) return null;
   const label = LABEL[action];
+  const text = labelOverrides?.[action] ?? label.text;
   return (
     <div className="gesture-readbar" role="status">
       <span className="grb-glyph" aria-hidden="true">
         {label.glyph}
       </span>
-      <span className="grb-label">{label.text}</span>
+      <span className="grb-label">{text}</span>
       <span className="grb-track">
         {/* keyed by action so the fill restarts when the held gesture changes */}
         <span key={action} className="grb-fill" style={{ animationDuration: `${dwellMs}ms` }} />

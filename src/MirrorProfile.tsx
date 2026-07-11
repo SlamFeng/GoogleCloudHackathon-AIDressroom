@@ -195,9 +195,14 @@ export function MirrorProfile({
         )}
 
         <div className="mprofile-readbar">
-          <GestureReadBar action={gesture.armedGesture} dwellMs={gesture.dwellMs} />
+          <GestureReadBar
+            action={gesture.armedGesture}
+            dwellMs={gesture.dwellMs}
+            labelOverrides={{ confirm: "确定" }}
+          />
         </div>
         <GestureHint
+          labelOverrides={{ confirm: "确定" }}
           only={step.kind === "height" ? ["talk", "confirm", "back"] : ["pick", "confirm", "back"]}
           active={
             stt.listening

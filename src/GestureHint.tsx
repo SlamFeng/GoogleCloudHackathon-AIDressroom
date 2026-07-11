@@ -18,13 +18,19 @@ const HINTS: { key: GestureHintKey; glyph: string; label: string }[] = [
 export function GestureHint({
   active = null,
   quiet = false,
-  only
+  only,
+  labelOverrides
 }: {
   active?: GestureHintKey | null;
   quiet?: boolean;
   only?: GestureHintKey[];
+  // Relabel a gesture for this context — e.g. in onboarding 👍 means "确定",
+  // not "试穿".
+  labelOverrides?: Partial<Record<GestureHintKey, string>>;
 }) {
-  const hints = only ? HINTS.filter((h) => only.includes(h.key)) : HINTS;
+  const hints = (only ? HINTS.filter((h) => only.includes(h.key)) : HINTS).map((h) =>
+    labelOverrides?.[h.key] ? { ...h, label: labelOverrides[h.key]! } : h
+  );
   return (
     <div className="gesture-hints" role="group" aria-label="手势提示" data-quiet={quiet ? "true" : undefined}>
       {hints.map((hint, index) => (
