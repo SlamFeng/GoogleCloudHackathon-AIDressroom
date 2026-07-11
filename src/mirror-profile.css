@@ -220,3 +220,5 @@
   .mprofile-option-arm { animation: none; clip-path: inset(0 0 0 0); opacity: 0.4; }
   .mprofile-voicebar span { animation: none; width: 100%; }
 }
+
+.mprofile-readbar { display: flex; justify-content: center; }

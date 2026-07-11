@@ -1,0 +1,50 @@
+.gesture-readbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  border-radius: 100px;
+  background: rgba(12, 12, 16, 0.6);
+  border: 1px solid rgba(61, 82, 255, 0.5);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: 0 0 24px -8px rgba(61, 82, 255, 0.6);
+  color: #cdd4ff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: grb-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.grb-glyph {
+  font-size: 15px;
+}
+.grb-track {
+  width: 64px;
+  height: 4px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.grb-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 100px;
+  background: #3d52ff;
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation-name: grb-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes grb-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes grb-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grb-fill { animation-duration: 0.01ms !important; }
+}

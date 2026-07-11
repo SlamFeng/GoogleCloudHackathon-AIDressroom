@@ -5,6 +5,7 @@ import { useMirrorCamera } from "./useMirrorCamera";
 import { useGestureControl } from "./useGestureControl";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 import { GestureHint } from "./GestureHint";
+import { GestureReadBar } from "./GestureReadBar";
 
 // Gesture-driven profile gate, over the live mirror reflection. Each step is
 // either an option list (raise 1/2/3 to pick, dwell fills the choice) or the
@@ -193,6 +194,9 @@ export function MirrorProfile({
           </div>
         )}
 
+        <div className="mprofile-readbar">
+          <GestureReadBar action={gesture.armedGesture} dwellMs={gesture.dwellMs} />
+        </div>
         <GestureHint
           only={step.kind === "height" ? ["talk", "confirm", "back"] : ["pick", "confirm", "back"]}
           active={

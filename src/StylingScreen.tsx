@@ -25,6 +25,7 @@ import { VoiceAura, type VoiceAuraState } from "./VoiceAura";
 import { useAudioLevel } from "./useAudioLevel";
 import { LiveTranscript } from "./LiveTranscript";
 import { GestureHint } from "./GestureHint";
+import { GestureReadBar } from "./GestureReadBar";
 import { Button } from "./design/components/core/Button";
 import { MicroLabel } from "./design/components/core/MicroLabel";
 import { PriceTag } from "./design/components/core/PriceTag";
@@ -704,6 +705,13 @@ export function StylingScreen({
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Read-bar for a held gesture — floats above the sheet. */}
+      {gesture.armedGesture && (
+        <div className="mirror-readbar">
+          <GestureReadBar action={gesture.armedGesture} dwellMs={gesture.dwellMs} />
         </div>
       )}
 

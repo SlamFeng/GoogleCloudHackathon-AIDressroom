@@ -980,3 +980,15 @@ img.mirror-tryon-remote {
 @media (prefers-reduced-motion: reduce) {
   .mirror-bloom { animation: none; opacity: 0; }
 }
+
+/* Held-gesture read-bar floating above the sheet. */
+.mirror-readbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 42%;
+  z-index: 7;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}

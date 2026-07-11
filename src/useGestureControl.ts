@@ -53,6 +53,7 @@ export function useGestureControl({
 }: Options) {
   const [handPresent, setHandPresent] = useState(false);
   const [armedChoice, setArmedChoice] = useState<number | null>(null);
+  const [armedGesture, setArmedGesture] = useState<GestureAction | null>(null);
 
   const onSelectRef = useRef(onSelect);
   const onGestureRef = useRef(onGesture);
@@ -65,6 +66,7 @@ export function useGestureControl({
     if (!enabled) {
       setHandPresent(false);
       setArmedChoice(null);
+      setArmedGesture(null);
       return;
     }
 
@@ -77,6 +79,17 @@ export function useGestureControl({
     let armedStart = 0;
     let firedFor = 0;
     let cooldownUntil = 0;
+    let heldGesture: GestureAction | null = null; // named gesture being held (dwell)
+    let gestureStart = 0;
+    let gestureFired = false;
+
+    function clearGesture() {
+      if (heldGesture !== null) {
+        heldGesture = null;
+        gestureFired = false;
+        setArmedGesture(null);
+      }
+    }
 
     function clearArm() {
       if (armedCount !== 0) {
@@ -110,6 +123,7 @@ export function useGestureControl({
           setHandPresent(false);
         }
         clearArm();
+        clearGesture();
         return;
       }
       if (!handShown) {
@@ -128,16 +142,24 @@ export function useGestureControl({
               ? "back"
               : null;
       // While a named gesture (👍/✋/✊) is shown, NEVER run finger-count
-      // selection — otherwise a stray extended finger during the 👍 pose would
-      // re-pick an option and clobber the choice just made. Fire only off cooldown.
+      // selection — a stray finger in the 👍 pose must not re-pick an option.
+      // The gesture must be HELD for dwellMs (a read-bar fills) before it fires,
+      // so it isn't hair-trigger.
       if (action) {
         clearArm();
-        if (now > cooldownUntil) {
+        if (action !== heldGesture) {
+          heldGesture = action;
+          gestureStart = now;
+          gestureFired = false;
+          setArmedGesture(action);
+        } else if (now - gestureStart >= dwellMs && now > cooldownUntil && !gestureFired) {
+          gestureFired = true;
           cooldownUntil = now + 1500;
           onGestureRef.current(action);
         }
         return;
       }
+      clearGesture();
 
       // Selection by finger count, held steady for dwellMs.
       const count = countFingers(hand);
@@ -173,5 +195,5 @@ export function useGestureControl({
     };
   }, [enabled, dwellMs, videoRef]);
 
-  return { handPresent, armedChoice };
+  return { handPresent, armedChoice, armedGesture, dwellMs };
 }
