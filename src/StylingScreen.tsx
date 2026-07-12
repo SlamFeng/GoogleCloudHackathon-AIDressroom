@@ -1024,8 +1024,10 @@ export function StylingScreen({
         )}
 
         {/* Three looks as a compact strip — switch with fingers 1·2·3, still see
-            yourself. Hidden while talking so the voice panel owns the screen. */}
-        {hasSets && !working && !talking && (
+            yourself. Hidden while talking so the voice panel owns the screen, and
+            while confirming so the confirm card takes its place (the sheet is
+            height-capped and scroll-hidden — stacked below, it was never seen). */}
+        {hasSets && !working && !talking && !showConfirm && (
           <div className="mirror-looks">
             <LookStrip
               looks={recommendationSets.map((set) => ({
